@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <vector>
 #include <span>
 
@@ -9,59 +10,45 @@ namespace EasyLib {
     class MeshConnectivity
     {
     public:
+        using value_type = int_l;
         using ivec = std::vector<int_l>;
 
-        MeshConnectivity();
+        MeshConnectivity() = default;
         MeshConnectivity(const MeshConnectivity&) = default;
         MeshConnectivity& operator=(const MeshConnectivity&) = default;
 
-        void clear()
-        {
-            size_ = 0;
-            ia_   = nullptr;
-            ja_   = nullptr;
+        MeshConnectivity(MeshConnectivity&& mc)noexcept;
+        MeshConnectivity& operator = (MeshConnectivity&& mc)noexcept;
 
-            _ia_.clear();
-            _ja_.clear();
-        }
+        void clear()noexcept;
 
-        void reserve(int max_nrow, int max_ndata)
-        {
-            _ia_.reserve(max_nrow + 1);
-            _ja_.reserve(max_ndata);
-        }
+        void reserve(int_l max_nrow, int_l max_ndata);
 
-        std::span<int> push_back(int n, const int* data)
-        {
-
-        }
-        std::span<int> push_back(int n)
-        {
-
-        }
-        std::span<int> push_back(std::span<const int> data)
-        {
-
-        }
-        std::span<int> push_back(const std::initializer_list<int>& list)
-        {
-
-        }
+        std::span<int_l> push_back(int_l n, const int_l* data = nullptr);
+        std::span<int_l> push_back(std::span<const int_l> data);
+        std::span<int_l> push_back(const std::initializer_list<int_l>& list);
 
         template<size_t N>
-        std::span<int> push_back(const int(&list)[N])
+        std::span<int_l> push_back(const int_l(&list)[N])
         {
             static_assert(N > 0, "invalid array length");
             return this->push_back(N, list);
         }
 
-        inline int nrow()const { return static_cast<int>(ia_.size() - 1); }
-        inline int ndata()const { return static_cast<int>(ja_.size()); }
+        template<size_t N>
+        std::span<int_l> push_back(const std::array<int_l, N>& list)
+        {
+            static_assert(N > 0, "invalid array length");
+            return this->push_back(N, list.data());
+        }
 
-        inline bool empty()const { return ia_.size() == 1; }
+        inline int_l nrow ()const noexcept { return static_cast<int_l>(ia_.size() - 1); }
+        inline int_l ndata()const noexcept { return static_cast<int_l>(ja_.size()); }
 
-        inline const ivec& ia()const { return ia_; }
-        inline const ivec& ja()const { return ja_; }
+        inline bool empty()const noexcept { return ia_.size() == 1; }
+
+        inline const ivec& ia()const noexcept { return ia_; }
+        inline const ivec& ja()const noexcept { return ja_; }
 
         inline std::span<int> operator[](int row)
         {
@@ -90,11 +77,7 @@ namespace EasyLib {
         friend class Communicator;
 
     private:
-        int_l size_{ 0 };
-        const int_l* ia_{ nullptr };
-        const int_l* ja_{ nullptr };
-
-        ivec _ia_;
-        ivec _ja_;
+        ivec ia_{ 0 };
+        ivec ja_;
     };
 }

@@ -1,15 +1,20 @@
 #pragma once
-#include <stdexcept>
-#include <algorithm>
 #include <unordered_map>
+#include <vector>
 
 #include "Index.hpp"
 
 namespace EasyLib {
 
+    class Boundary;
+    class Communicator;
+
     class IndexSet
     {
     public:
+        using local_index_type  = int_l;
+        using global_index_type = int_g;
+
         using imap = std::unordered_map<int_g, int_l>;
         using lvec = std::vector<int_g>;
 
@@ -22,12 +27,18 @@ namespace EasyLib {
         explicit IndexSet(const imap& _g2l);
         explicit IndexSet(imap&& _g2l);
         IndexSet(int_l count, const int_g* global_ids);
-        IndexSet(const lvec& _l2g, const imap _g2l);
+        IndexSet(const lvec& _l2g, const imap& _g2l);
         IndexSet(lvec&& _l2g, imap&& _g2l);
 
         IndexSet(IndexSet&& is)noexcept;
         IndexSet& operator=(IndexSet&& is)noexcept;
 
+        void create(const lvec& global_ids);
+        void create(lvec&& global_ids);
+        void create(const imap& _g2l);
+        void create(imap&& _g2l);
+        void create(const lvec& _l2g, const imap& _g2l);
+        void create(lvec&& _l2g, imap&& _g2l);
         void create(int_l count, const int_g* global_ids);
 
         void clear()noexcept;
@@ -46,14 +57,14 @@ namespace EasyLib {
 
         inline constexpr bool empty()const noexcept { return l2g_.empty(); }
 
-        inline constexpr int_l size()const noexcept { return l2g_.size(); }
+        inline constexpr int_l size()const noexcept { return static_cast<int_l>(l2g_.size()); }
 
         inline constexpr const int_g* data()const { return l2g_.data(); }
 
         inline int_g operator[](int_l i)const { return l2g_[i]; }
 
         inline int_g l2g(int_l i)const { return l2g_.at(i); }
-        inline int   g2l(int_g i)const { return g2l_.at(i); }
+        inline int_l g2l(int_g i)const { return g2l_.at(i); }
 
         friend class Boundary;
         friend class Communicator;
@@ -61,10 +72,10 @@ namespace EasyLib {
     private:
         void build_g2l_();
         void build_l2g_();
+        void check_()const;
 
     private:
         lvec l2g_;
         imap g2l_;
     };
-
 }

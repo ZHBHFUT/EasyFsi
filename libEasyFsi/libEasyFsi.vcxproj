@@ -85,13 +85,34 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Boundary.cpp" />
+    <ClCompile Include="Communicator.cpp" />
+    <ClCompile Include="DistributedBoundary.cpp" />
+    <ClCompile Include="DynamicMatrix.cpp" />
     <ClCompile Include="IndexSet.cpp" />
+    <ClCompile Include="LinAlgs.c" />
+    <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MeshConnectivity.cpp" />
+    <ClCompile Include="SocketCommunicator.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Assert.hpp" />
+    <ClInclude Include="Boundary.hpp" />
+    <ClInclude Include="Communicator.hpp" />
+    <ClInclude Include="DistributedBoundary.hpp" />
+    <ClInclude Include="DynamicMatrix.hpp" />
+    <ClInclude Include="DynamicVector.hpp" />
     <ClInclude Include="Index.hpp" />
     <ClInclude Include="IndexSet.hpp" />
+    <ClInclude Include="KDTree.hpp" />
+    <ClInclude Include="LinAlgs.h" />
+    <ClInclude Include="Logger.hpp" />
     <ClInclude Include="MeshConnectivity.hpp" />
+    <ClInclude Include="ProjectToElement.hpp" />
+    <ClInclude Include="SocketCommunicator.hpp" />
+    <ClInclude Include="TinyMatrix.hpp" />
+    <ClInclude Include="TinyVector.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
