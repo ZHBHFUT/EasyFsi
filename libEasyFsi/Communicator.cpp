@@ -1,8 +1,11 @@
+#include <sstream>
+
 #include "IndexSet.hpp"
 #include "MeshConnectivity.hpp"
 #include "DynamicVector.hpp"
 #include "DynamicMatrix.hpp"
 #include "Boundary.hpp"
+#include "Field.hpp"
 #include "Communicator.hpp"
 
 namespace EasyLib {
@@ -118,6 +121,20 @@ namespace EasyLib {
             if (!send(bound.face_normals().data()->data(), nd * nf, dest_rank, ++tag))return false;
             if (!send(bound.face_types().data(), nf, dest_rank, ++tag))return false;
         }
+
+        //// send number of fields
+        //int_l buf[2] = { static_cast<int_l>(bound.fields_.size()),0 };
+        //if (!send(buf, 1, dest_rank, ++tag))return false;
+        //
+        //// send definition of each field without values.
+        //for (auto& f : bound.fields_) {
+        //    if (!send(f.name, dest_rank, ++tag))return false;
+        //    if (!send(f.units, dest_rank, ++tag))return false;
+        //    buf[0] = f.ncomp;
+        //    buf[1] = f.location;
+        //    if (!send(buf, 2, dest_rank, ++tag))return false;
+        //}
+
         return true;
     }
 
@@ -152,7 +169,26 @@ namespace EasyLib {
             if (!recv(bound.face_types_.data(), nf,  src_rank, ++tag))return false;
         }
 
+        //// recv number of fields
+        //int_l buf[2] = { 0 };
+        //if (!recv(buf, 1, src_rank, ++tag))return false;
+        //
+        //// allocate
+        //bound.fields_.resize(buf[0]);
+        //
+        //// recv definition of each field without values.
+        //for (auto& f : bound.fields_) {
+        //    if (!recv(f.name, src_rank, ++tag))return false;
+        //    if (!recv(f.units, src_rank, ++tag))return false;
+        //    buf[0] = buf[1] = 0;
+        //    if (!recv(buf, 2, src_rank, ++tag))return false;
+        //    f.ncomp = buf[0];
+        //    f.location = (FieldLocation)buf[1];
+        //}
+
         bound.mesh_changed_ = true;
+
+        //? Don't compute metrics here.
         //bound.compute_metics();
 
         return true;
@@ -176,4 +212,42 @@ namespace EasyLib {
         return recv(str.data(), len, src_rank, tag + 1);
     }
 
+    bool Communicator::send(const FieldInfo& info, int dest_rank, int tag)
+    {
+        std::ostringstream oss;
+        oss << info.name << '\n'
+            << info.units << '\n'
+            << info.ncomp << ' '
+            << info.location << ' '
+            << info.iotype << ' '
+            << info.time << ' '
+            << (int)info.is_orphan << ' '
+            << (int)info.is_out_of_date
+            ;
+        return send(oss.str(), dest_rank, tag);
+    }
+
+    bool Communicator::recv(FieldInfo& info, int src_rank, int tag)
+    {
+        std::string str;
+        if (!recv(str, src_rank, tag))return false;
+
+        std::istringstream iss(str);
+
+        std::getline(iss, info.name);
+        std::getline(iss, info.units);
+        int loc = NodeCentered, type = IncomingDofs, orphan = 0, out_of_dat = 0;
+        iss >> info.ncomp
+            >> loc
+            >> type
+            >> info.time
+            >> orphan
+            >> out_of_dat;
+        info.location = (FieldLocation)loc;
+        info.iotype = (FieldIO)type;
+        info.is_orphan = orphan;
+        info.is_out_of_date = out_of_dat;
+
+        return true;
+    }
 }

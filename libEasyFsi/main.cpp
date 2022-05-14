@@ -6,28 +6,29 @@ int main(int argc, char** argv)
 {
     //std::cout << "Hello World!" << std::endl;
 
-    int np = 1;
-    const char* name = "unnamed";
-    bool master = false;
+    //int np = 1;
+    //const char* name = "unnamed";
+    //bool master = false;
+    //
+    //if (argc <= 1)return -1;
 
-    if (argc <= 1)return -1;
-
-    for (int i = 1; i < argc; ++i) {
-        if      (strcmp(argv[i], "-np") == 0) {
-            ++i;
-            np = atoi(argv[i]);
-        }
-        else if (strcmp(argv[i], "-name") == 0) {
-            ++i;
-            name = argv[i];
-        }
-        else if (strcmp(argv[i], "-master") == 0) {
-            master = true;
-        }
-    }
+    //for (int i = 1; i < argc; ++i) {
+    //    if      (strcmp(argv[i], "-np") == 0) {
+    //        ++i;
+    //        np = atoi(argv[i]);
+    //    }
+    //    else if (strcmp(argv[i], "-name") == 0) {
+    //        ++i;
+    //        name = argv[i];
+    //    }
+    //    else if (strcmp(argv[i], "-master") == 0) {
+    //        master = true;
+    //    }
+    //}
     
     EasyLib::SocketCommunicator comm;
-    comm.init(name, master, np);
+    //comm.init(name, master, np);
+    comm.init(argc, (const char**)argv);
 
     std::cout << "np = " << comm.size() << ", rank = " << comm.rank() << '\n';
     std::cout.flush();

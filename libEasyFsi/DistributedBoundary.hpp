@@ -22,6 +22,7 @@ namespace EasyLib {
 
         //! @brief Get assembled full boundary data, will be empty if is not root.
         const Boundary& full_boundary()const noexcept { return full_bound_; }
+        Boundary& full_boundary() noexcept { return full_bound_; }
 
         //! @brief Get local boundary.
         const Boundary& local_boundary()const noexcept { return *local_bound_; }
@@ -33,9 +34,12 @@ namespace EasyLib {
         void scatter_node_fields   (int nfields, const double* global_fields, double* local_fields);
         void scatter_face_fields   (int nfields, const double* global_fields, double* local_fields);
         
-        void allocate_node_fields  (int nfields, double** local_fields, double** global_fields);
-        void allocate_face_fields  (int nfields, double** local_fields, double** global_fields);
-        void delete_fields         (double** local_fields, double** global_fields);
+        //void allocate_node_fields  (int nfields, double** local_fields, double** global_fields);
+        //void allocate_face_fields  (int nfields, double** local_fields, double** global_fields);
+        //void delete_fields         (double** local_fields, double** global_fields);
+
+        //void gather_fields (const char* field_name);
+        //void scatter_fields(const char* field_name);
 
     private:
         Boundary* local_bound_{ nullptr };

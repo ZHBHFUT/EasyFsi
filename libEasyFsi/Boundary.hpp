@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include <set>
+//#include <set>
 
 #include "Index.hpp"
 #include "TinyVector.hpp"
@@ -9,46 +9,50 @@
 #include "MeshConnectivity.hpp"
 #include "KDTree.hpp"
 #include "DynamicMatrix.hpp"
+#include "Field.hpp"
 
 namespace EasyLib {
 
-    //! @brief 边界网格单元形状
+    //! @brief Topology type of face on coupled boundary.
     typedef enum FaceTopo
     {
-        FT_BAR2 = 0,//! 2节点线单元（线性）
-        FT_BAR3,    //! 3节点线单元（二次）
-        FT_TRI3,    //! 3节点三角形单元（线性）
-        FT_TRI6,    //! 6节点三角形单元（二次）
-        FT_QUAD4,   //! 4节点四边形单元（线性）
-        FT_QUAD8,   //! 8节点四边形单元（二次）
-        FT_POLYGON  //! 多边形单元（节点数 > 4)
+        FT_BAR2 = 0,//! 2-nodes linear element
+        FT_BAR3,    //! 3-nodes quadratic element
+        FT_TRI3,    //! 3-nodes linear triangle element
+        FT_TRI6,    //! 6-nodes quadratic triangle element
+        FT_QUAD4,   //! 4-node linear quadrilateral element
+        FT_QUAD8,   //! 8-node quadratic quadrilateral element
+        FT_POLYGON  //! general polygon element (node number > 4)
     }FaceTopo;
-    //! @brief 面周围节点个数
+
+    //! @brief Node number of specific face topology.
     extern const int npf[FT_POLYGON + 1];
-    //! @brief 最大面周围节点个数
+
+    //! @brief Maximum number of face.
     inline constexpr int npf_max = 8;
-    //! @brief 面阶次，1=线性单元，2=二次单元
+
+    //! @brief The order of face, 1=Linear，2=Quadratic
     extern const int face_order[FT_POLYGON + 1];
 
-    //! @brief 边界类型
-    typedef enum ZoneType
-    {
-        ZT_POINTS = 0, //! 离散点集合
-        ZT_CURVE,      //! 曲线
-        ZT_SURFACE,    //! 曲面
-        ZT_VOLUME      //! 体
-    }ZoneType;
-
-    //! @brief 边界形状
+    //! @brief Topology of coupled zone.
     typedef enum ZoneTopo
     {
-        TP_POINT = 0, //! 所有点重合
-        TP_COLINEAR,  //! 所有点共线
-        TP_COPLANER,  //! 所有点共面
-        TP_GENERAL    //! 一般三维空间分布
+        ZT_POINTS = 0, //! Discrete points
+        ZT_CURVE,      //! Curve Zone
+        ZT_SURFACE,    //! Surface Zone
+        ZT_VOLUME      //! Volume Zone
     }ZoneTopo;
 
-    //! @brief 边界数据
+    //! @brief Shape of coupled zone.
+    typedef enum ZoneShape
+    {
+        ZS_POINT = 0, //! All nodes are coincide.
+        ZS_COLINEAR,  //! All nodes are colinear.
+        ZS_COPLANER,  //! All nodes are coplaner.
+        ZS_GENERAL    //! General 3D distribution.
+    }ZoneShape;
+
+    //! @brief Coupled boundary class.
     class Boundary
     {
     public:
@@ -63,8 +67,13 @@ namespace EasyLib {
         Boundary(Boundary&& bd)noexcept;
         Boundary& operator = (Boundary&& bd)noexcept;
 
+        //! @brief Clear all boundary data.
         void clear();
 
+        //! @brief Preallocate memory for fast insertion.
+        //! @param max_node   Maximum node number
+        //! @param max_face   Maximum face number
+        //! @param max_fnodes Maximum face-nodes number
         void reserve(int_l max_node, int_l max_face, int_l max_fnodes);
 
         //! @brief Add a node to boundary, and return it's local index.
@@ -74,6 +83,7 @@ namespace EasyLib {
         //! @param global_id Global unique index of the node, used to distinguish node.
         //! @note Return old id if node with same global index already exists.
         int add_node(double x, double y, double z, int_g global_id = -1);
+
         //! @brief Add a node to boundary, and return it's local index.
         //! @param coord      Coordinates of the node
         //! @param global_id  Global unique index of the node, used to distinguish node.
@@ -86,35 +96,60 @@ namespace EasyLib {
         //! @param fnodes  Local indices of face nodes.
         //! @return Return face index.
         int add_face(FaceTopo type, int count, const int_l* fnodes);
-
         int add_face(FaceTopo type, int count, const int_l* fnodes, double cx, double cy, double cz);
-
         int add_face(FaceTopo type, int count, const int_l* fnodes, const vec3& fcent);
 
         //! @brief Modify node coordinates.
-        //! @param id 
-        //! @param x 
-        //! @param y 
-        //! @param z 
+        //! @param id  Index of the node
+        //! @param x   New x-coordinate of the node.
+        //! @param y   New y-coordinate of the node.
+        //! @param z   New z-coordinate of the node.
         void set_node_coords(int_l id, double x, double y, double z);
 
+        //! @brief Modify face centroid. Used to keep consistent with solver.
+        //! @param face Index of the face
+        //! @param cx   New x-coordinate of the centroid.
+        //! @param cy   New y-coordinate of the centroid.
+        //! @param cz   New z-coordinate of the centroid.
         void set_face_cent(int_l face, double cx, double cy, double cz);
 
+        //! @brief Modify face area. Used to keep consistent with solver.
+        //! @param face Index of the face
+        //! @param sx   New x-component of the area vector.
+        //! @param sy   New y-component of the area vector.
+        //! @param sz   New z-component of the area vector.
         void set_face_area(int_l face, double sx, double sy, double sz);
 
         //! @brief Compute area, normal, centroid of faces, and topo type.
         //! @note This member function should be called after add all nodes and faces, or after modifying all node coordinates.
         void compute_metics(double biased_angle_deg = 5);
 
+        //! @brief Get kdtree of nodes. Used to search nearest nodes.
+        //! @note KDTree is created by \compute_metrics, so it is available only after calling \compute_metrics.
         inline auto& kdtree()const { ASSERT(!mesh_changed_); return kdtree_; }
 
+        //! @brief Compute global IPS/TPS/SPLINE matrix.
         void compute_global_xps_matrix();
 
+        //! @brief Compute global IPS/TPS/SPLINE interpolation coefficients for one point.
+        //! @param [in]  p      Coordinates of the target point.
+        //! @param [out] coeff  Coefficients used to do interpolating.
         void compute_global_xps_interp_coeff(const vec3& p, std::span<double> coeff);
 
-        void compute_local_xps_interp_coeff(const vec3& p, int max_neigh, std::span<int_l> ids, std::span<double> coeff, int& count);
+        //! @brief Compute local IPS/TPS/SPLINE interpolation coefficients for one point.
+        //! @param [in]  p          Coordinates of the target point.
+        //! @param [in]  max_donor  Maximum number of donor points
+        //! @param [out] ids        Index list of donor nodes.
+        //! @param [out] coeff      Coefficients used to do interpolating.
+        //! @param [out] n_donor    Actual number of donor points.
+        void compute_local_xps_interp_coeff(const vec3& p, int max_donor, std::span<int_l> ids, std::span<double> coeff, int& n_donor);
 
-        void compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& count);
+        //! @brief Compute interpolation coefficients for one point using element projection method.
+        //! @param [in]  p        Coordinates of the target point.
+        //! @param [out] ids      Index list of donor nodes.
+        //! @param [out] coeff    Coefficients used to do interpolating.
+        //! @param [out] n_donor  Number of donor points.
+        void compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& n_donor);
 
         //void save(const char* file, const double* node_disp = nullptr)const;
 
@@ -125,7 +160,6 @@ namespace EasyLib {
         //void read_gmsh(const char* file);
 
         inline const vec3& coords_min()const noexcept { ASSERT(!mesh_changed_); return coord_min_; }
-
         inline const vec3& coords_max()const noexcept { ASSERT(!mesh_changed_); return coord_max_; }
 
         inline int_l node_num()const { return nodes_.size(); }
@@ -140,16 +174,23 @@ namespace EasyLib {
         inline const auto& face_normals  ()const { ASSERT(!mesh_changed_); return face_normal_; }
         inline const auto& face_types    ()const { return face_types_; }
 
-        inline ZoneType type()const { ASSERT(!mesh_changed_); return type_; }
-        inline ZoneTopo topo()const { ASSERT(!mesh_changed_); return topo_; }
+        inline auto topo ()const { ASSERT(!mesh_changed_); return topo_; }
+        inline auto shape()const { ASSERT(!mesh_changed_); return shape_; }
 
-        double* allocate_node_fields(int nfields);
-        double* allocate_face_fields(int nfields);
-        void    delete_fields       (double** fields);
+        inline bool is_high_order()const { ASSERT(!mesh_changed_); return is_high_order_; }
+
+        inline auto& get_fields()const { return fields_; }
+
+        Field&       get_field(const char* field_name);
+        const Field& get_field(const char* field_name)const;
 
         friend class Communicator;
         friend class Interpolator;
-        
+        friend class Application;
+
+    private:
+        void register_field(const FieldInfo& fd);
+
     private:
         IndexSet         nodes_;
         MeshConnectivity face_nodes_, node_faces_;
@@ -159,18 +200,22 @@ namespace EasyLib {
         dvec             face_area_;
         vvec             face_normal_;
 
-        ZoneType         type_{ ZT_POINTS };  //! update in add_face()
-        ZoneTopo         topo_{ TP_GENERAL }; //! update in compute_metics()
+        //---------------------------------------------------
+        // Following Data will be ignored by communicator.
+        //---------------------------------------------------
+
+        ZoneTopo         topo_ { ZT_POINTS };  //! update in add_face()
+        ZoneShape        shape_{ ZS_GENERAL }; //! update in compute_metics()
         vec3             coord_min_{ 0,0,0 };
         vec3             coord_max_{ 0,0,0 };
 
-        bool             mesh_changed_{ false };
+        //!@note THe field values will be ignored by communicator.
+        
+        bool             mesh_changed_{ false }; //! 
+        bool             is_high_order_{ false };//! Is all faces are high order element?
 
-        //---------------------------------------------------
-        // data bellow will not be processed by communicator
-        //
+        Fields                   fields_;
 
-        std::set<double*>        fields_;
         KDTree<double, 3, int_l> kdtree_;
 
         TinyMatrix<double, 4> xps_tm_;     //! used to transform point to local CS. update in compute_metics()
@@ -182,5 +227,4 @@ namespace EasyLib {
         dvec                  dbuffer_; //! used for computing XPS interpolation coefficient.
         vvec                  local_xps_points_;
     };
-
 }

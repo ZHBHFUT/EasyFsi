@@ -85,30 +85,39 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Application.cpp" />
     <ClCompile Include="Boundary.cpp" />
     <ClCompile Include="Communicator.cpp" />
     <ClCompile Include="DistributedBoundary.cpp" />
     <ClCompile Include="DynamicMatrix.cpp" />
     <ClCompile Include="IndexSet.cpp" />
+    <ClCompile Include="Interpolator.cpp" />
     <ClCompile Include="LinAlgs.c" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MeshConnectivity.cpp" />
+    <ClCompile Include="MPICommunicator.cpp" />
     <ClCompile Include="SocketCommunicator.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Application.hpp" />
     <ClInclude Include="Assert.hpp" />
     <ClInclude Include="Boundary.hpp" />
     <ClInclude Include="Communicator.hpp" />
+    <ClInclude Include="CoupledRegion.hpp" />
     <ClInclude Include="DistributedBoundary.hpp" />
     <ClInclude Include="DynamicMatrix.hpp" />
     <ClInclude Include="DynamicVector.hpp" />
+    <ClInclude Include="Field.hpp" />
+    <ClInclude Include="FluentCommunicator.hpp" />
     <ClInclude Include="Index.hpp" />
     <ClInclude Include="IndexSet.hpp" />
+    <ClInclude Include="Interpolator.hpp" />
     <ClInclude Include="KDTree.hpp" />
     <ClInclude Include="LinAlgs.h" />
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="MeshConnectivity.hpp" />
+    <ClInclude Include="MPICommunicator.hpp" />
     <ClInclude Include="ProjectToElement.hpp" />
     <ClInclude Include="SocketCommunicator.hpp" />
     <ClInclude Include="TinyMatrix.hpp" />

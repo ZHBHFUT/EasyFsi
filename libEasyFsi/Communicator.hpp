@@ -1,6 +1,6 @@
 #pragma once
+#include <cstdint>
 #include <string>
-#include "Index.hpp"
 
 namespace EasyLib {
 
@@ -9,6 +9,7 @@ namespace EasyLib {
     class DynamicMatrix;
     class MeshConnectivity;
     class Boundary;
+    struct FieldInfo;
 
     class Communicator
     {
@@ -16,21 +17,25 @@ namespace EasyLib {
         Communicator() = default;
         virtual ~Communicator() = default;
 
+        virtual void init(int argc, const char** argv) = 0;
+
         virtual int rank()const noexcept = 0;
 
         virtual int size()const noexcept = 0;
 
-        virtual bool send(const int_l*  data, int count, int dest_rank, int tag) = 0;
-        virtual bool send(const int_g*  data, int count, int dest_rank, int tag) = 0;
-        virtual bool send(const double* data, int count, int dest_rank, int tag) = 0;
-        virtual bool send(const float*  data, int count, int dest_rank, int tag) = 0;
-        virtual bool send(const char*   data, int count, int dest_rank, int tag) = 0;
+        virtual bool send(const int16_t* data, int count, int dest_rank, int tag) = 0;
+        virtual bool send(const int32_t* data, int count, int dest_rank, int tag) = 0;
+        virtual bool send(const int64_t* data, int count, int dest_rank, int tag) = 0;
+        virtual bool send(const double*  data, int count, int dest_rank, int tag) = 0;
+        virtual bool send(const float*   data, int count, int dest_rank, int tag) = 0;
+        virtual bool send(const char*    data, int count, int dest_rank, int tag) = 0;
 
-        virtual bool recv(int_l*  data, int count, int src_rank, int tag) = 0;
-        virtual bool recv(int_g*  data, int count, int src_rank, int tag) = 0;
-        virtual bool recv(double* data, int count, int src_rank, int tag) = 0;
-        virtual bool recv(float*  data, int count, int src_rank, int tag) = 0;
-        virtual bool recv(char*   data, int count, int src_rank, int tag) = 0;
+        virtual bool recv(int16_t* data, int count, int src_rank, int tag) = 0;
+        virtual bool recv(int32_t* data, int count, int src_rank, int tag) = 0;
+        virtual bool recv(int64_t* data, int count, int src_rank, int tag) = 0;
+        virtual bool recv(double*  data, int count, int src_rank, int tag) = 0;
+        virtual bool recv(float*   data, int count, int src_rank, int tag) = 0;
+        virtual bool recv(char*    data, int count, int src_rank, int tag) = 0;
 
         virtual void disconnect() = 0;
 
@@ -57,6 +62,10 @@ namespace EasyLib {
         bool send(const std::string& str, int dest_rank, int tag);
 
         bool recv(std::string& str, int src_rank, int tag);
+
+        bool send(const FieldInfo& info, int dest_rank, int tag);
+
+        bool recv(FieldInfo& info, int src_rank, int tag);
     };
 
 }

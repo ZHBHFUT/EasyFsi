@@ -23,34 +23,49 @@ namespace EasyLib {
         using Communicator::send;
         using Communicator::recv;
 
+        //! @brief Default constructor.
         SocketCommunicator();
 
+        SocketCommunicator(const SocketCommunicator&) = delete;
+        SocketCommunicator& operator = (const SocketCommunicator&) = delete;
+
+        SocketCommunicator(SocketCommunicator&& comm)noexcept;
+        SocketCommunicator& operator = (SocketCommunicator&&)noexcept;
+
+        //! @brief Destructor.
         virtual ~SocketCommunicator();
 
-        //! @brief 初始化套接字通信子
-        //! @param app_name    应用程序名称
-        //! @param as_master   是否作为主节点运行
-        //! @param np          参与通信的应用个数
-        //! @param master_ip   主节点IP地址，默认为本机IP：127.0.0.1
-        //! @param start_port  主节点端口号，默认为 50001
-        //! @param timeout_sec 超时秒数，如果客户端在此规定时间内无法链接到参与的应用则退出，默认为60秒
-        void init(const char* app_name, bool as_master, int np, const char* master_ip = "127.0.0.1", unsigned short start_port = 50001, int timeout_sec = 60);
+        //! @brief Initialize the socket communicator.
+        //! @param app_name    Application name
+        //! @param as_root     Whether to run as the root node
+        //! @param np          Number of applications that participate in communication.
+        //! @param master_ip   The IP address of the root node, default using the local IP address：127.0.0.1
+        //! @param start_port  Port number of the root node，default is 50001.
+        //! @param timeout_sec Timeout value in seconds for connecting to server, default is 60s.
+        //void init(const char* app_name, bool as_root, int np, const char* master_ip = "127.0.0.1", unsigned short start_port = 50001, int timeout_sec = 60);
 
+        void init(int argc, const char** argv)final;
+
+        //! @brief Get rank of current application, zero-based value.
+        //! @return 
         int rank()const noexcept final { return rank_; }
 
+        //! @brief Get the number of applications that participate in communication.
         int size()const noexcept final { return size_; }
 
-        bool send(const int_l* data, int count, int dest_rank, int tag)final;
-        bool send(const int_g* data, int count, int dest_rank, int tag)final;
-        bool send(const double* data, int count, int dest_rank, int tag)final;
-        bool send(const float* data, int count, int dest_rank, int tag)final;
-        bool send(const char* data, int count, int dest_rank, int tag)final;
+        bool send(const int16_t* data, int count, int dest_rank, int tag)final;
+        bool send(const int32_t* data, int count, int dest_rank, int tag)final;
+        bool send(const int64_t* data, int count, int dest_rank, int tag)final;
+        bool send(const double*  data, int count, int dest_rank, int tag)final;
+        bool send(const float*   data, int count, int dest_rank, int tag)final;
+        bool send(const char*    data, int count, int dest_rank, int tag)final;
 
-        bool recv(int_l* data, int count, int src_rank, int tag)final;
-        bool recv(int_g* data, int count, int src_rank, int tag)final;
-        bool recv(double* data, int count, int src_rank, int tag)final;
-        bool recv(float* data, int count, int src_rank, int tag)final;
-        bool recv(char* data, int count, int src_rank, int tag)final;
+        bool recv(int16_t* data, int count, int src_rank, int tag)final;
+        bool recv(int32_t* data, int count, int src_rank, int tag)final;
+        bool recv(int64_t* data, int count, int src_rank, int tag)final;
+        bool recv(double*  data, int count, int src_rank, int tag)final;
+        bool recv(float*   data, int count, int src_rank, int tag)final;
+        bool recv(char*    data, int count, int src_rank, int tag)final;
 
         void disconnect() final;
 
@@ -66,7 +81,7 @@ namespace EasyLib {
     private:
         struct Connection
         {
-            std::string    remote_app_name;
+            //std::string    remote_app_name;
             std::string    remote_host_name;
             std::string    remote_host_ip;
             unsigned short remote_host_port{ 0 };
@@ -76,11 +91,11 @@ namespace EasyLib {
         };
         using cvec = std::vector<Connection>;
 
-        std::string    app_name_; // 当前应用名称
-        std::string    host_name_;// 当前应用所在主机名称
-        std::string    host_ip_;  // 当前应用所在主机IP地址
-        unsigned short host_port_{ 50001 }; // 当前应用服务端端口号
-        bool           is_connected_{ false };// 是否已建立链接
+        //std::string    app_name_;                      // 当前应用名称
+        std::string    host_name_;                     // 当前应用所在主机名称
+        std::string    host_ip_;                       // 当前应用所在主机IP地址
+        unsigned short host_port_{ 50001 };            // 当前应用服务端端口号
+        bool           is_connected_{ false };         // 是否已建立链接
         SOCKET         server_sock_{ INVALID_SOCKET }; // 作为服务端的套接字，对最后一个参与应用无效
         cvec           connections_;
         int            size_{ 1 };

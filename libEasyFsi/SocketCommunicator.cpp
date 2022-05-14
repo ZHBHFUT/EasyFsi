@@ -109,7 +109,7 @@ namespace EasyLib {
     //#error "Platform not supported"
     //#endif
     //}
-    static bool IsValidSocket(SOCKET sock)
+    static bool IsValidSocket(SOCKET sock)noexcept
     {
 #ifdef __linux__
         return sock > 0;
@@ -119,7 +119,7 @@ namespace EasyLib {
 #error "Platform not supported"
 #endif
     }
-    static void CloseSocket(SOCKET sock)
+    static void CloseSocket(SOCKET sock)noexcept
     {
         if (IsValidSocket(sock)) {
 #ifdef __linux__
@@ -196,13 +196,95 @@ namespace EasyLib {
     {
         InitSocket();
     }
+    SocketCommunicator::SocketCommunicator(SocketCommunicator&& comm)noexcept
+        ://app_name_(std::move(comm.app_name_)),
+        host_name_(std::move(comm.host_name_)),
+        host_ip_(std::move(comm.host_ip_)),
+        host_port_(comm.host_port_),
+        is_connected_(comm.is_connected_),
+        server_sock_(std::move(comm.server_sock_)),
+        connections_(std::move(comm.connections_)),
+        size_(comm.size_),
+        rank_(comm.rank_),
+        timeout_(comm.timeout_)
+    {
+        comm.server_sock_ = INVALID_SOCKET;
+        comm.connections_.clear();
+    }
+    SocketCommunicator& SocketCommunicator::operator = (SocketCommunicator&& comm)noexcept
+    {
+        if (&comm != this) {
+            for (auto& c : connections_)if (IsValidSocket(c.socket))CloseSocket(c.socket);
+            if (IsValidSocket(server_sock_))CloseSocket(server_sock_);
+            connections_.clear();
+            server_sock_ = INVALID_SOCKET;
+
+            //app_name_     = std::move(comm.app_name_);
+            host_name_    = std::move(comm.host_name_);
+            host_ip_      = std::move(comm.host_ip_);
+            host_port_    = comm.host_port_;
+            is_connected_ = comm.is_connected_;
+            server_sock_  = std::move(comm.server_sock_);
+            connections_  = std::move(comm.connections_);
+            size_         = comm.size_;
+            rank_         = comm.rank_;
+            timeout_      = comm.timeout_;
+
+            comm.server_sock_ = INVALID_SOCKET;
+            comm.connections_.clear();
+        }
+        return *this;
+    }
     SocketCommunicator::~SocketCommunicator()
     {
         for (auto& c : connections_)if (IsValidSocket(c.socket))CloseSocket(c.socket);
         if (IsValidSocket(server_sock_))CloseSocket(server_sock_);
     }
-    void SocketCommunicator::init(const char* app_name, bool as_master, int np, const char* master_ip/* = "127.0.0.1"*/, unsigned short port/* = 50001*/, int timeout_sec/* = 60*/)
+
+    void SocketCommunicator::init(int argc, const char** argv)
     {
+        bool as_master = false;
+        //const char* app_name = nullptr;
+        const char* master_ip = nullptr;
+        unsigned short port = 50001;
+        int np = 0;
+        int timeout_sec = 60;
+        for (int i = 0; i < argc; ++i) {
+            if      (strcmp(argv[i], "-master") == 0)as_master = true;
+            //else if (strcmp(argv[i], "-app") == 0) {
+            //    ++i;
+            //    if (i >= argc) {
+            //        error("application name is missing");
+            //        return;
+            //    }
+            //    app_name = argv[i];
+            //}
+            else if (strcmp(argv[i], "-np") == 0) {
+                ++i;
+                if (i >= argc) {
+                    error("participator number is missing");
+                    return;
+                }
+                np = atoi(argv[i]);
+            }
+            else if (strcmp(argv[i], "-ip") == 0) {
+                ++i;
+                if (i >= argc) {
+                    error("master IP address is missing");
+                    return;
+                }
+                master_ip = argv[i];
+            }
+            else if (strcmp(argv[i], "-port") == 0) {
+                ++i;
+                if (i >= argc) {
+                    error("master IP address is missing");
+                    return;
+                }
+                port = static_cast<unsigned short>(atoi(argv[i]));
+            }
+        }
+
         debug("  initialize socket communicator\n");
 
         if (as_master && np < 1)error("invalid participator number: %d", np);
@@ -210,10 +292,10 @@ namespace EasyLib {
         for (auto& c : connections_)if (IsValidSocket(c.socket))CloseSocket(c.socket);
         connections_.clear();
 
-        app_name_  = app_name;
+        //app_name_  = app_name;
         host_name_ = GetHostName();
         host_ip_   = GetHostIP(host_name_);
-        
+
         rank_ = as_master ? 0 : -1;
         size_ = as_master ? np : 0;
         timeout_ = timeout_sec;
@@ -223,45 +305,45 @@ namespace EasyLib {
         // init root server
         std::unique_ptr<std::thread> t;
         if (as_master) {
-            host_ip_   = master_ip && *master_ip != '\0' ? master_ip : "127.0.0.1";
+            host_ip_ = master_ip && *master_ip != '\0' ? master_ip : "127.0.0.1";
             host_port_ = port;
-            size_      = np;
+            size_ = np;
             t = std::unique_ptr<std::thread>(new std::thread([this]() {
                 this->init_server0_();
-            }));
+                }));
         }
-        
+
         // init client for root(master)
         init_client0_(master_ip, port, timeout_sec);
 
         // waiting for server initializing.
         if (t.get() && t->joinable())t->join();
-        
+
         // modify server port
         for (int i = 0; i < size_; ++i) {
             auto& p = connections_[i];
             for (int j = i + 1; j < size_; ++j) {
                 auto& q = connections_[j];
                 if (p.remote_host_name == q.remote_host_name) {
-                    q.remote_host_ip   = p.remote_host_ip;
+                    q.remote_host_ip = p.remote_host_ip;
                     q.remote_host_port = p.remote_host_port + static_cast<unsigned short>(j - i);
                 }
             }
         }
         host_name_ = connections_[rank_].remote_host_name;
-        host_ip_   = connections_[rank_].remote_host_ip;
+        host_ip_ = connections_[rank_].remote_host_ip;
         host_port_ = connections_[rank_].remote_host_port;
 
         // init server 
         if (rank_ != 0) {
             t = std::unique_ptr<std::thread>(new std::thread([this]() {
                 this->init_serverX_();
-            }));
+                }));
         }
 
         // connecting
         init_clientX_(timeout_sec);
-        
+
         // waiting for server initializing.
         if (t.get() && t->joinable())t->join();
 
@@ -270,15 +352,15 @@ namespace EasyLib {
         }
 
         info(
-            "\n%4s %20s %20s %12s %5s %6s %5s\n",
-            "RANK", "APP", "HOST", "IP", "PORT", "PID", "ENDIAN"
+            "\n%4s %20s %12s %5s %6s %5s\n",
+            "RANK", "HOST", "IP", "PORT", "PID", "ENDIAN"
         );
         for (int i = 0; i < size_; ++i) {
             auto& c = connections_.at(i);
             info(
-                "%4d %20s %20s %12s %5d %6ld %5d %lld\n",
+                "%4d %20s %12s %5d %6ld %5d %lld\n",
                 i,
-                c.remote_app_name.c_str(),
+                //c.remote_app_name.c_str(),
                 c.remote_host_name.c_str(),
                 c.remote_host_ip.c_str(),
                 (int)c.remote_host_port,
@@ -288,13 +370,18 @@ namespace EasyLib {
             );
         }
     }
-    bool SocketCommunicator::send(const int_l* data, int count, int dest_rank, int tag)
+
+    bool SocketCommunicator::send(const int16_t* data, int count, int dest_rank, int tag)
     {
-        return send_(sizeof(int_l) * count, data, dest_rank, tag);
+        return send_(sizeof(int16_t) * count, data, dest_rank, tag);
     }
-    bool SocketCommunicator::send(const int_g* data, int count, int dest_rank, int tag)
+    bool SocketCommunicator::send(const int32_t* data, int count, int dest_rank, int tag)
     {
-        return send_(sizeof(int_g) * count, data, dest_rank, tag);
+        return send_(sizeof(int32_t) * count, data, dest_rank, tag);
+    }
+    bool SocketCommunicator::send(const int64_t* data, int count, int dest_rank, int tag)
+    {
+        return send_(sizeof(int64_t) * count, data, dest_rank, tag);
     }
     bool SocketCommunicator::send(const double* data, int count, int dest_rank, int tag)
     {
@@ -309,9 +396,9 @@ namespace EasyLib {
         return send_(sizeof(char) * count, data, dest_rank, tag);
     }
 
-    bool SocketCommunicator::recv(int_l* data, int count, int src_rank, int tag)
+    bool SocketCommunicator::recv(int16_t* data, int count, int src_rank, int tag)
     {
-        if (recv_(sizeof(int_l) * count, data, src_rank, tag)) {
+        if (recv_(sizeof(int16_t) * count, data, src_rank, tag)) {
             if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
                 for (int i = 0; i < count; ++i)data[i] = std::byteswap(data[i]);
             }
@@ -319,9 +406,19 @@ namespace EasyLib {
         }
         return false;
     }
-    bool SocketCommunicator::recv(int_g* data, int count, int src_rank, int tag)
+    bool SocketCommunicator::recv(int32_t* data, int count, int src_rank, int tag)
     {
-        if (recv_(sizeof(int_g) * count, data, src_rank, tag)) {
+        if (recv_(sizeof(int32_t) * count, data, src_rank, tag)) {
+            if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
+                for (int i = 0; i < count; ++i)data[i] = std::byteswap(data[i]);
+            }
+            return true;
+        }
+        return false;
+    }
+    bool SocketCommunicator::recv(int64_t* data, int count, int src_rank, int tag)
+    {
+        if (recv_(sizeof(int64_t) * count, data, src_rank, tag)) {
             if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
                 for (int i = 0; i < count; ++i)data[i] = std::byteswap(data[i]);
             }
@@ -369,7 +466,7 @@ namespace EasyLib {
         server_sock_ = INVALID_SOCKET;
 
         is_connected_ = false;
-        info("disconnected!\n");
+        //info("disconnected!\n");
     }
 
     bool SocketCommunicator::init_server0_()
@@ -416,7 +513,7 @@ namespace EasyLib {
         // allocate connections
         connections_.resize(size_);
         auto& c0 = connections_.front();
-        c0.remote_app_name      = app_name_;
+        //c0.remote_app_name      = app_name_;
         c0.remote_host_name     = host_name_;
         c0.remote_host_ip       = host_ip_;
         c0.remote_host_port     = host_port_;
@@ -429,7 +526,7 @@ namespace EasyLib {
         // 
         std::ostringstream os_participators;
         os_participators
-            << c0.remote_app_name << '\n'  // app name
+            //<< c0.remote_app_name << '\n'  // app name
             << c0.remote_host_name << '\n' // host name
             << c0.remote_host_ip << '\n'   // ip
             << c0.remote_host_port << '\n' // port
@@ -498,7 +595,7 @@ namespace EasyLib {
             os_participators << str;
 
             std::istringstream iss(str);
-            std::getline(iss, c.remote_app_name);
+            //std::getline(iss, c.remote_app_name);
             std::getline(iss, c.remote_host_name);
             std::getline(iss, c.remote_host_ip);
             iss >> c.remote_host_port >> c.remote_is_big_endian >> c.remote_pid;
@@ -643,7 +740,7 @@ namespace EasyLib {
 
         std::ostringstream os_participators;
         os_participators
-            << app_name_ << '\n'
+            //<< app_name_ << '\n'
             << host_name_ << '\n'
             << host_ip_ << '\n'
             << host_port_ << '\n'
@@ -681,7 +778,7 @@ namespace EasyLib {
         //  pid
         std::istringstream is_participators(str);
         for (auto& c : connections_) {
-            std::getline(is_participators, c.remote_app_name);
+            //std::getline(is_participators, c.remote_app_name);
             std::getline(is_participators, c.remote_host_name);
             std::getline(is_participators, c.remote_host_ip);
             is_participators

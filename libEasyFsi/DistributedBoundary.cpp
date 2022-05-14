@@ -43,6 +43,17 @@ namespace EasyLib {
         int_l buf[3];
         if (comm_->rank() == root_) {
 
+            // copy fields definition
+            //for (auto& f : local_bound_->get_fields()) {
+            //    full_bound_.register_field(
+            //        f.name.c_str(),
+            //        f.ncomp,
+            //        f.location,
+            //        f.iotype,
+            //        f.units.c_str()
+            //    );
+            //}
+
             part_nodes_ia_g_.resize(comm_->size() + 1, 0);
             part_faces_ia_g_.resize(comm_->size() + 1, 0);
 
@@ -95,6 +106,8 @@ namespace EasyLib {
                     }
                     full_bound_.add_face((FaceTopo)pb->face_types()[i], static_cast<int_l>(nodes.size()), fnodes.data(), fcents[i]);
                 }
+
+                //TODO: check fields
             }
 
             info(
@@ -103,6 +116,14 @@ namespace EasyLib {
                 full_bound_.node_num(),
                 full_bound_.face_num()
             );
+
+            // allocate fields
+            //for (auto& f : full_bound_.get_fields()) {
+            //    if (f.location == NodeCentered)
+            //        f.data.resize(full_bound_.node_num(), f.ncomp);
+            //    else
+            //        f.data.resize(full_bound_.face_num(), f.ncomp);
+            //}
 
             // compute metrics
             full_bound_.compute_metics();
@@ -116,7 +137,6 @@ namespace EasyLib {
 
             comm_->send(local_bound, root_, TAG_BD_DATA);
         }
-
     }
 
     void DistributedBoundary::gather_node_fields(int nfields, const double* local_fields, double* global_fields)
@@ -351,19 +371,47 @@ namespace EasyLib {
         }
     }
 
-    void DistributedBoundary::allocate_node_fields(int nfields, double** local_fields, double** global_fields)
-    {
-        *local_fields  = local_bound_->allocate_node_fields(nfields);
-        *global_fields = full_bound_.allocate_node_fields(nfields);
-    }
-    void DistributedBoundary::allocate_face_fields(int nfields, double** local_fields, double** global_fields)
-    {
-        *local_fields = local_bound_->allocate_face_fields(nfields);
-        *global_fields = full_bound_.allocate_face_fields(nfields);
-    }
-    void DistributedBoundary::delete_fields(double** local_fields, double** global_fields)
-    {
-        local_bound_->delete_fields(local_fields);
-        full_bound_.delete_fields(global_fields);
-    }
+    //void DistributedBoundary::gather_fields(const char* field_name)
+    //{
+    //    double* local_fields = nullptr;
+    //    double* global_fields = nullptr;
+    //
+    //    auto& f = local_bound_->get_field(field_name);
+    //    local_fields = f.data.data();
+    //
+    //    if (comm_->rank() == root_) {
+    //        auto& gf = full_bound_.get_field(field_name);
+    //        global_fields = gf.data.data();
+    //    }
+    //
+    //    if (f.location == NodeCentered) {
+    //        if (f.iotype == IncomingDofs || f.iotype == OutgoingDofs)
+    //            gather_node_fields(f.ncomp, local_fields, global_fields);
+    //        else
+    //            accumulate_node_fields(f.ncomp, local_fields, global_fields);
+    //    }
+    //    else {
+    //        gather_face_fields(f.ncomp, local_fields, global_fields);
+    //    }
+    //}
+    //void DistributedBoundary::scatter_fields(const char* field_name)
+    //{
+    //    double* local_fields = nullptr;
+    //    double* global_fields = nullptr;
+    //
+    //    auto& f = local_bound_->get_field(field_name);
+    //    local_fields = f.data.data();
+    //
+    //    if (comm_->rank() == root_) {
+    //        auto& gf = full_bound_.get_field(field_name);
+    //        global_fields = gf.data.data();
+    //    }
+    //
+    //    if (f.location == NodeCentered) {
+    //        scatter_node_fields(f.ncomp, global_fields, local_fields);
+    //    }
+    //    else {
+    //        scatter_face_fields(f.ncomp, global_fields, local_fields);
+    //    }
+    //}
 }
