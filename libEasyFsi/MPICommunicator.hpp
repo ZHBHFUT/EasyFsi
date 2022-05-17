@@ -18,24 +18,26 @@ namespace EasyLib {
 
         void create(int mpi_comm);
 
-        void init(int /*argc*/, const char** /*argv*/)final {}
+        void init(int argc, const char** argv)final;
 
-        int rank()const noexcept override;
-        int size()const noexcept override;
+        void disconnect()final;
 
-        bool send(const int16_t* data, int count, int dest_rank, int tag)override;
-        bool send(const int32_t* data, int count, int dest_rank, int tag)override;
-        bool send(const int64_t* data, int count, int dest_rank, int tag)override;
-        bool send(const double* data, int count, int dest_rank, int tag)override;
-        bool send(const float* data, int count, int dest_rank, int tag)override;
-        bool send(const char* data, int count, int dest_rank, int tag)override;
+        int rank()const noexcept final;
+        int size()const noexcept final;
 
-        bool recv(int16_t* data, int count, int src_rank, int tag)override;
-        bool recv(int32_t* data, int count, int src_rank, int tag)override;
-        bool recv(int64_t* data, int count, int src_rank, int tag)override;
-        bool recv(double* data, int count, int src_rank, int tag)override;
-        bool recv(float* data, int count, int src_rank, int tag)override;
-        bool recv(char* data, int count, int src_rank, int tag)override;
+        bool send(const int16_t* data, int count, int dest_rank, int tag)final;
+        bool send(const int32_t* data, int count, int dest_rank, int tag)final;
+        bool send(const int64_t* data, int count, int dest_rank, int tag)final;
+        bool send(const double* data, int count, int dest_rank, int tag)final;
+        bool send(const float* data, int count, int dest_rank, int tag)final;
+        bool send(const char* data, int count, int dest_rank, int tag)final;
+
+        bool recv(int16_t* data, int count, int src_rank, int tag)final;
+        bool recv(int32_t* data, int count, int src_rank, int tag)final;
+        bool recv(int64_t* data, int count, int src_rank, int tag)final;
+        bool recv(double* data, int count, int src_rank, int tag)final;
+        bool recv(float* data, int count, int src_rank, int tag)final;
+        bool recv(char* data, int count, int src_rank, int tag)final;
 
     private:
         int comm_;

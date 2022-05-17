@@ -239,7 +239,7 @@ void compute_xps_dbuffer_size(int np_src, int ndim, int* dbuffer_size)
     int rank = np_src + 1 + ndim;
     *dbuffer_size = rank * rank + rank;
 }
-void compute_xps_interp_matrix(int np_src, int np_des, int ndim, const double* coords_src, const double* coords_des, double* mat_G, double* dbuffer, int* ibuffer, int* singular)
+void compute_xps_interp_matrix(int np_src, int np_des, int ndim, int coord_stride, const double* coords_src, const double* coords_des, double* mat_G, double* dbuffer, int* ibuffer, int* singular)
 {
 #define eps  1.0E-40
     const int rank = np_src + 1 + ndim;// size of matrix TS
@@ -284,17 +284,17 @@ void compute_xps_interp_matrix(int np_src, int np_des, int ndim, const double* c
             }
             TSi[j] = rij2 * log(rij2 + eps);// prevent float overflow
 
-            q += ndim;
+            q += coord_stride;
         }
         TSi += rank;
-        p += ndim;
+        p += coord_stride;
     }
     // 2) right top block: 1, x, y, z
     for (i = 0, p = coords_src; i < np_src; ++i) {
         TS[i * rank + np_src + 0] = 1;
         for (j = 0; j < ndim; ++j)
             TS[i * rank + np_src + j + 1] = p[j];
-        p += ndim;
+        p += coord_stride;
     }
     // 3) left bottom block: 
     //   1   1   ...
@@ -304,7 +304,7 @@ void compute_xps_interp_matrix(int np_src, int np_des, int ndim, const double* c
     for (j = 0; j < np_src; ++j) {
         TS[(np_src + 0) * rank + j] = 1;
         for (k = 0; k < ndim; ++k)
-            TS[(np_src + k + 1) * rank + j] = coords_src[ndim * j + k];
+            TS[(np_src + k + 1) * rank + j] = coords_src[coord_stride * j + k];
     }
     // 4) right bottom block: zeros
     for (i = np_src; i < rank; ++i) {
@@ -347,7 +347,7 @@ void compute_xps_interp_matrix(int np_src, int np_des, int ndim, const double* c
             // rij
             TFi[j] = rij2 * log(rij2 + eps);
 
-            q += ndim;
+            q += coord_stride;
         }
 
         // last ndim values
@@ -365,7 +365,7 @@ void compute_xps_interp_matrix(int np_src, int np_des, int ndim, const double* c
             *mat_G = m;
         }
 
-        p += ndim;
+        p += coord_stride;
     }
 
     if (alloc)free(dbuffer);

@@ -44,25 +44,29 @@ namespace EasyLib {
         return i;
     }
 
-    void Interpolator::compute_interp_coeff()
+    void Interpolator::compute_interp_coeff(InterpolationMethod /*method = Automatic*/)
     {
         constexpr double eps = 1E-20;
+        constexpr double max_d2 = std::numeric_limits<double>::max();
 
         if (source_bounds_.empty() || target_bounds_.empty())return;
 
-        // compute global XPS matrix if source boundary does not contain face info.
-        //for (Boundary* bd : sources_) {
-        //    if (bd->face_num() == 0) {
-        //        bd->compute_global_xps_matrix();
-        //    }
-        //    // use projection method
-        //    else {
+        // TODO: Interpolation method:
+        // 
+        // If use Automatic:
+        //   If face is not defined on source boundary:
+        //       If node number <= 1000, on source boundary:
+        //           Use GlobalXPS method.
+        //       Else:
+        //           Use LocalXPS method.
+        //   Else:
+        //       Use Projection method
+        // Else:
+        //    Use specified method.
         //
-        //    }
-        //}
 
         int_l nn = 0, nf = 0;
-        for (auto bs : source_bounds_) {
+        for (auto bs : target_bounds_) {
             nn += bs->node_num();
             nf += bs->face_num();
         }
@@ -70,113 +74,170 @@ namespace EasyLib {
         node_coeffs_.resize(nn);
         face_coeffs_.resize(nf);
 
-        int_l nid = 0, fid = 0;
-        for (Boundary* bt : target_bounds_) {
-            // compute coefficients for each node
-            for (int_l i = 0; i < bt->node_num(); ++i, ++ nid) {
-                auto& q = bt->node_coords().at(i);
-                auto& coeff = node_coeffs_.at(nid);
+        // init coeff
+        for (auto& c : node_coeffs_) { c.src_bd_id = invalid_id; c.dist_sq = max_d2; }
+        for (auto& c : face_coeffs_) { c.src_bd_id = invalid_id; c.dist_sq = max_d2; }
 
-                // find nearest source boundary
-                double d2min = std::numeric_limits<double>::max();
-                int isrc = 0, inode = 0;
-                for (int ib = 0; ib < static_cast<int>(source_bounds_.size());++ib) {
-                    int_l idx = 0;
-                    double d2 = 0;
-                    source_bounds_.at(ib)->kdtree().search(q.data(), 1, &idx, &d2, 0);
-                    if (d2 < d2min) {
-                        isrc = ib;
-                        inode = idx;
-                        d2min = d2;
+        // loop each source bound to accelerate computing.
+        for (int ib = 0; ib < static_cast<int>(source_bounds_.size()); ++ib) {
+            auto bd_s = source_bounds_.at(ib);
+
+            auto& kdtree = bd_s->kdtree();
+
+            auto it_n = node_coeffs_.begin();
+            auto it_f = face_coeffs_.begin();
+            int_l idx = 0;
+            double d2 = 0;
+
+            // loop each target bound and find nearest node
+            for (auto bd_t : target_bounds_) {
+                for (auto& p : bd_t->node_coords()) {
+                    auto& c = *it_n;
+
+                    // skip coincident point
+                    if (c.dist_sq <= eps) {
+                        ++it_n;
+                        continue;
                     }
-                    if (d2 <= eps)break;
+
+                    auto n = kdtree.search(p.data(), 1, &idx, &d2);
+
+                    // save nearest node
+                    if (n == 1 && c.src_bd_id == invalid_id || d2 < c.dist_sq) {
+                        c.src_bd_id      = ib;
+                        c.ndonor         = 1;
+                        c.donor_nodes[0] = idx;
+                        c.dist_sq        = d2;
+                        if (d2 <= eps)c.donor_weights[0] = 1;
+                    }
+                    // next node
+                    ++it_n;
                 }
 
-                if (d2min <= eps) {
-                    coeff.src_bd_id = isrc;
-                    coeff.ndonor = 1;
-                    coeff.donor_nodes[0] = inode;
-                    coeff.donor_weights[0] = 1;
+                for (auto& p : bd_t->face_centroids()) {
+                    auto& c = *it_f;
+
+                    // skip coincident point
+                    if (c.dist_sq <= eps) {
+                        ++it_f;
+                        continue;
+                    }
+
+                    auto n = kdtree.search(p.data(), 1, &idx, &d2);
+
+                    // save nearest node
+                    if (n == 1 && it_f->src_bd_id == invalid_id || d2 < c.dist_sq) {
+                        c.src_bd_id      = ib;
+                        c.ndonor         = 1;
+                        c.donor_nodes[0] = idx;
+                        c.dist_sq        = d2;
+                        if (d2 <= eps)c.donor_weights[0] = 1;
+                    }
+                    // next face
+                    ++it_f;
                 }
-                else {
-                    auto bs = source_bounds_.at(isrc);
-                    // use projection method
-                    if (bs->is_high_order()) {
-                        int_l ids[8];
-                        double w[8];
-                        bs->compute_project_interp_coeff(
-                            q,
+            }// next target boundary
+        }
+
+        // do interpolate
+        for (int ib = 0; ib < static_cast<int>(source_bounds_.size()); ++ib) {
+            auto bd_s = source_bounds_.at(ib);
+
+            auto it_n = node_coeffs_.begin();
+            auto it_f = face_coeffs_.begin();
+            
+            // source does not contain any face: use Local Spline algorithm.
+            if (bd_s->face_num() == 0) {
+                // loop each node and face-center of target bound
+                for (auto bd_t : target_bounds_) {
+                    for (auto& p : bd_t->node_coords()) {
+                        auto& c = *it_n;
+
+                        // skipping for coincident point or source bound is not this source.
+                        if (c.dist_sq <= eps || c.src_bd_id != ib) { ++it_n; continue; }
+
+                        bd_s->compute_local_xps_interp_coeff(
+                            p,
+                            max_donor,
+                            std::span<int_l >(c.donor_nodes,   max_donor),
+                            std::span<double>(c.donor_weights, max_donor),
+                            c.ndonor
+                        );
+
+                        ++it_n;
+                    } // next node
+
+                    for (auto& p : bd_t->face_centroids()) {
+                        auto& c = *it_f;
+
+                        // skipping for coincident point or source bound is not this source.
+                        if (c.dist_sq <= eps || c.src_bd_id != ib) { ++it_f; continue; }
+
+                        bd_s->compute_local_xps_interp_coeff(
+                            p,
+                            max_donor,
+                            std::span<int_l >(c.donor_nodes,   max_donor),
+                            std::span<double>(c.donor_weights, max_donor),
+                            c.ndonor
+                        );
+
+                        ++it_f;
+                    } // next face-centroid
+                } // next target boundary
+            }
+            // source contains faces: use projection method
+            else {
+                // loop each node and face-center of target bound
+                int_l ids[8];
+                double w[8];
+                for (auto bd_t : target_bounds_) {
+                    for (auto& p : bd_t->node_coords()) {
+                        auto& c = *it_n;
+
+                        // skipping for coincident point or source bound is not this source.
+                        if (c.dist_sq <= eps || c.src_bd_id != ib) { ++it_n; continue; }
+
+                        bd_s->compute_project_interp_coeff(
+                            p,
                             ids,
                             w,
-                            coeff.ndonor
+                            c.ndonor
                         );
-                        for (int j = 0; j < coeff.ndonor; ++j) {
-                            coeff.donor_nodes  [j] = ids[j];
-                            coeff.donor_weights[j] = w[j];
+                        for (int j = 0; j < c.ndonor; ++j) {
+                            c.donor_nodes  [j] = ids[j];
+                            c.donor_weights[j] = w  [j];
                         }
-                    }
-                    // use local spline method
-                    else {
-                        bs->compute_local_xps_interp_coeff(
-                            q,
-                            max_donor,
-                            std::span<int_l>(coeff.donor_nodes, max_donor),
-                            std::span<double>(coeff.donor_weights, max_donor),
-                            coeff.ndonor
+
+                        ++it_n;
+                    }// next node
+
+                    for (auto& p : bd_t->face_centroids()) {
+                        auto& c = *it_f;
+
+                        // skipping for coincident point or source bound is not this source.
+                        if (c.dist_sq <= eps || c.src_bd_id != ib) { ++it_f; continue; }
+
+                        bd_s->compute_project_interp_coeff(
+                            p,
+                            ids,
+                            w,
+                            c.ndonor
                         );
-                    }
-                }
-            }
+                        for (int j = 0; j < c.ndonor; ++j) {
+                            c.donor_nodes[j] = ids[j];
+                            c.donor_weights[j] = w[j];
+                        }
 
-            // compute coefficients for each face
-            for (int_l i = 0; i < bt->face_num(); ++i, ++fid) {
-                auto& q = bt->face_centroids().at(i);
-                auto& coeff = face_coeffs_.at(fid);
-
-                // find nearest source boundary
-                double d2min = std::numeric_limits<double>::max();
-                int isrc = 0, inode = 0;
-                for (int ib = 0; ib < static_cast<int>(source_bounds_.size()); ++ib) {
-                    int_l idx = 0;
-                    double d2 = 0;
-                    source_bounds_.at(ib)->kdtree().search(q.data(), 1, &idx, &d2, 0);
-                    if (d2 < d2min) {
-                        isrc = ib;
-                        inode = idx;
-                        d2min = d2;
-                    }
-                    if (d2 <= eps)break;
-                }
-
-                if (d2min <= eps) {
-                    coeff.src_bd_id = isrc;
-                    coeff.ndonor = 1;
-                    coeff.donor_nodes[0] = inode;
-                    coeff.donor_weights[0] = 1;
-                }
-                else {
-                    auto bs = source_bounds_.at(isrc);
-                    // use projection method
-                    int_l ids[8];
-                    double w[8];
-                    bs->compute_project_interp_coeff(
-                        q,
-                        ids,
-                        w,
-                        coeff.ndonor
-                    );
-                    for (int j = 0; j < coeff.ndonor; ++j) {
-                        coeff.donor_nodes[j] = ids[j];
-                        coeff.donor_weights[j] = w[j];
-                    }
-                }
+                        ++it_f;
+                    } // next face centroid
+                } // next target boundary
             }
         }
 
         computed_ = true;
     }
 
-    void Interpolator::interp_target_dofs(std::span<Field* const> sources, std::span<Field*> targets)
+    void Interpolator::interp_dofs_s2t(std::span<Field* const> sources, std::span<Field*> targets)
     {
         if (!computed_)compute_interp_coeff();
         if (target_bounds_.empty())return;
@@ -249,7 +310,7 @@ namespace EasyLib {
         }
     }
 
-    void Interpolator::interp_source_loads(std::span<Field* const> targets, std::span<Field*> sources)
+    void Interpolator::interp_loads_t2s(std::span<Field* const> targets, std::span<Field*> sources)
     {
         if (!computed_)compute_interp_coeff();
         if (source_bounds_.empty())return;

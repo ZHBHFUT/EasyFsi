@@ -17,7 +17,10 @@ namespace EasyLib {
 
         using std::vector<double>::vector;
         using std::vector<double>::operator=;
-        
+        using std::vector<double>::reserve;
+        using std::vector<double>::resize;
+        using std::vector<double>::push_back;
+
         inline static constexpr int dimension = 1;
 
         inline constexpr int ndim()const noexcept { return 1; }

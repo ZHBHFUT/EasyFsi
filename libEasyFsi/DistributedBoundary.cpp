@@ -54,6 +54,9 @@ namespace EasyLib {
             //    );
             //}
 
+            // name
+            full_bound_.set_name(local_bound.name().c_str());
+
             part_nodes_ia_g_.resize(comm_->size() + 1, 0);
             part_faces_ia_g_.resize(comm_->size() + 1, 0);
 
@@ -134,7 +137,6 @@ namespace EasyLib {
             buf[1] = local_bound.face_num();
             buf[2] = local_bound.face_nodes().ndata();
             comm_->send(buf, 3, root_, TAG_BD_SIZE);
-
             comm_->send(local_bound, root_, TAG_BD_DATA);
         }
     }
@@ -263,7 +265,7 @@ namespace EasyLib {
         if (!comm_ || comm_->size() <= 1) {
             for (int i = 0; i < count; ++i) {
                 for (int j = 0; j < nfields; ++j) {
-                    global_fields[nfields * i + j] += local_fields[nfields * i + j];
+                    global_fields[nfields * i + j] = local_fields[nfields * i + j];
                 }
             }
             return;

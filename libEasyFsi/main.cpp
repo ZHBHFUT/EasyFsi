@@ -26,30 +26,32 @@ int main(int argc, char** argv)
     //    }
     //}
     
-    EasyLib::SocketCommunicator comm;
-    //comm.init(name, master, np);
-    comm.init(argc, (const char**)argv);
+    //EasyLib::SocketCommunicator comm;
+    ////comm.init(name, master, np);
+    //comm.init(argc, (const char**)argv);
+    //
+    //std::cout << "np = " << comm.size() << ", rank = " << comm.rank() << '\n';
+    //std::cout.flush();
+    //
+    //std::string msg_send = "Hello";
+    //std::string msg_recv;
+    //
+    //for (int i = 0; i < comm.size(); ++i) {
+    //    if (i == comm.rank())continue;
+    //    comm.send(msg_send, i, 0);
+    //    std::cout << "send \""<< msg_send << "\" to [" << i << "]\n";
+    //}
+    //
+    //for (int i = 0; i < comm.size(); ++i) {
+    //    if (i == comm.rank())continue;
+    //    comm.recv(msg_recv, i, 0);
+    //    std::cout << "recv from [" << i << "] " << msg_recv << '\n';
+    //    std::cout.flush();
+    //}
+    //
+    //comm.disconnect();
 
-    std::cout << "np = " << comm.size() << ", rank = " << comm.rank() << '\n';
-    std::cout.flush();
 
-    std::string msg_send = "Hello";
-    std::string msg_recv;
-
-    for (int i = 0; i < comm.size(); ++i) {
-        if (i == comm.rank())continue;
-        comm.send(msg_send, i, 0);
-        std::cout << "send \""<< msg_send << "\" to [" << i << "]\n";
-    }
-
-    for (int i = 0; i < comm.size(); ++i) {
-        if (i == comm.rank())continue;
-        comm.recv(msg_recv, i, 0);
-        std::cout << "recv from [" << i << "] " << msg_recv << '\n';
-        std::cout.flush();
-    }
-
-    comm.disconnect();
 
     return 0;
 }

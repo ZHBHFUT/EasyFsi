@@ -97,16 +97,17 @@ extern "C" {
     void compute_xps_dbuffer_size(int np_src, int ndim, int* dbuffer_size);
 
     //! @brief 计算样条插值矩阵
-    //! @param [in]     np_src     已知点个数
-    //! @param [in]     np_des     未知点（待插值点）个数
-    //! @param [in]     ndim       坐标分量个数：1=spline, 2=ips, 3=tps
-    //! @param [in]     coords_src 已知点坐标数组
-    //! @param [in]     coords_des 未知点坐标数组
-    //! @param [out]    mat_G      返回插值矩阵，尺寸为 np_des * np_src
-    //! @param [in,out] dbuffer    浮点数缓冲区，长度由 \compute_xps_dbuffer_size 获取，如果为null则在内部动态分配
-    //! @param [in,out] ibuffer    整数缓冲区，长度由 \compute_xps_ibuffer_size 获取，如果为null则在内部动态分配
-    //! @param [out]singular       矩阵是否奇异，0=否，other=是
-    void compute_xps_interp_matrix(int np_src, int np_des, int ndim, const double* coords_src, const double* coords_des, double* mat_G, double* dbuffer, int* ibuffer, int* singular);
+    //! @param [in]     np_src        已知点个数
+    //! @param [in]     np_des        未知点（待插值点）个数
+    //! @param [in]     ndim          坐标分量个数：1=spline, 2=ips, 3=tps
+    //! @param [in]     coord_stride  坐标数组的步长，通常与 \ndim 相等
+    //! @param [in]     coords_src    已知点坐标数组，size=np_src*coord_stride，存储格式为: [x0,y0,...,x1,y1,...,]
+    //! @param [in]     coords_des    未知点坐标数组，size=np_des*coord_stride，存储格式为: [x0,y0,...,x1,y1,...,]
+    //! @param [out]    mat_G         返回插值矩阵，尺寸为 np_des * np_src
+    //! @param [in,out] dbuffer       浮点数缓冲区，长度由 \compute_xps_dbuffer_size 获取，如果为null则在内部动态分配
+    //! @param [in,out] ibuffer       整数缓冲区，长度由 \compute_xps_ibuffer_size 获取，如果为null则在内部动态分配
+    //! @param [out]singular          矩阵是否奇异，0=否，other=是
+    void compute_xps_interp_matrix(int np_src, int np_des, int ndim, int coord_stride, const double* coords_src, const double* coords_des, double* mat_G, double* dbuffer, int* ibuffer, int* singular);
     
 #ifdef __cplusplus
 }

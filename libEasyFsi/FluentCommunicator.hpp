@@ -44,6 +44,8 @@ namespace EasyLib {
 
         void init(int /*argc*/, const char** /*argv*/)final {}
 
+        void disconnect()final {}
+
         int rank()const noexcept final { return myid_; }
         int size()const noexcept final { return np_; }
 

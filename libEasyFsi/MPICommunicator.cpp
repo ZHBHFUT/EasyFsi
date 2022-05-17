@@ -16,7 +16,21 @@ namespace EasyLib {
     {
         comm_ = mpi_comm;
     }
-
+    void MPICommunicator::init(int argc, const char** argv)
+    {
+        int flag = 0;
+        MPI_Initialized(&flag);
+        if (!flag)MPI_Init(&argc, const_cast<char***>(&argv));
+    }
+    void MPICommunicator::disconnect()
+    {
+        if (comm_ != MPI_COMM_WORLD &&
+            comm_ != MPI_COMM_SELF &&
+            comm_ != MPI_COMM_NULL)
+            MPI_Comm_disconnect(&comm_);
+        else
+            comm_ = MPI_COMM_NULL;
+    }
     int MPICommunicator::rank()const noexcept
     {
         int r = 0;

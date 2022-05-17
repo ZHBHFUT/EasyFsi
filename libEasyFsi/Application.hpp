@@ -15,12 +15,11 @@ namespace EasyLib {
         int                    rank{ -1 };
         int                    iter{ 0 };
         double                 time{ 0 };
-        //std::vector<Fields>    bd_fields;
         std::vector<FieldInfo> field_defs;
     };
 
-    typedef void(*get_boundary_field_function)(const Boundary* bd, const char* name, int ncomp, FieldLocation loc, double*       data);
-    typedef void(*set_boundary_field_function)(const Boundary* bd, const char* name, int ncomp, FieldLocation loc, const double* data);
+    typedef void(__stdcall *get_boundary_field_function)(const Boundary* bd, const char* name, int ncomp, FieldLocation loc, double*       data, void* user_data);
+    typedef void(__stdcall *set_boundary_field_function)(const Boundary* bd, const char* name, int ncomp, FieldLocation loc, const double* data, void* user_data);
 
     class Application
     {
@@ -45,9 +44,14 @@ namespace EasyLib {
 
         bool start_coupling(Communicator& comm);
 
-        void exchange_solution();
+        //void recv_incoming();
+        //void send_outgoing();
+
+        void exchange_solution(double time, void* user_data);
 
         void stop_coupling();
+
+        void save_tecplot(const char* file, bool without_fields = false);
 
     private:
         //! @brief Send and receive application information to/from other applications
@@ -63,17 +67,16 @@ namespace EasyLib {
         //! @brief Send field information to other solver processes of this application.
         void sync_field_info_();
 
-        void read_outgoing_();
-        void write_incoming_();
+        void read_outgoing_(void* user_data);
+        void write_incoming_(void* user_data);
 
     private:
         Communicator*                    inter_comm_{ nullptr }; //! communicator between coupled applications
         Communicator*                    intra_comm_{ nullptr }; //! communicator between each partition of current application.
         int                              intra_root_{ 0 };
         ApplicationData                  data_;
-        std::vector<ApplicationData>     remote_apps_; //! only available on root process
+        std::vector<ApplicationData>     remote_apps_; //! available only on root process.
         std::vector<Boundary>            local_bounds_;
-        //std::vector<Fields>              local_bd_fields_;
         std::vector<DistributedBoundary> bounds_;
         std::vector<Boundary>            remote_bounds_;
 

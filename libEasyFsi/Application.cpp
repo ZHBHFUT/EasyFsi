@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "Logger.hpp"
 #include "Application.hpp"
 
@@ -159,14 +161,14 @@ namespace EasyLib {
         // allocate fields for coupled boundaries
         for (auto bd : data_.bounds) {
             for (auto& fd : data_.field_defs)
-                bd->register_field(fd);
+                bd->register_field_(fd);
         }
 
         // allocate local fields for parallel solver of this application
         if (intra_comm_ && intra_comm_->size() > 1) {
             for (auto& bd : local_bounds_) {
                 for (auto& fd : data_.field_defs)
-                    bd.register_field(fd);
+                    bd.register_field_(fd);
             }
         }
         
@@ -191,15 +193,24 @@ namespace EasyLib {
         is_started_ = false;
     }
 
-    void Application::exchange_solution()
+    void Application::exchange_solution(double time, void* user_data)
     {
         // read outgoing fields
-        read_outgoing_();
+        read_outgoing_(user_data);
+
+        data_.time = time;
 
         // Operations on root solver of this application
         if (!intra_comm_ || intra_comm_->rank() == intra_root_) {
             // send outgoing fields
-            for (auto& remote_app : remote_apps_) {
+            for (int remote = 0; remote < inter_comm_->size();++remote) {
+                if (remote == data_.rank)continue;
+
+                // send time
+                inter_comm_->send(&time, 1, remote, 0);
+
+                // send fields
+                auto& remote_app = remote_apps_.at(remote);
                 for (auto& remote_fd : remote_app.field_defs) {
                     if (remote_fd.remote_app_rank != data_.rank)continue;
 
@@ -209,7 +220,7 @@ namespace EasyLib {
                     for (auto bd : data_.bounds) {
                         auto& f = bd->fields_.at(remote_fd.remote_field);
                         ASSERT(f.info == &this_fd);
-                        inter_comm_->send(f.data.data(), static_cast<int>(f.data.numel()), remote_app.rank, f.info->id);
+                        inter_comm_->send(f.data.data(), static_cast<int>(f.data.numel()), remote, f.info->id);
                     }
                 }
             }
@@ -220,6 +231,10 @@ namespace EasyLib {
 
                 auto& remote_app = remote_apps_.at(i);
 
+                // recv time
+                inter_comm_->recv(&remote_app.time, 1, i, 0);
+
+                // recv fields
                 for (auto& this_fd : data_.field_defs) {
                     if (this_fd.remote_app_rank != i)continue;
 
@@ -259,14 +274,14 @@ namespace EasyLib {
 
                 // interpolate DOFs from remote
                 if (ip->source_app_id() == remote_app.rank && this_fd.iotype == IncomingDofs) {
-                    ip->interp_target_dofs(
+                    ip->interp_dofs_s2t(
                         std::span<Field* const>(remote_fields_.data(), remote_fields_.size()),
                         std::span<Field*>(this_fields_.data(), this_fields_.size())
                     );
                 }
                 // interpolate LOADs for this
                 else if(this_fd.iotype == IncomingLoads) {
-                    ip->interp_source_loads(
+                    ip->interp_loads_t2s(
                         std::span<Field* const>(remote_fields_.data(), remote_fields_.size()),
                         std::span<Field*>(this_fields_.data(), this_fields_.size())
                     );
@@ -279,7 +294,7 @@ namespace EasyLib {
         }
 
         // writing incoming fields
-        write_incoming_();
+        write_incoming_(user_data);
     }
     
     int Application::send_recv_apps_()
@@ -543,7 +558,7 @@ namespace EasyLib {
         }
     }
 
-    void Application::read_outgoing_()
+    void Application::read_outgoing_(void* user_data)
     {
         // Parallel running: read and assemble outgoing fields
         if (intra_comm_ && intra_comm_->size() > 1) {
@@ -559,7 +574,7 @@ namespace EasyLib {
                     auto& local_bd = local_bounds_.at(ib);
                     auto& local_f  = local_bd.fields_.at(i);
                     ASSERT(local_f.info == &fd);
-                    getter_(&local_bd, fd.name.c_str(), fd.ncomp, fd.location, local_f.data.data());
+                    getter_(&local_bd, fd.name.c_str(), fd.ncomp, fd.location, local_f.data.data(), user_data);
 
                     // assemble the full-field
                     auto& global_bd = bounds_.at(ib).full_boundary();
@@ -585,12 +600,12 @@ namespace EasyLib {
                 for (auto bd : data_.bounds) {
                     auto& f = bd->fields_.at(i);
                     ASSERT(f.info == &fd);
-                    getter_(bd, fd.name.c_str(), fd.ncomp, fd.location, f.data.data());
+                    getter_(bd, fd.name.c_str(), fd.ncomp, fd.location, f.data.data(), user_data);
                 }
             }
         }
     }
-    void Application::write_incoming_()
+    void Application::write_incoming_(void* user_data)
     {
         // Parallel running: scatter and writing incoming fields
         if (intra_comm_ && intra_comm_->size() > 1) {
@@ -616,7 +631,7 @@ namespace EasyLib {
                         bounds_.at(ib).scatter_face_fields(fd.ncomp, global_f.data.data(), local_f.data.data());
 
                     // writing
-                    setter_(&local_bd, fd.name.c_str(), fd.ncomp, fd.location, local_f.data.data());
+                    setter_(&local_bd, fd.name.c_str(), fd.ncomp, fd.location, local_f.data.data(), user_data);
                 }
             }
         }
@@ -626,15 +641,188 @@ namespace EasyLib {
                 auto& fd = data_.field_defs.at(i);
                 if (fd.is_orphan || (fd.iotype != IncomingDofs && fd.iotype != IncomingLoads))continue;
 
-                if (intra_comm_->rank() == intra_root_)
+                if (!intra_comm_ || intra_comm_->rank() == intra_root_)
                     info("  writing incoming field: %s\n", fd.name.c_str());
 
                 for (auto bd : data_.bounds) {
                     auto& f = bd->fields_.at(i);
                     ASSERT(f.info == &fd);
-                    setter_(bd, fd.name.c_str(), fd.ncomp, fd.location, f.data.data());
+                    setter_(bd, fd.name.c_str(), fd.ncomp, fd.location, f.data.data(), user_data);
                 }
             }
         }
+    }
+
+    void Application::save_tecplot(const char* file, bool without_fields/* = false*/)
+    {
+        if (intra_comm_ && intra_comm_->rank() != intra_root_)return;
+
+        std::ofstream ofs(file);
+        if (!ofs.is_open()) {
+            warn("failed opening Tecplot file: %s", file);
+            return;
+        }
+
+        // TITLE
+        ofs << "TITLE = \"" << data_.app_name << "\"\n";
+
+        // FILETYPE
+        ofs << "FILETYPE = \"" << (without_fields ? "GRID" : "FULL") << "\"\n";
+
+        // VARIABLES
+        ofs << "\"X\" \"Y\" \"Z\"";
+        std::string var_loc;
+        int nvar = 3;
+        if (!without_fields) {
+            for (auto& fd : data_.field_defs) {
+                if (fd.is_orphan)continue;
+
+                if (fd.ncomp == 1) {
+                    ofs << " \"" << fd.name << "\"";
+                    ++nvar;
+
+                    // ,xx
+                    if (var_loc.empty())
+                        var_loc = "([";
+                    else
+                        var_loc.push_back(',');
+                    var_loc.append(std::to_string(nvar));
+                }
+                else {
+                    for (int j = 0; j < fd.ncomp; ++j) {
+                        ofs << " \"" << fd.name << '[' << j + 1 << "]\"";
+                        ++nvar;
+
+                        // ,xx
+                        if (var_loc.empty())
+                            var_loc = "([";
+                        else
+                            var_loc.push_back(',');
+                        var_loc.append(std::to_string(nvar));
+                    }
+                }
+            }
+            if (!var_loc.empty())var_loc.append("]=CELLCENTERED)");
+        }
+        ofs << '\n';
+
+        auto write_field = [](std::ofstream& ofs, const double* data, int count, int stride = 1) {
+            int i = 1;
+            for (; i <= count; ++i) {
+                ofs << ' ' << std::scientific << *data;
+                if (i % 8 == 0)ofs << '\n';
+                data += stride;
+            }
+            if (i % 8 != 0)ofs << '\n';
+        };
+
+        // ZONES
+        for (auto bd : data_.bounds) {
+            // zone title
+            ofs << "ZONE\n"
+                << "T = \"" << bd->name() << "\"\n";
+
+            // 
+            bool all_tri  = bd->face_count(FT_TRI3) + bd->face_count(FT_TRI6) == bd->face_num();
+            //bool all_quad = bd->face_count(FT_QUAD4) + bd->face_count(FT_QUAD8) == bd->face_num();
+
+            // Polygon not exists: write finite element grid (ignore middle node)
+            if (!bd->contains_polygon()) {
+                switch (bd->topo()) {
+                case ZT_POINTS:  ofs << "ZONETYPE = ORDERED\n"         << "I = "     << bd->node_num() << '\n'; break;
+                case ZT_CURVE:   ofs << "ZONETYPE = FELINESEG\n"       << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n'; break;
+                case ZT_SURFACE:
+                    if (all_tri )
+                        ofs << "ZONETYPE = FETRIANGLE\n" << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n';
+                    else
+                        ofs << "ZONETYPE = FEQUADRILATERAL\n" << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n';
+                    break;
+                //case ZT_VOLUME:  ofs << "ZONETYPE = FEBRICK\n"         << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n'; break;
+                }
+            }
+            // Polygon exists: write face-based grid
+            else {
+                bd->create_edges(); // create edges
+
+                ofs << "ZONETYPE = FELINESEG\n"
+                    << "NODES = " << bd->node_num()
+                    << " FACES = " << bd->edges_for_surface().size()
+                    << " ELEMENTS = " << bd->face_num() << '\n';
+            }
+
+            // DATATYPE
+            ofs << "DT = DOUBLE DATAPACKING = BLOCK\n";
+
+            // VARLOCATION
+            if (!var_loc.empty())ofs << "VARLOCATION = " << var_loc << '\n';
+
+            // DATA
+            write_field(ofs, bd->node_coords().data()->data() + 0, bd->node_num(), 3);
+            write_field(ofs, bd->node_coords().data()->data() + 1, bd->node_num(), 3);
+            write_field(ofs, bd->node_coords().data()->data() + 2, bd->node_num(), 3);
+
+            // fields
+            for (auto& fd : data_.field_defs) {
+                if (fd.is_orphan)continue;
+
+                auto& field = bd->get_fields().at(fd.id);
+                for (int j = 0; j < fd.ncomp; ++j) {
+                    write_field(ofs, field.data.data() + j, (int_l)field.data.nrow(), fd.ncomp);
+                }
+            }
+
+            // element data is ignored for points zone.
+            if (bd->topo() == ZT_POINTS)continue;
+
+            // face-nodes connections
+            // FELINESEG zone
+            if (bd->topo() == ZT_CURVE) {
+                for (int_l i = 0; i < bd->face_num(); ++i) {
+                    auto nodes = bd->face_nodes()[i];
+                    ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << '\n'; //? convert to one-based index, ignore middle node for FT_BAR3
+                }
+            }
+            // triangle or quadrilateral
+            else if (!bd->contains_polygon()) {
+                if (all_tri) {
+                    for (int_l i = 0; i < bd->face_num(); ++i) {
+                        auto nodes = bd->face_nodes()[i];
+                        ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; //? convert to one-based index, ignore middle node for FT_TRI6
+                    }
+                }
+                else {
+                    for (int_l i = 0; i < bd->face_num(); ++i) {
+                        auto nodes = bd->face_nodes()[i];
+                        switch (bd->face_types().at(i)) {
+                        case FT_TRI3: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;
+                        case FT_TRI6: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;
+                        case FT_QUAD4:ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << ' ' << nodes[3] + 1 << '\n'; break;
+                        case FT_QUAD8:ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << ' ' << nodes[3] + 1 << '\n'; break;
+                        }
+                    }
+                }
+            }
+            // polygon surface
+            else {
+                // face nodes
+                for (auto& e : bd->edges_for_surface()) {
+                    ofs << e.n0 + 1 << ' ' << e.n1 + 1 << '\n';
+                }
+                // left element
+                for (auto& e : bd->edges_for_surface()) {
+                    auto f0 = e.f0 != invalid_id ? e.f0 + 1 : 0;
+                    ofs << ' ' << f0;
+                }
+                ofs << '\n';
+                // right element
+                for (auto& e : bd->edges_for_surface()) {
+                    auto f1 = e.f1 != invalid_id ? e.f1 + 1 : 0;
+                    ofs << ' ' << f1;
+                }
+                ofs << '\n';
+            }
+        }
+
+        ofs.close();
     }
 }

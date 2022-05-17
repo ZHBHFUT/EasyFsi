@@ -251,14 +251,6 @@ namespace EasyLib {
         int timeout_sec = 60;
         for (int i = 0; i < argc; ++i) {
             if      (strcmp(argv[i], "-master") == 0)as_master = true;
-            //else if (strcmp(argv[i], "-app") == 0) {
-            //    ++i;
-            //    if (i >= argc) {
-            //        error("application name is missing");
-            //        return;
-            //    }
-            //    app_name = argv[i];
-            //}
             else if (strcmp(argv[i], "-np") == 0) {
                 ++i;
                 if (i >= argc) {

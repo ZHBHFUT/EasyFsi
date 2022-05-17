@@ -1,6 +1,8 @@
 #include <cmath>
-#include <numbers>
+#include <numbers>  // std::numeric_limits<double>::max();
 #include <span>
+#include <fstream>  // see Boundary::read_gmsh
+#include <set>      // see Boundary::create_edges_
 
 #include "Logger.hpp"
 #include "LinAlgs.h"
@@ -606,20 +608,22 @@ namespace EasyLib {
         face_types_(std::move(bd.face_types_)),
         face_area_(std::move(bd.face_area_)),
         face_normal_(std::move(bd.face_normal_)),
+        face_count_(std::move(bd.face_count_)),
+        mesh_changed_(bd.mesh_changed_),
         topo_(bd.topo_),
         shape_(bd.shape_),
+        edges_(std::move(bd.edges_)),
         coord_min_(bd.coord_min_),
         coord_max_(bd.coord_max_),
-        mesh_changed_(bd.mesh_changed_),
-        //fields_(std::move(bd.fields_)),
+        fields_(std::move(bd.fields_)),
         kdtree_(std::move(kdtree_)),
         xps_tm_(bd.xps_tm_),
         xps_coords_(std::move(bd.xps_coords_)),
         xps_ts_inv_(std::move(bd.xps_ts_inv_)),
         xps_computed_(bd.xps_computed_),
+        local_xps_points_(std::move(bd.local_xps_points_)),
         ibuffer_(std::move(bd.ibuffer_)),
-        dbuffer_(std::move(bd.dbuffer_)),
-        local_xps_points_(std::move(bd.local_xps_points_))
+        dbuffer_(std::move(bd.dbuffer_))
     {}
     Boundary& Boundary::operator = (Boundary&& bd)noexcept
     {
@@ -632,26 +636,29 @@ namespace EasyLib {
             face_types_ = std::move(bd.face_types_);
             face_area_ = std::move(bd.face_area_);
             face_normal_ = std::move(bd.face_normal_);
+            face_count_ = std::move(bd.face_count_);
+            mesh_changed_ = bd.mesh_changed_;
             topo_ = bd.topo_;
             shape_ = bd.shape_;
+            edges_ = std::move(bd.edges_);
             coord_min_ = bd.coord_min_;
             coord_max_ = bd.coord_max_;
-            mesh_changed_ = bd.mesh_changed_;
-            //fields_ = std::move(bd.fields_);
+            fields_ = std::move(bd.fields_);
             kdtree_ = std::move(kdtree_);
             xps_tm_ = bd.xps_tm_;
             xps_coords_ = std::move(bd.xps_coords_);
             xps_ts_inv_ = std::move(bd.xps_ts_inv_);
             xps_computed_ = bd.xps_computed_;
+            local_xps_points_ = std::move(bd.local_xps_points_);
             ibuffer_ = std::move(bd.ibuffer_);
             dbuffer_ = std::move(bd.dbuffer_);
-            local_xps_points_ = std::move(bd.local_xps_points_);
         }        
         return *this;
     }
 
     void Boundary::clear()
     {
+        name_.clear();
         nodes_.clear();
         face_nodes_.clear();
         node_coords_.clear();
@@ -659,20 +666,29 @@ namespace EasyLib {
         face_types_.clear();
         face_area_.clear();
         face_normal_.clear();
+        std::fill(face_count_.begin(), face_count_.end(), 0);
+
+        mesh_changed_ = false;
 
         topo_  = ZT_POINTS;
         shape_ = ZS_GENERAL;
+
+        edges_.clear();
+        coord_min_.fill(0);
+        coord_max_.fill(0);
+
+        fields_.clear();
+
+        kdtree_.clear();
 
         xps_tm_.identity();
         xps_coords_.clear();
         xps_ts_inv_.clear();
         xps_computed_ = false;
 
-        kdtree_.clear();
-        mesh_changed_ = false;
-        is_high_order_ = false;
-
-        fields_.clear();
+        local_xps_points_.clear();
+        ibuffer_.clear();
+        dbuffer_.clear();
     }
 
     void Boundary::reserve(int_l max_node, int_l max_face, int_l max_fnodes)
@@ -685,9 +701,15 @@ namespace EasyLib {
         node_coords_.reserve(max_node);
         face_centroids_.reserve(max_face);
         face_nodes_.reserve(max_face, max_fnodes);
-        //node_faces.reserve(max_node, max_fnodes);
         face_area_.reserve(max_face);
         face_normal_.reserve(max_face);
+    }
+
+    void Boundary::set_name(const char* sname)
+    {
+        name_ = sname;
+        name_.erase(0, name_.find_first_not_of("\r\t\n ")); // trim left
+        name_.erase(name_.find_last_not_of("\r\t\n ") + 1); // trim right
     }
 
     int Boundary::add_node(double x, double y, double z, int_g global_id/* = -1*/)
@@ -724,6 +746,7 @@ namespace EasyLib {
             if      (count == 3)type = FT_TRI3;
             else if (count == 4)type = FT_QUAD4;
         }
+
         // check
         for (int i = 0; i < count; ++i) {
             if (fnodes[i] < 0 || fnodes[i] >= node_num()) {
@@ -743,8 +766,6 @@ namespace EasyLib {
             return -1;
         }
 
-        is_high_order_ &= type == FT_BAR3 || type == FT_TRI6 || type == FT_QUAD8;
-
         int id = face_nodes_.nrow();
         face_nodes_.push_back(count, fnodes);
         face_types_.push_back(type);
@@ -753,6 +774,10 @@ namespace EasyLib {
         face_normal_.emplace_back(0, 0, 0);
         
         mesh_changed_ = true;
+
+        if (type == FT_POLYGON)edges_.clear();
+
+        ++face_count_[type];
 
         return id;
     }
@@ -782,6 +807,99 @@ namespace EasyLib {
         face_normal_.at(face).assign(sx / ds, sy / ds, sz / ds);
     }
 
+    void Boundary::create_edges()
+    {
+        if (topo_ != ZT_SURFACE || !edges_.empty())return;
+
+        edges_.clear();
+        if (face_nodes_.empty() || face_count_[FT_POLYGON] == 0)return;
+
+        // add edge to set
+        auto add_edge = [](std::set<Edge>& edges, Edge&& e) {
+            if (e.n1 < e.n0) {
+                std::swap(e.n0, e.n1);
+                std::swap(e.f0, e.f1);
+            }
+
+            std::set<Edge>::iterator it = edges.find(e);
+            if (it == edges.end()) {
+                edges.emplace(e);
+            }
+            else {
+                auto& x = const_cast<Edge&>(*it); //? trick
+                if (x.f0 == invalid_id)x.f0 = e.f0;
+                else if (x.f1 == invalid_id)x.f1 = e.f1;
+            }
+        };
+
+        std::set<Edge> edges;
+        for (int_l i = 0; i < face_num(); ++i) {
+            auto ft = face_types_.at(i);
+            auto fnodes = face_nodes_[i];
+            switch (ft) {
+            case FT_TRI3:
+                add_edge(edges, Edge{ fnodes[0], fnodes[1], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[1], fnodes[2], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[2], fnodes[0], i, invalid_id });
+                break;
+            case FT_TRI6:
+                //         2
+                //         +
+                //       /  \
+                //   5 +     + 4
+                //   /        \
+                // +-----+-----+
+                // 0     3     1
+                //
+                add_edge(edges, Edge{ fnodes[0], fnodes[3], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[3], fnodes[1], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[1], fnodes[4], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[4], fnodes[2], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[2], fnodes[5], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[5], fnodes[0], i, invalid_id });
+                break;
+            case FT_QUAD4:
+                add_edge(edges, Edge{ fnodes[0], fnodes[1], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[1], fnodes[2], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[2], fnodes[3], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[3], fnodes[0], i, invalid_id });
+                break;
+            case FT_QUAD8:
+                //        6
+                // 3+-----+-----+ 2
+                //  |           |
+                //  |           |
+                // 7+           + 5
+                //  |           |
+                //  |           |
+                //  +-----+-----+
+                //  0     4     1
+                //
+                add_edge(edges, Edge{ fnodes[0], fnodes[4], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[4], fnodes[1], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[1], fnodes[5], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[5], fnodes[2], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[2], fnodes[6], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[6], fnodes[3], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[3], fnodes[7], i, invalid_id });
+                add_edge(edges, Edge{ fnodes[7], fnodes[0], i, invalid_id });
+                break;
+            case FT_POLYGON:
+                for (size_t j = 1; j < fnodes.size(); ++j) {
+                    add_edge(edges, Edge{ fnodes[j - 1], fnodes[j], i, invalid_id });
+                }
+                add_edge(edges, Edge{ fnodes.back(), fnodes.front(), i, invalid_id });
+                break;
+            }
+        }
+
+        edges_.reserve(edges.size());
+        for (auto& e : edges) {
+            ASSERT(e.n0 != e.n1 && e.f0 != e.f1);
+            edges_.push_back(e);
+        }
+    }
+
     void Boundary::compute_metics(double biased_angle_deg/* = 5*/)
     {
         if (!mesh_changed_)return;
@@ -808,14 +926,8 @@ namespace EasyLib {
             // normalize
             for (int i = 0; i < face_num(); ++i)face_area_[i] = face_normal_[i].normalize();
 
-            // 
-            is_high_order_ = std::all_of(face_types_.begin(), face_types_.end(), [](auto ft) {return ft == FT_BAR3 || ft == FT_TRI6 || ft == FT_QUAD8; });
-
             // create node-faces
             MeshConnectivity::flip(face_nodes_, node_num(), node_faces_);
-        }
-        else {
-            is_high_order_ = false;
         }
 
         // shape of boundary
@@ -823,6 +935,9 @@ namespace EasyLib {
 
         // create kdtree
         kdtree_.create(node_coords_.data()->data(), node_num(), true);
+
+        // create edges
+        if (face_count_[FT_POLYGON] && edges_.empty())create_edges();
 
         mesh_changed_ = false;
     }
@@ -936,122 +1051,92 @@ namespace EasyLib {
         }
     }
 
-    void Boundary::compute_local_xps_interp_coeff(const vec3& p, int max_neigh, std::span<int_l> ids, std::span<double> coeff, int& count)
+    void Boundary::compute_local_xps_interp_coeff(const vec3& p, int max_donor, std::span<int_l> ids, std::span<double> coeff, int& count, double min_dist_sq/* = 1E-20*/)
     {
+        constexpr const int stride = 3;
+        constexpr const int np_des = 1;
+
         if (node_num() == 0)return;
         if (!mesh_changed_)compute_metics();
 
-        if (max_neigh <= 0)error("non-positive max neighbor count!");
-        max_neigh = std::min(max_neigh, (int)node_num());
-        if (ids.size() < max_neigh || coeff.size() < max_neigh)error("length of ids and coefficients. array is too small!");
+        if (max_donor <= 0)error("maximum number of donors is non-positive!");
+        max_donor = std::min(max_donor, (int)node_num());
+        if (ids.size() < max_donor || coeff.size() < max_donor)error("invalid length of ids and coefficients!");
 
         // search nearest points
-        if (dbuffer_.size() < max_neigh)dbuffer_.resize(max_neigh);
-        count = kdtree_.search(p.data(), max_neigh, ids.data(), coeff.data());
+        if (dbuffer_.size() < max_donor)dbuffer_.resize(max_donor);
+        count = kdtree_.search(p.data(), max_donor, ids.data(), coeff.data());
         if (count <= 0)error("failed searching nearest points!");
 
-        // coincide point found
-        if (coeff.front() <= 1E-16) {
+        // coincident point found:
+        if (coeff.front() == 0 || coeff.front() <= min_dist_sq) {
             count = 1;
             coeff.front() = 1;
             return;
         }
 
-        // extract points
-        local_xps_points_.resize(count);
-        for (int_l i = 0; i < count; ++i) {
+        const int np_src = count;
+
+        // extract coordinates of donors
+        local_xps_points_.resize(np_src);
+        for (int_l i = 0; i < np_src; ++i) {
             local_xps_points_[i] = node_coords_[ids[i]];
         }
 
-        // compute shape of nearest point set
+        // compute shape of donors
         TinyMatrix<double, 4, 4> tm;
-        auto type = compute_topo_3d(count, local_xps_points_.data()->data(), tm.data());
+        auto type = compute_topo_3d(np_src, local_xps_points_.data()->data(), tm.data());
 
-        // compute interpolation coefficients
-
-        double q[2]{ 0 };
-        int singular = 0;
-        if      (type == ZS_POINT   ) {
+        int ndim;
+        switch (type) {
+        case ZS_POINT: // all donors coincided
             ids.front() = 0;
             coeff.front() = 1;
             count = 1;
+            return;
+        case ZS_COLINEAR:ndim = 1; break;// all donors are colinear
+        case ZS_COPLANER:ndim = 2; break;// all donors are coplaner
+        default:         ndim = 3;       // general 3-d
         }
-        else if (type == ZS_COLINEAR) {
-            const int ndim   = 1;
-            const int np_des = 1;
-            const int np_src = count;
-            int ni = 0, nd = 0;
-            compute_xps_ibuffer_size(np_src, ndim, &ni);
-            compute_xps_dbuffer_size(np_src, ndim, &nd);
-            
-            if (ibuffer_.size() < ni)ibuffer_.resize(ni);
-            if (dbuffer_.size() < (ni + ndim * np_des))dbuffer_.resize(ni + ndim * np_des);
-            
-            auto x_src = dbuffer_.data() + nd;
-            ASSERT(x_src + ndim * np_des == dbuffer_.data() + dbuffer_.size());
+        
+        // allocate buffer for XPS
+        int ni = 0, nd = 0;
+        compute_xps_ibuffer_size(np_src, ndim, &ni);
+        compute_xps_dbuffer_size(np_src, ndim, &nd);
+        if (ibuffer_.size() < ni)ibuffer_.resize(ni);
+        if (dbuffer_.size() < nd)dbuffer_.resize(nd);
 
-            // extract local coordinates.
+        // transform donors coordinates to local C.S.
+        if (ndim != 3) {
             for (int_l i = 0; i < count; ++i) {
-                auto& c = local_xps_points_[i];
-                x_src[i] = tm(0, 0) * c.x + tm(0, 1) * c.y + tm(0, 2) * c.z + tm(0, 3);
+                vec3 c = local_xps_points_[i];
+                local_xps_points_[i].x = tm(0, 0) * c.x + tm(0, 1) * c.y + tm(0, 2) * c.z + tm(0, 3);
+                local_xps_points_[i].y = tm(1, 0) * c.x + tm(1, 1) * c.y + tm(1, 2) * c.z + tm(1, 3);
+                local_xps_points_[i].z = tm(2, 0) * c.x + tm(2, 1) * c.y + tm(2, 2) * c.z + tm(2, 3);
             }
-
-            // transform query point to local CS.
-            q[0] = tm(0, 0) * p.x + tm(0, 1) * p.y + tm(0, 2) * p.z + tm(0, 3);
-
-            // compute interpolation matrix
-            compute_xps_interp_matrix(np_src, np_des, ndim, x_src, q, coeff.data(), dbuffer_.data(), ibuffer_.data(), &singular);
-        }
-        else if (type == ZS_COPLANER) {
-            const int ndim   = 2;
-            const int np_des = 1;
-            const int np_src = count;
-            int ni = 0, nd = 0;
-            compute_xps_ibuffer_size(np_src, ndim, &ni);
-            compute_xps_dbuffer_size(np_src, ndim, &nd);
-
-            if (ibuffer_.size() < ni)ibuffer_.resize(ni);
-            if (dbuffer_.size() < (ni + ndim * np_des))dbuffer_.resize(ni + ndim * np_des);
-
-            auto x_src = dbuffer_.data() + nd;
-            ASSERT(x_src + ndim * np_des == dbuffer_.data() + dbuffer_.size());
-
-            // extract local coordinates.
-            for (int_l i = 0; i < count; ++i) {
-                auto& c = local_xps_points_[i];
-                x_src[ndim * i + 0] = tm(0, 0) * c.x + tm(0, 1) * c.y + tm(0, 2) * c.z + tm(0, 3);
-                x_src[ndim * i + 1] = tm(1, 0) * c.x + tm(1, 1) * c.y + tm(1, 2) * c.z + tm(1, 3);
-            }
-
-            // transform query point to local CS.
-            q[0] = tm(0, 0) * p.x + tm(0, 1) * p.y + tm(0, 2) * p.z + tm(0, 3);
-            q[1] = tm(1, 0) * p.x + tm(1, 1) * p.y + tm(1, 2) * p.z + tm(1, 3);
-
-            // compute interpolation matrix
-            compute_xps_interp_matrix(np_src, np_des, ndim, x_src, q, coeff.data(), dbuffer_.data(), ibuffer_.data(), &singular);
-        }
-        else if (type == ZS_GENERAL ) {
-            const int ndim   = 3;
-            const int np_des = 1;
-            const int np_src = count;
-
-            int ni = 0, nd = 0;
-            compute_xps_ibuffer_size(np_src, ndim, &ni);
-            compute_xps_dbuffer_size(np_src, ndim, &nd);
-
-            if (ibuffer_.size() < ni)ibuffer_.resize(ni);
-            if (dbuffer_.size() < (ni))dbuffer_.resize(ni);
-
-            //x extract neighbor coordinates.
-
-            // compute interpolation matrix
-            compute_xps_interp_matrix(np_src, np_des, ndim, local_xps_points_.data()->data(), &p.x, coeff.data(), dbuffer_.data(), ibuffer_.data(), &singular);
         }
 
-        if (singular)error("XPS matrix singular, this maybe caused by coincide points!");
+        // transform query point to local C.S.
+        vec3 q;
+        if (ndim != 3) {
+            q.x = tm(0, 0) * p.x + tm(0, 1) * p.y + tm(0, 2) * p.z + tm(0, 3);
+            q.y = tm(1, 0) * p.x + tm(1, 1) * p.y + tm(1, 2) * p.z + tm(1, 3);
+            q.z = tm(2, 0) * p.x + tm(2, 1) * p.y + tm(2, 2) * p.z + tm(2, 3);
+        }
+        else
+            q = p;
+
+        // compute interpolation matrix
+        int singular = 0;
+        compute_xps_interp_matrix(np_src, np_des, ndim, stride, local_xps_points_.data()->data(), q.data(), coeff.data(), dbuffer_.data(), ibuffer_.data(), &singular);
+        if (!singular)return;
+
+        // singular: using inverse distance method
+        error("XPS matrix singular, this is usually caused by coincident donor points!");
+        
     }
 
-    void Boundary::compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& count)
+    void Boundary::compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& count, double min_dist_sq/* = 1E-20*/)
     {
         if (face_nodes_.empty())error("face data not exists!");
 
@@ -1063,10 +1148,10 @@ namespace EasyLib {
         if (count <= 0)error("failed searching nearest point!");
 
         // coincide point found
-        if (d2 <= 1E-16) {
-            ids[0] = id;
+        if (d2 ==0 || d2 <= min_dist_sq) {
+            ids  [0] = id;
             coeff[0] = 1;
-            count = 1;
+            count    = 1;
             return;
         }
 
@@ -1091,14 +1176,17 @@ namespace EasyLib {
         for (const auto face : node_faces_[id]) {
             auto nodes = face_nodes_[face];
 
-            // extract points
+            if (face_types_[face] == FT_POLYGON) {
+                error("Polygon face is unsupported by projection algorithm!");
+                return;
+            }
+
+            // extract coordinates of donors
             for (size_t j = 0; j < nodes.size(); ++j) {
                 auto node = nodes[j];
                 auto& X = node_coords_[node];
                 ASSERT(j < npf_max);
-                Xe[j].x = X.x;
-                Xe[j].y = X.y;
-                Xe[j].z = X.z;
+                Xe[j] = X;
             }
 
             // projection
@@ -1138,23 +1226,29 @@ namespace EasyLib {
                 error("invalid face type!");
             }
 
-            // select nearest one
+            // distance between query point and it's projection
             d2 = distance_sq(p, p_proj);
+
+            // select nearest one
             if (d2 < d_min) {
                 d_min = d2;
                 count = static_cast<int>(nodes.size());
                 std::copy(nodes.begin(), nodes.end(), ids);
                 std::copy(Fn, Fn + count, coeff);
             }
+
+            if (d_min == 0 || d_min <= min_dist_sq)break;
         }
     }
-    void Boundary::register_field(const FieldInfo& fd)
+    
+    void Boundary::register_field_(const FieldInfo& fd)
     {
         for (auto& f : fields_)if (f.info == &fd)return;
         auto & f = fields_.emplace_back(Field{});
         f.info = &fd;
         f.data.resize(fd.location == NodeCentered ? node_num() : face_num(), fd.ncomp, 0);
     }
+
     Field& Boundary::get_field(const char* field_name)
     {
         for (auto& f : fields_)
@@ -1170,51 +1264,227 @@ namespace EasyLib {
         return *(const Field*)nullptr;
     }
 
-    //void Boundary::register_field(const char* field_name, int ncomp, FieldLocation location, FieldIO iotype, const char* units)
-    //{
-    //    for(auto& f : fields_){
-    //        if (f.name == field_name) {
-    //            f.ncomp    = ncomp;
-    //            f.location = location;
-    //            f.iotype   = iotype;
-    //            f.units    = units;
-    //
-    //            if (location == NodeCentered)
-    //                f.data.resize(node_num(), ncomp);
-    //            else
-    //                f.data.resize(face_num(), ncomp);
-    //            return;
-    //        }
-    //    }
-    //
-    //    auto& f = fields_.emplace_back(Field{});
-    //    f.name     = field_name;
-    //    f.ncomp    = ncomp;
-    //    f.location = location;
-    //    f.iotype   = iotype;
-    //    f.units    = units;
-    //
-    //    if (location == NodeCentered)
-    //        f.data.resize(node_num(), ncomp);
-    //    else
-    //        f.data.resize(face_num(), ncomp);
-    //}
-    //
-    //Field& Boundary::get_field(const char* field_name)
-    //{
-    //    for (auto& f : fields_)
-    //        if (f.name == field_name)return f;
-    //
-    //    error("field not found!");
-    //    return *(Field*)nullptr;
-    //}
-    //
-    //const Field& Boundary::get_field(const char* field_name)const
-    //{
-    //    for (auto& f : fields_)
-    //        if (f.name == field_name)return f;
-    //
-    //    error("field not found!");
-    //    return *(const Field*)nullptr;
-    //}
+    void Boundary::read_gmsh(const char* file)
+    {
+        clear();
+
+        std::ifstream fin(file);
+        if (!fin) {
+            error("%s(), failed open file: %s", __func__, file);
+            return;
+        }
+
+        enum SectionType {
+            ST_Null,
+            ST_Comment,
+            ST_MeshFormat,
+            ST_Nodes,
+            ST_Elements,
+            ST_Unknown
+            //ST_PhysicalNames
+        };
+
+        struct ElementData
+        {
+            int id, type, num_tag, phys_grp, elem_grp, nodes[8];
+        };
+        //-----------------------------   bar tri quad tet hex prism pyramid
+        static const int npe_gmsh[] = { 0, 2, 3,  4,   4,  8,  6,    5 };
+
+        SectionType stype = ST_Null;
+        std::string s, s_end;
+
+        while (!fin.eof()) {
+            std::getline(fin, s);
+
+            s.erase(0, s.find_first_not_of("\r\t\n "));//ÒÆ³ý¿ªÍ·µÄ¿Õ°×
+            s.erase(s.find_last_not_of("\r\t\n ") + 1);//ÒÆ³ý½áÎ²µÄ¿Õ°×
+            if (s.empty() || s.front() != '$')continue;
+
+            if      (s == "$Comments") {
+                stype = ST_Comment;
+                s_end = "$EndComments";
+            }
+            else if (s == "$MeshFormat") {
+                stype = ST_MeshFormat;
+                s_end = "$EndMeshFormat";
+                double version = 0;
+                int ftype, size;
+                fin >> version >> ftype >> size;
+                if (version < 2 || version >= 3) {
+                    error("%s(), unsupported GMSH file version: %lf", __func__, version);
+                    return;
+                }
+                if (ftype != 0) {
+                    error("%s(), GMSH file is not in ASCII format", __func__);
+                    return;
+                }
+            }
+            else if (s == "$Nodes") {
+                stype = ST_Nodes;
+                s_end = "$EndNodes";
+
+                // NN
+                // ID X Y Z
+                int nn = 0;
+                fin >> nn;
+                for (int i = 0; i < nn; ++i) {
+                    int id; double x, y, z;
+                    fin >> id >> x >> y >> z;
+                    add_node(x, y, z, id);
+                }
+            }
+            else if (s == "$Elements") {
+                stype = ST_Elements;
+                s_end = "$EndElements";
+
+                // Types: bar(1) tri(2) quad(3) tet(4) hex(5) prism(6) pyramid(7)
+                //
+                // NE
+                // Id Type NumTags PhysGrp ElemGrp IndexList
+
+                int nelem = 0;
+                fin >> nelem;
+                std::vector<ElementData> edata(nelem);
+                for (int i = 0; i < nelem; ++i) {
+                    int id, type, num_tag, phys_grp, elem_grp, nodes[8];
+                    fin >> id >> type >> num_tag >> phys_grp >> elem_grp;
+                    if (type < 1 || type >7) {
+                        error("%s(), unsupported element type: %d", __func__, type);
+                        return;
+                    }
+
+                    auto nn = npe_gmsh[type];
+                    for (int j = 0; j < nn; ++j)fin >> nodes[j];
+
+                    if (type == 2) {
+                        nodes[0] = nodes_.find(nodes[0]).second;
+                        nodes[1] = nodes_.find(nodes[1]).second;
+                        nodes[2] = nodes_.find(nodes[2]).second;
+                        add_face(FT_TRI3, 3, nodes);
+                    }
+                    else if (type == 3) {
+                        nodes[0] = nodes_.find(nodes[0]).second;
+                        nodes[1] = nodes_.find(nodes[1]).second;
+                        nodes[2] = nodes_.find(nodes[2]).second;
+                        nodes[3] = nodes_.find(nodes[3]).second;
+                        add_face(FT_QUAD4, 4, nodes);
+                    }
+                }
+            }
+            else if (s == s_end) {
+                stype = ST_Null;
+            }
+            else {
+                stype = ST_Unknown;
+                s_end = "#End" + s.substr(1);
+            }
+        }
+        fin.close();
+
+        mesh_changed_ = true;
+        compute_metics();
+    }
+
+    std::istream& operator >>(std::istream& is, Boundary& bd)
+    {
+        bd.clear();
+
+        // nn nf
+        int_l nn = 0, nf = 0;
+        is >> nn >> nf;
+        if (nn <= 0 || nf < 0) {
+            error("invalid node or face number in stream!");
+            return is;
+        }
+
+        bd.reserve(nn, nf, 8 * nf);
+
+        // nodes
+        //  ID X Y Z
+        for (int_l i = 0; i < nn; ++i) {
+            int_g id = 0;
+            Boundary::vec3 coords;
+            is >> id >> coords.x >> coords.y >> coords.z;
+            bd.add_node(coords, id);
+        }
+
+        // add faces
+        //  TYPE  N1  N2 ...
+        std::vector<int_l> fn_l;
+        for (int_l i = 0; i < nf; ++i) {
+            char type[3] = { '\0' };
+            is >> type[0]>>type[1];
+
+            FaceTopo ft = FT_POLYGON;
+            if      (_stricmp(type, "L2") == 0)ft = FT_BAR2;
+            else if (_stricmp(type, "L3") == 0)ft = FT_BAR3;
+            else if (_stricmp(type, "T3") == 0)ft = FT_TRI3;
+            else if (_stricmp(type, "T6") == 0)ft = FT_TRI6;
+            else if (_stricmp(type, "Q4") == 0)ft = FT_QUAD4;
+            else if (_stricmp(type, "Q8") == 0)ft = FT_QUAD8;
+            else if (_stricmp(type, "PN") == 0)ft = FT_POLYGON;
+
+            int n2f = 0;
+            if (ft != FT_POLYGON)n2f = npf[ft];
+            else is >> n2f;
+
+            if (n2f <= 0) {
+                error("invalid node number of face in stream!");
+                return is;
+            }
+
+            fn_l.resize(n2f);
+            for (auto& id : fn_l) {
+                int_g g = 0;
+                is >> g;
+                id = bd.nodes().g2l(g);
+                if (id == invalid_id) {
+                    error("node index out of range in stream!");
+                    return is;
+                }
+            }
+
+            bd.add_face(ft, n2f, fn_l.data());
+        }
+
+        // update metrics
+        bd.compute_metics();
+
+        return is;
+    }
+    std::ostream& operator <<(std::ostream& os, const Boundary& bd)
+    {
+        // nn nf
+        os << bd.node_num() << ' ' << bd.face_num() << '\n';
+
+        // nodes
+        for (int_l i = 0; i < bd.node_num(); ++i) {
+            auto& c = bd.node_coords().at(i);
+            os << bd.nodes().l2g(i) << ' '
+                << c.x << ' '
+                << c.y << ' '
+                << c.z << '\n';
+        }
+
+        // faces
+        for (int_l i = 0; i < bd.face_num(); ++i) {
+            auto nodes = bd.face_nodes()[i];
+            switch (bd.face_types().at(i)) {
+            case FT_BAR2 : os << "L2"; break;
+            case FT_BAR3 : os << "L3"; break;
+            case FT_TRI3 : os << "T3"; break;
+            case FT_TRI6 : os << "T6"; break;
+            case FT_QUAD4: os << "Q4"; break;
+            case FT_QUAD8: os << "Q8"; break;
+            default:
+                os << "PN " << nodes.size();
+            }
+
+            for (auto id : nodes)os << ' ' << bd.nodes().l2g(id);
+            os << '\n';
+        }
+
+        return os;
+    }
 }

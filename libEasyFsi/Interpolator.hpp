@@ -1,10 +1,21 @@
 #pragma once
 #include <vector>
 
+#include "DynamicMatrix.hpp"
+
 namespace EasyLib {
 
     class Boundary;
     struct Field;
+
+    enum InterpolationMethod
+    {
+        GlobalXPS,  //! Use global IPS/TPS/Spline method.
+        LocalXPS,   //! Use local IPS/TPS/Spline method.
+        Projection, //! Used projection method, faces should be defined on boundary.
+        Mapping,    //! This is not implemented now.
+        Automatic   //! Automatic select above method.
+    };
 
     class Interpolator
     {
@@ -12,6 +23,7 @@ namespace EasyLib {
         inline static constexpr const int max_donor = 20;
 
         Interpolator() = default;
+        virtual ~Interpolator() = default;
 
         void clear();
 
@@ -28,19 +40,19 @@ namespace EasyLib {
         int add_target_boundary(Boundary& bd);
 
         //! @brief Compute interpolation coefficients.
-        void compute_interp_coeff();
+        void compute_interp_coeff(InterpolationMethod method = Automatic);
 
-        //! @brief Interpolate incoming DOFs for target boundaries.
+        //! @brief Interpolate incoming DOFs from source bounds to target bounds.
         //! @param sources Field of source boundaries. size = source bounds number.
         //! @param targets Field of target boundaries. size = target bounds number.
         //! @note each of \sources field must be node-centered.
-        void interp_target_dofs (std::span<Field* const> sources, std::span<Field*> targets);
+        void interp_dofs_s2t(std::span<Field* const> sources, std::span<Field*> targets);
 
-        //! @brief Interpolate incoming LOADs for source boundaries. 
+        //! @brief Interpolate incoming LOADs from target bounds to source bounds. 
         //! @param targets Field of target boundaries. size = target bounds number.
         //! @param sources Field of source boundaries. size = source bounds number.
         //! @note each of \sources field must be node-centered.
-        void interp_source_loads(std::span<Field* const> targets, std::span<Field*> sources);
+        void interp_loads_t2s(std::span<Field* const> targets, std::span<Field*> sources);
 
         inline int source_app_id()const noexcept { return source_app_; }
         inline int target_app_id()const noexcept { return target_app_; }
@@ -62,5 +74,8 @@ namespace EasyLib {
         };
         std::vector<Coeffs> node_coeffs_;
         std::vector<Coeffs> face_coeffs_;
+
+        //std::vector<DynamicMatrix> node_coeffs_global_xps_;
+        //std::vector<DynamicMatrix> face_coeffs_global_xps_;
     };
 }
