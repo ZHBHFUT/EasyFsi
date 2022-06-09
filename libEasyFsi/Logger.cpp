@@ -9,7 +9,6 @@ namespace EasyLib {
 
     void default_output(const char* msg)
     {
-        printf("%s", msg);
         puts(msg);
     }
 

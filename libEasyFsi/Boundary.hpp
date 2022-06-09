@@ -66,7 +66,12 @@ namespace EasyLib {
 
         struct Edge
         {
-            int_l n0{ 0 }, n1{ 0 }, f0{ 0 }, f1{ 0 };
+            int_l
+                n0{ 0 }, //! the starting node of this edge, >=0.
+                n1{ 0 }, //! the ending node of this edge, >=0.
+                f0{ 0 }, //! the left adjacent face of this edge, >=0.
+                f1{ 0 }  //! the right adjacent face of this edge, invalid_id=not exists.
+            ;
 
             inline friend bool operator < (const Edge& lhs, const Edge& rhs)
             {
@@ -168,8 +173,11 @@ namespace EasyLib {
         //! @param [out] ids         Index list of donor nodes.
         //! @param [out] coeff       Coefficients used to do interpolating.
         //! @param [out] n_donor     Number of donor points.
+        //! @param [out] dist_sq     Distance between query point and it's projection.
         //! @param [in]  min_dist_sq The minimum squared-distance to determine whether two points coincide.
-        void compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& n_donor, double min_dist_sq = 1E-20);
+        void compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& n_donor, double& dist_sq, double min_dist_sq = 1E-20);
+
+        //int find_nearest_points(const vec3& p, int n_query, int* nodes, double* dist_sq)const;
 
         //void save(const char* file, const double* node_disp = nullptr)const;
 
@@ -177,23 +185,41 @@ namespace EasyLib {
 
         //void read_init_coord(const char* file);
 
+        //! @brief Create boundary from GMSH file, just for testing.
+        //! @param file GMSH file
         void read_gmsh(const char* file);
 
+        //! @brief Get name of the boundary.
         inline auto& name()const noexcept { return name_; }
 
+        //! @brief Get topology of the boundary.
         inline auto topo ()const { ASSERT(!mesh_changed_); return topo_; }
+
+        //! @brief Get shape of the boundary.
         inline auto shape()const { ASSERT(!mesh_changed_); return shape_; }
 
+        //! @brief Whether or not this boundary contains any polygon element.
         inline bool contains_polygon()const noexcept { return face_count_[FT_POLYGON] > 0; }
-        inline bool contains_high_order_face()const noexcept { return face_count_[FT_BAR3] || face_count_[FT_TRI6] || face_count_[FT_QUAD8]; }
-        //inline bool is_all_high_order()const { return is_high_order_; }
 
+        //! @brief Whether or not this boundary contains any high order element.
+        inline bool contains_high_order_face()const noexcept { return face_count_[FT_BAR3] || face_count_[FT_TRI6] || face_count_[FT_QUAD8]; }
+
+        //! @brief Whether or not all faces are high-order element.
+        inline bool all_high_order()const { return face_num() > 0 && (face_count_[FT_BAR3] + face_count_[FT_TRI6] + face_count_[FT_QUAD8] == face_num()); }
+
+        //! @brief Get edges for surface boundary.
         inline auto& edges_for_surface()const noexcept { return edges_; }
 
+        //! @brief Get minimum value of the node coordinate.
         inline const vec3& coords_min()const noexcept { ASSERT(!mesh_changed_); return coord_min_; }
+
+        //! @brief Get maximum value of the node coordinate.
         inline const vec3& coords_max()const noexcept { ASSERT(!mesh_changed_); return coord_max_; }
 
+        //! @brief Get node number.
         inline int_l node_num()const { return nodes_.size(); }
+
+        //! @brief Get face number.
         inline int_l face_num()const { return face_nodes_.nrow(); }
 
         inline const IndexSet&         nodes     ()const noexcept { return nodes_; }
@@ -205,8 +231,11 @@ namespace EasyLib {
         inline const auto& face_normals  ()const noexcept { ASSERT(!mesh_changed_); return face_normal_; }
         inline const auto& face_types    ()const noexcept { return face_types_; }
 
-        inline auto& face_count(           )const noexcept { return face_count_; }
-        inline auto  face_count(FaceTopo ft)const noexcept { return face_count_[ft]; }
+        //! @brief Get face number list of each face type.
+        inline auto& face_type_num(           )const noexcept { return face_count_; }
+
+        //! @brief Get face number of specified type.
+        inline auto  face_type_num(FaceTopo ft)const noexcept { return face_count_[ft]; }
 
         inline auto& get_fields()const noexcept { return fields_; }
 
@@ -220,23 +249,31 @@ namespace EasyLib {
         friend class Interpolator;
         friend class Application;
 
+        //! @brief Reading boundary(s) from file.
+        //! @param [in]  file    Boundary file.
+        //! @param [out] bounds  Boundary list.
+        static void read_from_file(const char* file, std::vector<Boundary> bounds);
+        static void write_to_file(const char* file, int nbound, const Boundary* bounds);
+        static void write_to_file(const char* file, int nbound, const Boundary** bounds);
     private:
         void register_field_(const FieldInfo& fd);
         
     private:
-        std::string      name_;
-        IndexSet         nodes_;
-        MeshConnectivity face_nodes_, node_faces_;
-        vvec             node_coords_;
-        vvec             face_centroids_;
-        ivec             face_types_;
-        dvec             face_area_;
-        vvec             face_normal_;
-        std::array<int_l, FT_POLYGON + 1> face_count_{ 0 };
+        std::string      name_; //! The name of this boundary.
+        IndexSet         nodes_;//! The global index set of nodes.
+        MeshConnectivity face_nodes_, node_faces_; //! The face-node connectivities.
+        vvec             node_coords_;    //! The node coordinates array.
+        vvec             face_centroids_; //! The face centroid array.
+        ivec             face_types_;     //! The face type array.
+        dvec             face_area_;      //! The face area array.
+        vvec             face_normal_;    //! The face normal array.
 
         //---------------------------------------------------
         // Following Data will be ignored by communicator.
         //---------------------------------------------------
+
+        std::array<int_l, FT_POLYGON + 1> face_count_{ 0 }; //! The element number of each type.
+        //MeshConnectivity face_faces_;
 
         bool             mesh_changed_{ false };//! Is mesh changed?
 

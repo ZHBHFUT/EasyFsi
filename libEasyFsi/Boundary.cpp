@@ -1,7 +1,8 @@
 #include <cmath>
 #include <numbers>  // std::numeric_limits<double>::max();
-#include <span>
+#include <iomanip>
 #include <fstream>  // see Boundary::read_gmsh
+#include <span>
 #include <set>      // see Boundary::create_edges_
 
 #include "Logger.hpp"
@@ -41,7 +42,7 @@ namespace EasyLib {
 
     static void compute_fc(int nf, const Boundary::vec3* pnts, const FaceTopo* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* fcent)
     {
-        double fn[npf_max];
+        double fn[npf_max] = { 0 };
         for (int i = 0; i < nf; ++i) {
             auto nodes = face_nodes[i];
             if      (ftopo[i] == FT_BAR2) {
@@ -937,7 +938,7 @@ namespace EasyLib {
         kdtree_.create(node_coords_.data()->data(), node_num(), true);
 
         // create edges
-        if (face_count_[FT_POLYGON] && edges_.empty())create_edges();
+        if (/*face_count_[FT_POLYGON] &&*/ edges_.empty())create_edges();
 
         mesh_changed_ = false;
     }
@@ -1136,12 +1137,13 @@ namespace EasyLib {
         
     }
 
-    void Boundary::compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& count, double min_dist_sq/* = 1E-20*/)
+    void Boundary::compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& count, double& dist_sq, double min_dist_sq/* = 1E-20*/)
     {
         if (face_nodes_.empty())error("face data not exists!");
 
         if (mesh_changed_)compute_metics(); // we need kdtree
 
+        // find nearest node
         int_l id{ invalid_id };
         double d2{ 0 };
         count = kdtree_.search(p.data(), 1, &id, &d2);
@@ -1152,6 +1154,7 @@ namespace EasyLib {
             ids  [0] = id;
             coeff[0] = 1;
             count    = 1;
+            dist_sq  = d2;
             return;
         }
 
@@ -1166,13 +1169,13 @@ namespace EasyLib {
         using tmat_1x6 = TinyMatrix<double, 1, 6>;
         using tmat_1x8 = TinyMatrix<double, 1, 8>;
 
-        vec3   Xe[npf_max];
-        double Xi[2];
-        double Fn[npf_max];
+        vec3   Xe[npf_max], p_proj;
+        double Xi[2] = { 0 };
+        double Fn[npf_max] = { 0 };
         double d_min = std::numeric_limits<double>::max();
         count = 0;
-
-        // loop each face of node
+        
+        // loop each adjacent face of node and do projection to find nearest one
         for (const auto face : node_faces_[id]) {
             auto nodes = face_nodes_[face];
 
@@ -1190,37 +1193,37 @@ namespace EasyLib {
             }
 
             // projection
-            vec3 p_proj;
+            
             switch (face_types_[face]) {
             case FT_BAR2:
                 ProjectToLINE2(Xe[0], Xe[1], p, Xi[0]);
                 ShapeFunctionLINE2(Xi[0], Fn);
-                p_proj = dot(tmat_1x2::view(Fn), tmat_2x3::view(&Xe[0].x));
+                p_proj = dot(tmat_1x2::view(Fn), tmat_2x3::view(&Xe[0].x)); // projection point
                 break;
             case FT_BAR3:
                 ProjectToLINE3(Xe[0], Xe[1], Xe[2], p, Xi[0]);
                 ShapeFunctionLINE2(Xi[0], Fn);
-                p_proj = dot(tmat_1x3::view(Fn), tmat_3x3::view(&Xe[0].x));
+                p_proj = dot(tmat_1x3::view(Fn), tmat_3x3::view(&Xe[0].x)); // projection point
                 break;
             case FT_TRI3:
                 ProjectToTRI3(Xe, p, Xi[0], Xi[1]);
                 ShapeFunctionTRI3(Xi[0], Xi[1], Fn);
-                p_proj = dot(tmat_1x3::view(Fn), tmat_3x3::view(&Xe[0].x));
+                p_proj = dot(tmat_1x3::view(Fn), tmat_3x3::view(&Xe[0].x)); // projection point
                 break;
             case FT_TRI6:
                 ProjectToTRI6(Xe, p, Xi[0], Xi[1]);
                 ShapeFunctionTRI6(Xi[0], Xi[1], Fn);
-                p_proj = dot(tmat_1x6::view(Fn), tmat_6x3::view(&Xe[0].x));
+                p_proj = dot(tmat_1x6::view(Fn), tmat_6x3::view(&Xe[0].x)); // projection point
                 break;
             case FT_QUAD4:
                 ProjectToQUAD4(Xe, p, Xi[0], Xi[1]);
                 ShapeFunctionQUAD4(Xi[0], Xi[1], Fn);
-                p_proj = dot(tmat_1x4::view(Fn), tmat_4x3::view(&Xe[0].x));
+                p_proj = dot(tmat_1x4::view(Fn), tmat_4x3::view(&Xe[0].x)); // projection point
                 break;
             case FT_QUAD8:
                 ProjectToQUAD8(Xe, p, Xi[0], Xi[1]);
                 ShapeFunctionQUAD8(Xi[0], Xi[1], Fn);
-                p_proj = dot(tmat_1x8::view(Fn), tmat_8x3::view(&Xe[0].x));
+                p_proj = dot(tmat_1x8::view(Fn), tmat_8x3::view(&Xe[0].x)); // projection point
                 break;
             default:
                 error("invalid face type!");
@@ -1235,12 +1238,50 @@ namespace EasyLib {
                 count = static_cast<int>(nodes.size());
                 std::copy(nodes.begin(), nodes.end(), ids);
                 std::copy(Fn, Fn + count, coeff);
+                dist_sq = d2;
             }
 
             if (d_min == 0 || d_min <= min_dist_sq)break;
         }
     }
     
+    //int Boundary::find_nearest_points(const vec3& p, int n_query, int* nodes, double* dist_sq)const
+    //{
+    //    if (nodes_.empty())return 0;
+    //
+    //    // not enough nodes
+    //    if (nodes_.size() <= n_query) {
+    //        n_query = nodes_.size();
+    //        for (int_l i = 0; i < n_query; ++i) {
+    //            nodes[i] = i;
+    //            dist_sq[i] = distance_sq(p, node_coords_[i]);
+    //        }
+    //        // sort
+    //        for (int_l i = 0; i < n_query; ++i) {
+    //            for (int_l j = i + 1; j < n_query; ++j) {
+    //                if (dist_sq[j] < dist_sq[i]) {
+    //                    std::swap(nodes[j], nodes[i]);
+    //                    std::swap(dist_sq[j], dist_sq[i]);
+    //                }
+    //                else if (dist_sq[j] < dist_sq[j - 1]) {
+    //                    std::swap(nodes[j - 1], nodes[j]);
+    //                    std::swap(dist_sq[j - 1], dist_sq[j]);
+    //                }
+    //            }
+    //        }
+    //        return n_query;
+    //    }
+    //
+    //    // face not exists: search with kdtree
+    //    if (face_nodes_.empty()) {
+    //        return kdtree_.search(p.data(), n_query, nodes, dist_sq);
+    //    }
+    //    // face exists: use 
+    //    else {
+    //
+    //    }
+    //}
+
     void Boundary::register_field_(const FieldInfo& fd)
     {
         for (auto& f : fields_)if (f.info == &fd)return;
@@ -1347,7 +1388,7 @@ namespace EasyLib {
                 fin >> nelem;
                 std::vector<ElementData> edata(nelem);
                 for (int i = 0; i < nelem; ++i) {
-                    int id, type, num_tag, phys_grp, elem_grp, nodes[8];
+                    int id = 0, type = 0, num_tag = 0, phys_grp = 0, elem_grp = 0, nodes[8] = { 0 };
                     fin >> id >> type >> num_tag >> phys_grp >> elem_grp;
                     if (type < 1 || type >7) {
                         error("%s(), unsupported element type: %d", __func__, type);
@@ -1462,9 +1503,9 @@ namespace EasyLib {
         for (int_l i = 0; i < bd.node_num(); ++i) {
             auto& c = bd.node_coords().at(i);
             os << bd.nodes().l2g(i) << ' '
-                << c.x << ' '
-                << c.y << ' '
-                << c.z << '\n';
+                << std::setprecision(std::numeric_limits<double>::digits10 + 1) << std::scientific << c.x << ' '
+                << std::setprecision(std::numeric_limits<double>::digits10 + 1) << std::scientific << c.y << ' '
+                << std::setprecision(std::numeric_limits<double>::digits10 + 1) << std::scientific << c.z << '\n';
         }
 
         // faces
@@ -1486,5 +1527,90 @@ namespace EasyLib {
         }
 
         return os;
+    }
+
+    void Boundary::read_from_file(const char* file, std::vector<Boundary> bounds)
+    {
+        bounds.clear();
+
+        std::ifstream fin(file);
+        if (!fin.is_open()) { error("failed opening file: %s", file); return; }
+
+        info("\nreading boundary file: %s\n", file);
+
+        int nb = 0;
+        fin >> nb;
+        
+        if (nb < 0) {
+            error("invalid boundary number: %s", file);
+            return;
+        }
+        info("    Boundary Number = %d\n", nb);
+        if (nb == 0)return;
+
+        bounds.resize(nb);
+        for (auto& bd : bounds) {
+            fin >> bd;
+        }
+
+        if (!fin.good()) {
+            error("failed reading data");
+            return;
+        }
+
+        fin.close();
+        info("!!!OK!!!\n");
+    }
+
+    void Boundary::write_to_file(const char* file, int nbound, const Boundary* bounds)
+    {
+        if (nbound < 0) {
+            error("invalid boundary number: %s", file);
+            return;
+        }
+
+        std::ofstream ofs(file);
+        if (!ofs.is_open()) { error("failed opening file: %s", file); return; }
+
+        info("\nwriting boundary file: %s\n", file);
+
+        ofs << nbound << '\n';
+        for (int ib = 0; ib < nbound; ++ib) {
+            ofs << bounds[ib];
+        }
+
+        if (!ofs.good()) {
+            error("failed writing data");
+            return;
+        }
+
+        ofs.close();
+        info("!!!OK!!!\n");
+    }
+
+    void Boundary::write_to_file(const char* file, int nbound, const Boundary** bounds)
+    {
+        if (nbound < 0) {
+            error("invalid boundary number: %s", file);
+            return;
+        }
+
+        std::ofstream ofs(file);
+        if (!ofs.is_open()) { error("failed opening file: %s", file); return; }
+
+        info("\nwriting boundary file: %s\n", file);
+
+        ofs << nbound << '\n';
+        for (int ib = 0; ib < nbound; ++ib) {
+            ofs << *(bounds[ib]);
+        }
+
+        if (!ofs.good()) {
+            error("failed writing data");
+            return;
+        }
+
+        ofs.close();
+        info("!!!OK!!!\n");
     }
 }

@@ -354,9 +354,9 @@ private:
             return node;
         }
         else {
-            size_t cd     = 0;
-            coord_type cv = 0;
-            size_t n_lo   = 0;
+            size_t cd      = 0;
+            coord_type cv  = 0;
+            size_type n_lo = 0;
 
             // find length of longest box side
             coord_type max_length{ 0 };
@@ -453,11 +453,11 @@ private:
             //	Otherwise, we select n_lo as close to n/2 as possible within
             //			[br1..br2].
             //------------------------------------------------------------------
-            if      (ideal_cut_val < cmin) n_lo = 1;
-            else if (ideal_cut_val > cmax) n_lo = n - 1;
+            if      (ideal_cut_val < cmin)   n_lo = 1;
+            else if (ideal_cut_val > cmax)   n_lo = n - 1;
             else if ((size_type)br1 > n / 2) n_lo = (size_type)br1;
             else if ((size_type)br2 < n / 2) n_lo = (size_type)br2;
-            else    n_lo = n / 2;
+            else                             n_lo = n / 2;
 
             // save bounds for cutting dimension
             auto lv = bnd_box_lo[cd];
@@ -467,7 +467,7 @@ private:
             bnd_box_hi[cd] = cv;
 
             // build left subtree: from pidx[0...n_lo-1]
-            auto lo = build_(pidx, static_cast<size_type>(n_lo), bnd_box_lo, bnd_box_hi);
+            auto lo = build_(pidx, n_lo, bnd_box_lo, bnd_box_hi);
 
             // restore bounds
             bnd_box_hi[cd] = hv;
@@ -476,7 +476,7 @@ private:
             bnd_box_lo[cd] = cv;
 
             // build right subtree
-            auto hi = build_(pidx + n_lo, static_cast<size_type>(n - n_lo), bnd_box_lo, bnd_box_hi);
+            auto hi = build_(pidx + n_lo, n - n_lo, bnd_box_lo, bnd_box_hi);
 
             // restore bounds
             bnd_box_lo[cd] = lv;

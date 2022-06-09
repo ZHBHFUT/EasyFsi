@@ -20,7 +20,7 @@ namespace EasyLib {
 
     void MeshConnectivity::clear()noexcept
     {
-        ia_.clear();
+        ia_.clear(); ia_.push_back(0);
         ja_.clear();
     }
 

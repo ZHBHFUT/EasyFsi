@@ -281,7 +281,7 @@ namespace EasyLib {
                 }
                 // interpolate LOADs for this
                 else if(this_fd.iotype == IncomingLoads) {
-                    ip->interp_loads_t2s(
+                    ip->interp_load_t2s(
                         std::span<Field* const>(remote_fields_.data(), remote_fields_.size()),
                         std::span<Field*>(this_fields_.data(), this_fields_.size())
                     );
@@ -723,7 +723,7 @@ namespace EasyLib {
                 << "T = \"" << bd->name() << "\"\n";
 
             // 
-            bool all_tri  = bd->face_count(FT_TRI3) + bd->face_count(FT_TRI6) == bd->face_num();
+            bool all_tri  = bd->face_type_num(FT_TRI3) + bd->face_type_num(FT_TRI6) == bd->face_num();
             //bool all_quad = bd->face_count(FT_QUAD4) + bd->face_count(FT_QUAD8) == bd->face_num();
 
             // Polygon not exists: write finite element grid (ignore middle node)

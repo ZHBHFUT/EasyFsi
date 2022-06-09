@@ -232,7 +232,7 @@ void mat_apply_add_mat(int m, int n, int l, const double* A, const double* B, do
 void compute_xps_ibuffer_size(int np_src, int ndim, int* ibuffer_size)
 {
     int rank = np_src + 1 + ndim;
-    *ibuffer_size = rank;
+    *ibuffer_size = rank * 2;
 }
 void compute_xps_dbuffer_size(int np_src, int ndim, int* dbuffer_size)
 {
@@ -317,7 +317,7 @@ void compute_xps_interp_matrix(int np_src, int np_des, int ndim, int coord_strid
     //--------------------------------------------
 
     mat_inverse(rank, TS, ibuffer, singular);
-    if (singular) {
+    if (*singular) {
         if (alloc)free(dbuffer);
         return;
     }
