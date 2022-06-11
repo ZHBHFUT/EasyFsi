@@ -97,12 +97,12 @@ namespace EasyLib {
         inline auto rbegin()const noexcept { return data_.rbegin(); }
         inline auto rend  ()const noexcept { return data_.rend(); }
 
-        //! ÉèÖÃÎªµ¥Î»¾ØÕó
-        //! @note Èç¹û¾ØÕó²»ÊÇ·½Õó£¬ÔòÌî³ä¶Ô½ÇÏßÔªËØÎª1
+        //! è®¾ç½®ä¸ºå•ä½çŸ©é˜µ
+        //! @note å¦‚æœçŸ©é˜µä¸æ˜¯æ–¹é˜µï¼Œåˆ™å¡«å……å¯¹è§’çº¿å…ƒç´ ä¸º1
         void identity();
 
-        //! @brief ¶Ô¾ØÕóÇóÄæ
-        //! @return true=³É¹¦£¬false=Ê§°Ü£¨¾ØÕóÆæÒì£©
+        //! @brief å¯¹çŸ©é˜µæ±‚é€†
+        //! @return true=æˆåŠŸï¼Œfalse=å¤±è´¥ï¼ˆçŸ©é˜µå¥‡å¼‚ï¼‰
         bool inverse();
         bool inverse(std::vector<int>& buffer);
 

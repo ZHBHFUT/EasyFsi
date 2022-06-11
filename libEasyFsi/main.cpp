@@ -5,6 +5,7 @@
 #include "Interpolator.hpp"
 #include "Boundary.hpp"
 #include "Field.hpp"
+#include "TecplotFile.hpp"
 
 using namespace EasyLib;
 
@@ -56,6 +57,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
     //}
     //
     //comm.disconnect();
+
+    TecplotFile tec;
+    tec.read_ascii("agard445-6_ddfdrive_bndry3.dat");
 
     Boundary src, des;
 

@@ -34,7 +34,7 @@ namespace EasyLib {
     //! @brief Maximum number of face.
     inline constexpr int npf_max = 8;
 
-    //! @brief The order of face, 1=Linear£¬2=Quadratic
+    //! @brief The order of face, 1=Linearï¼Œ2=Quadratic
     extern const int face_order[FT_POLYGON + 1];
 
     //! @brief Topology of coupled zone.
@@ -188,6 +188,8 @@ namespace EasyLib {
         //! @brief Create boundary from GMSH file, just for testing.
         //! @param file GMSH file
         void read_gmsh(const char* file);
+
+        void read_f3d_tec(const char* file);
 
         //! @brief Get name of the boundary.
         inline auto& name()const noexcept { return name_; }

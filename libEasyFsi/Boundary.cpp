@@ -217,33 +217,33 @@ namespace EasyLib {
         }
     }
 
-    //! @brief ¼ÆËã¸ø¶¨µã¼¯ºÏµÄ¼¸ºÎÍØÆËĞÎÊ½ºÍ¾Ö²¿×ø±êÏµ
-    //! @param np        µã¸öÊı
-    //! @param xyz       µã×ø±êÊı×é£¬´æ´¢¸ñÊ½Îª£º[x0,y0,z0, x1,y1,z0, ..., xn,yn,zn]
-    //! @param mt4x4_g2l ½«Ô­×ø±êÏµµã±ä»»µ½¾Ö²¿×ø±êÏµµÄ±ä»»¾ØÕó£¬size=4*4£¬°´ĞĞÓÅÏÈ´æ´¢.
-    //! @param biased_angle_deg ÅĞ¶Ï¹²ÃæµÄ×î´óÆ«Ğ±½Ç¶È£¬0±íÊ¾ÑÏ¸ñ¹²Ãæ.
-    //! @return ·µ»ØÍØÆË½á¹¹ÀàĞÍ£¬0=µã(ËùÓĞµãÖØºÏ)£¬1=¹²Ïß(colinear)£¬2=¹²Ãæ(coplaner)£¬3=Ò»°ãÈıÎ¬·Ö²¼
-    //! @note µ±ÍØÆËĞÎÊ½ÎªÒ»°ãÈıÎ¬·Ö²¼Ê±Êä³öµÄ±ä»»¾ØÕóÎªµ¥Î»¾ØÕó.
+    //! @brief è®¡ç®—ç»™å®šç‚¹é›†åˆçš„å‡ ä½•æ‹“æ‰‘å½¢å¼å’Œå±€éƒ¨åæ ‡ç³»
+    //! @param np        ç‚¹ä¸ªæ•°
+    //! @param xyz       ç‚¹åæ ‡æ•°ç»„ï¼Œå­˜å‚¨æ ¼å¼ä¸ºï¼š[x0,y0,z0, x1,y1,z0, ..., xn,yn,zn]
+    //! @param mt4x4_g2l å°†åŸåæ ‡ç³»ç‚¹å˜æ¢åˆ°å±€éƒ¨åæ ‡ç³»çš„å˜æ¢çŸ©é˜µï¼Œsize=4*4ï¼ŒæŒ‰è¡Œä¼˜å…ˆå­˜å‚¨.
+    //! @param biased_angle_deg åˆ¤æ–­å…±é¢çš„æœ€å¤§åæ–œè§’åº¦ï¼Œ0è¡¨ç¤ºä¸¥æ ¼å…±é¢.
+    //! @return è¿”å›æ‹“æ‰‘ç»“æ„ç±»å‹ï¼Œ0=ç‚¹(æ‰€æœ‰ç‚¹é‡åˆ)ï¼Œ1=å…±çº¿(colinear)ï¼Œ2=å…±é¢(coplaner)ï¼Œ3=ä¸€èˆ¬ä¸‰ç»´åˆ†å¸ƒ
+    //! @note å½“æ‹“æ‰‘å½¢å¼ä¸ºä¸€èˆ¬ä¸‰ç»´åˆ†å¸ƒæ—¶è¾“å‡ºçš„å˜æ¢çŸ©é˜µä¸ºå•ä½çŸ©é˜µ.
     static ZoneShape compute_topo_3d(int np, const double* xyz, double* mt4x4_g2l, double biased_angle_deg = 5)
     {
-        // Ëã·¨Á÷³Ì£º
-        // 1. ¼ÆËã¾Ö²¿×ø±êÏµÔ­µã origin£ºÑ¡È¡µÚÒ»¸öµã
-        // 2. ²éÕÒÓëÔ­µã×îÔ¶µÄµã×÷Îª x ÖáÉÏµÄµã px£¬ĞèÒª±éÀúËùÓĞµã
-        // 3. ¸ù¾İ origin¡¢px ¼ÆËã x Öá axis_x£º
-        // 4. ²éÕÒÓëÔ­µã¡¢px¹¹³ÉÈı½ÇĞÎÃæ»ı×î´óµÄµã q£¬ĞèÒª±éÀúËùÓĞµã
-        // 5. ¸ù¾İorigin¡¢px¡¢q¼ÆËã¾Ö²¿×ø±êÏµ z Öá axis_z
-        // 6. ¼ÆËã¾Ö²¿×ø±êÏµyÖá£ºaxis_y
-        // 7. ĞÎ³É×ø±ê±ä»»¾ØÕó
+        // ç®—æ³•æµç¨‹ï¼š
+        // 1. è®¡ç®—å±€éƒ¨åæ ‡ç³»åŸç‚¹ originï¼šé€‰å–ç¬¬ä¸€ä¸ªç‚¹
+        // 2. æŸ¥æ‰¾ä¸åŸç‚¹æœ€è¿œçš„ç‚¹ä½œä¸º x è½´ä¸Šçš„ç‚¹ pxï¼Œéœ€è¦éå†æ‰€æœ‰ç‚¹
+        // 3. æ ¹æ® originã€px è®¡ç®— x è½´ axis_xï¼š
+        // 4. æŸ¥æ‰¾ä¸åŸç‚¹ã€pxæ„æˆä¸‰è§’å½¢é¢ç§¯æœ€å¤§çš„ç‚¹ qï¼Œéœ€è¦éå†æ‰€æœ‰ç‚¹
+        // 5. æ ¹æ®originã€pxã€qè®¡ç®—å±€éƒ¨åæ ‡ç³» z è½´ axis_z
+        // 6. è®¡ç®—å±€éƒ¨åæ ‡ç³»yè½´ï¼šaxis_y
+        // 7. å½¢æˆåæ ‡å˜æ¢çŸ©é˜µ
 
         //
-        // ±ä»»¾ØÕó¸ñÊ½£º
+        // å˜æ¢çŸ©é˜µæ ¼å¼ï¼š
         //          ( ax.x  ax.y  ax.z  -dot(ax,o) )
         //  T_g2l = ( ay.x  ay.y  ay.z  -dot(ay,o) )
         //          ( az.x  az.y  az.z  -dot(az,o) )
         //          (    0     0     0     1       )
-        // ÆäÖĞ£¬oÎª¾Ö²¿×ø±êÏµÔ­µã×ø±ê£¬ax¡¢ay¡¢azÎª¾Ö²¿×ø±êÏµÈı¸ö×ø±êÖáÔÚÔ­×ø±êÏµÖĞµÄµ¥Î»·½ÏòÊ¸Á¿
+        // å…¶ä¸­ï¼Œoä¸ºå±€éƒ¨åæ ‡ç³»åŸç‚¹åæ ‡ï¼Œaxã€ayã€azä¸ºå±€éƒ¨åæ ‡ç³»ä¸‰ä¸ªåæ ‡è½´åœ¨åŸåæ ‡ç³»ä¸­çš„å•ä½æ–¹å‘çŸ¢é‡
         // 
-        // ÓÚÊÇ£¬Ô­×ø±êÏµµã¿ÉÍ¨¹ıÈçÏÂ¹«Ê½±ä»»µ½¾Ö²¿×ø±êÏµ£º Local = T_g2l * Global
+        // äºæ˜¯ï¼ŒåŸåæ ‡ç³»ç‚¹å¯é€šè¿‡å¦‚ä¸‹å…¬å¼å˜æ¢åˆ°å±€éƒ¨åæ ‡ç³»ï¼š Local = T_g2l * Global
         //
 
         using vec3 = Boundary::vec3;
@@ -253,7 +253,7 @@ namespace EasyLib {
         static constexpr auto rmax = std::numeric_limits<real>::max();
         const auto cos_err = std::abs(std::cos(std::numbers::pi_v<real> *(90 - biased_angle_deg) / 180));
 
-        //--- 0. ³õÊ¼»¯¾ØÕóÎªµ¥Î»¾ØÕó
+        //--- 0. åˆå§‹åŒ–çŸ©é˜µä¸ºå•ä½çŸ©é˜µ
         for (int i = 0; i < 4; ++i)
             for (int j = 0; j < 4; ++j)
                 mt4x4_g2l[i * 4 + j] = i != j ? 0 : 1;
@@ -262,15 +262,15 @@ namespace EasyLib {
 
         std::span<const vec3> pnts(reinterpret_cast<const vec3*>(xyz), np);
 
-        auto& axis_x = vec3::view(mt4x4_g2l, 0); // xÖá
-        auto& axis_y = vec3::view(mt4x4_g2l, 4); // yÖá
-        auto& axis_z = vec3::view(mt4x4_g2l, 8); // zÖá
+        auto& axis_x = vec3::view(mt4x4_g2l, 0); // xè½´
+        auto& axis_y = vec3::view(mt4x4_g2l, 4); // yè½´
+        auto& axis_z = vec3::view(mt4x4_g2l, 8); // zè½´
 
-        //--- 1. ¾Ö²¿×ø±êÏµÔ­µã£ºÈ¡µÚÒ»¸öµã
+        //--- 1. å±€éƒ¨åæ ‡ç³»åŸç‚¹ï¼šå–ç¬¬ä¸€ä¸ªç‚¹
 
         auto& origin = pnts.front();
 
-        //--- 2. ¼ÆËãxÖá£º²éÕÒÓëÔ­µã×îÔ¶µÄµã×÷Îª¾Ö²¿×ø±êÏµxÖáÉÏµÄµã
+        //--- 2. è®¡ç®—xè½´ï¼šæŸ¥æ‰¾ä¸åŸç‚¹æœ€è¿œçš„ç‚¹ä½œä¸ºå±€éƒ¨åæ ‡ç³»xè½´ä¸Šçš„ç‚¹
 
         vec3 px = pnts[1];
         {
@@ -285,13 +285,13 @@ namespace EasyLib {
             if (dmax < 1E-30)return ZS_POINT;
         }
         axis_x = px - origin;
-        // µ¥Î»»¯xÖá£¬Èç¹ûÄ£ÖµÎª0Ôò±íÃ÷ËùÓĞµãÖØºÏ
+        // å•ä½åŒ–xè½´ï¼Œå¦‚æœæ¨¡å€¼ä¸º0åˆ™è¡¨æ˜æ‰€æœ‰ç‚¹é‡åˆ
         if (axis_x.normalize() <= eps) {
             axis_x.assign(1, 0, 0);
             return ZS_POINT;
         }
 
-        //--- 3. ¼ÆËãÓëÔ­µã¡¢xÖá×îÔ¶µã¹¹³ÉµÄÈı½ÇĞÎÃæ»ı×î´óµÄµã
+        //--- 3. è®¡ç®—ä¸åŸç‚¹ã€xè½´æœ€è¿œç‚¹æ„æˆçš„ä¸‰è§’å½¢é¢ç§¯æœ€å¤§çš„ç‚¹
 
         vec3 q = px;
         {
@@ -305,11 +305,11 @@ namespace EasyLib {
             }
         }
 
-        //--- 4. ¼ÆËã¾Ö²¿×ø±êÏµµÄzÖá£º´¹Ö±ÓÚ o-px-q
+        //--- 4. è®¡ç®—å±€éƒ¨åæ ‡ç³»çš„zè½´ï¼šå‚ç›´äº o-px-q
         axis_z = cross(axis_x, q - origin);
-        // µ¥Î»»¯zÖá£¬Èç¹ûÄ£ÖµÎª 0 Ôò±íÃ÷ËùÓĞµã¹²Ïß
+        // å•ä½åŒ–zè½´ï¼Œå¦‚æœæ¨¡å€¼ä¸º 0 åˆ™è¡¨æ˜æ‰€æœ‰ç‚¹å…±çº¿
         if (axis_z.normalize() <= eps) {
-            // Ñ¡È¡Ò»¸öÓëxÖá²»ÏàÍ¬µÄÊ¸Á¿×÷ÎªzÖá
+            // é€‰å–ä¸€ä¸ªä¸xè½´ä¸ç›¸åŒçš„çŸ¢é‡ä½œä¸ºzè½´
             axis_z = cross(axis_x, vec3{ 1,0,0 });
             auto szmax = axis_z.norm_sq();
             auto tz = cross(axis_x, vec3{ 0,1,0 });
@@ -319,10 +319,10 @@ namespace EasyLib {
             sz = tz.norm_sq();
             if (sz > szmax) { szmax = sz; axis_z = tz; }
 
-            // ¼ÆËãyÖá
+            // è®¡ç®—yè½´
             axis_y = cross(axis_z, axis_x);
 
-            //--- 5. ¸üĞÂ¾Ö²¿×ø±êÏµ±ä»»¾ØÕóµÄµÚ4ÁĞ
+            //--- 5. æ›´æ–°å±€éƒ¨åæ ‡ç³»å˜æ¢çŸ©é˜µçš„ç¬¬4åˆ—
 
             mt4x4_g2l[3] = -dot(axis_x, origin);
             mt4x4_g2l[7] = -dot(axis_y, origin);
@@ -330,17 +330,17 @@ namespace EasyLib {
 
             return ZS_COLINEAR;
         }
-        // ÆäËüÇé¿ö£¬¼ì²éÊÇ·ñ¹²Ãæ
+        // å…¶å®ƒæƒ…å†µï¼Œæ£€æŸ¥æ˜¯å¦å…±é¢
         else {
-            // ¼ÆËãyÖá
+            // è®¡ç®—yè½´
             axis_y = cross(axis_z, axis_x);
 
-            // ¼ÆËãËùÓĞµãÓë x-y Æ½ÃæµÄ¼Ğ½Ç
+            // è®¡ç®—æ‰€æœ‰ç‚¹ä¸ x-y å¹³é¢çš„å¤¹è§’
             for (auto& c : pnts) {
                 auto p = c - origin;
                 p.normalize();
 
-                // ¼Ğ½Ç³¬¹ı×î´óÈİ²î£¬±íÃ÷µã·Ç¹²Ãæ
+                // å¤¹è§’è¶…è¿‡æœ€å¤§å®¹å·®ï¼Œè¡¨æ˜ç‚¹éå…±é¢
                 if (std::abs(dot(axis_z, p)) > cos_err) {
                     axis_x.assign(1, 0, 0);
                     axis_y.assign(0, 1, 0);
@@ -349,7 +349,7 @@ namespace EasyLib {
                 }
             }
 
-            // Ò»Ğ©ÌØÊâÇéĞÎ
+            // ä¸€äº›ç‰¹æ®Šæƒ…å½¢
 
             auto zx = std::abs(dot(axis_z, vec3{ 1,0,0 }));
             auto zy = std::abs(dot(axis_z, vec3{ 0,1,0 }));
@@ -374,7 +374,7 @@ namespace EasyLib {
                 axis_z.assign(0, -1, 0);
             }
 
-            //--- 5. ¸üĞÂ¾Ö²¿×ø±êÏµ±ä»»¾ØÕóµÄµÚ4ÁĞ
+            //--- 5. æ›´æ–°å±€éƒ¨åæ ‡ç³»å˜æ¢çŸ©é˜µçš„ç¬¬4åˆ—
 
             mt4x4_g2l[3] = -dot(axis_x, origin);
             mt4x4_g2l[7] = -dot(axis_y, origin);
@@ -384,13 +384,13 @@ namespace EasyLib {
         }
     }
 
-    //! @brief ¼ÆËã¸ø¶¨Æ½Ãæµã¼¯ºÏµÄ¼¸ºÎÍØÆËĞÎÊ½ºÍ¾Ö²¿×ø±êÏµ
-    //! @param np        µã¸öÊı
-    //! @param xy        µã×ø±êÊı×é£¬´æ´¢¸ñÊ½Îª£º[x0,y0, x1,y1, ..., xn,yn]
-    //! @param mt4x4_g2l ½«Ô­×ø±êÏµµã±ä»»µ½¾Ö²¿×ø±êÏµµÄ±ä»»¾ØÕó£¬size=3*3£¬°´ĞĞÓÅÏÈ´æ´¢.
-    //! @param biased_angle_deg ÅĞ¶Ï¹²ÃæµÄ×î´óÆ«Ğ±½Ç¶È£¬0±íÊ¾ÑÏ¸ñ¹²Ãæ.
-    //! @return ·µ»ØÍØÆË½á¹¹ÀàĞÍ£¬0=µã(ËùÓĞµãÖØºÏ)£¬1=¹²Ïß(colinear)£¬2=¹²Ãæ(coplaner)
-    //! @note µ±ÍØÆËĞÎÊ½ÎªÒ»°ã¶şÎ¬·Ö²¼Ê±Êä³öµÄ±ä»»¾ØÕóÎªµ¥Î»¾ØÕó.
+    //! @brief è®¡ç®—ç»™å®šå¹³é¢ç‚¹é›†åˆçš„å‡ ä½•æ‹“æ‰‘å½¢å¼å’Œå±€éƒ¨åæ ‡ç³»
+    //! @param np        ç‚¹ä¸ªæ•°
+    //! @param xy        ç‚¹åæ ‡æ•°ç»„ï¼Œå­˜å‚¨æ ¼å¼ä¸ºï¼š[x0,y0, x1,y1, ..., xn,yn]
+    //! @param mt4x4_g2l å°†åŸåæ ‡ç³»ç‚¹å˜æ¢åˆ°å±€éƒ¨åæ ‡ç³»çš„å˜æ¢çŸ©é˜µï¼Œsize=3*3ï¼ŒæŒ‰è¡Œä¼˜å…ˆå­˜å‚¨.
+    //! @param biased_angle_deg åˆ¤æ–­å…±é¢çš„æœ€å¤§åæ–œè§’åº¦ï¼Œ0è¡¨ç¤ºä¸¥æ ¼å…±é¢.
+    //! @return è¿”å›æ‹“æ‰‘ç»“æ„ç±»å‹ï¼Œ0=ç‚¹(æ‰€æœ‰ç‚¹é‡åˆ)ï¼Œ1=å…±çº¿(colinear)ï¼Œ2=å…±é¢(coplaner)
+    //! @note å½“æ‹“æ‰‘å½¢å¼ä¸ºä¸€èˆ¬äºŒç»´åˆ†å¸ƒæ—¶è¾“å‡ºçš„å˜æ¢çŸ©é˜µä¸ºå•ä½çŸ©é˜µ.
     //static int compute_topo_2d(int np, const double* xy, double* mt3x3_g2l, double biased_angle_deg = 5)
     //{
     //    using vec2 = TinyVector<double, 2>;
@@ -406,7 +406,7 @@ namespace EasyLib {
     //    mt3x3_g2l[3] = 0; mt3x3_g2l[4] = 1; mt3x3_g2l[5] = 0;
     //    mt3x3_g2l[6] = 0; mt3x3_g2l[7] = 0; mt3x3_g2l[8] = 1;
     //
-    //    //--- 1. ²éÕÒÓëµÚ1¸öµãµÄ×îÔ¶µã£¬×÷ÎªÏòÁ¿ a
+    //    //--- 1. æŸ¥æ‰¾ä¸ç¬¬1ä¸ªç‚¹çš„æœ€è¿œç‚¹ï¼Œä½œä¸ºå‘é‡ a
     //
     //    int i, n1 = 1;
     //    double dmax = 0;
@@ -419,14 +419,14 @@ namespace EasyLib {
     //        }
     //    }
     //
-    //    // ËùÓĞµãÖØºÏ
+    //    // æ‰€æœ‰ç‚¹é‡åˆ
     //    if (dmax < 1E-30)return TP_POINT;
     //
     //    const auto ax = xy[2 * n1 + 0] - xy[0];
     //    const auto ay = xy[2 * n1 + 1] - xy[1];
     //    const auto al = sqrt(dmax);
     //
-    //    //--- 2. ¼ÆËã¼Ğ½Ç
+    //    //--- 2. è®¡ç®—å¤¹è§’
     //
     //    for (i = 1; i < np; ++i) {
     //        const auto bx = xy[2 * i + 0] - xy[0];
@@ -437,7 +437,7 @@ namespace EasyLib {
     //            break;
     //    }
     //
-    //    // ¼Ğ½ÇÔÚÈİ²î·¶Î§ÄÚ£¬¹²Ïß
+    //    // å¤¹è§’åœ¨å®¹å·®èŒƒå›´å†…ï¼Œå…±çº¿
     //    if (i == np) {
     //        //vec3 axis_x{ ax / al,ay / al,0 };
     //        //vec3 origin{ xy[0],xy[1],0 };
@@ -457,7 +457,7 @@ namespace EasyLib {
     //    }
     //}
 
-    //! @brief ¼ÆËãÑùÌõ²åÖµ¾ØÕóÖĞµÄ¾ØÕóTSµÄÄæ¾ØÕó£¬TS¾ØÕóÖµÈçÏÂ£º
+    //! @brief è®¡ç®—æ ·æ¡æ’å€¼çŸ©é˜µä¸­çš„çŸ©é˜µTSçš„é€†çŸ©é˜µï¼ŒTSçŸ©é˜µå€¼å¦‚ä¸‹ï¼š
     //! 
     //!  (  r00 r01 ... r0N  1  x0  y0  z0 )
     //!  (  r10 r11 ... r1N  1  x1  y1  z1 )
@@ -472,8 +472,8 @@ namespace EasyLib {
     //! @param [in]     ndim     dimension, i.e. coordinate number per point
     //! @param [in]     coords   point coordinates, e.g. for 3d: [x0,y0,z0, x1,y1,z1, ...]
     //! @param [out]    mat_ts   Row major squared matrix, rank = ]np + ]ndim + 1
-    //! @param [in,out] ibuffer  ÕûÊı»º³åÇø£¬³¤¶È = \np+\ndim+1
-    //! @param [out]    singular ¾ØÕóÊÇ·ñÆæÒì£¬0=·ñ£¬1=ÊÇ
+    //! @param [in,out] ibuffer  æ•´æ•°ç¼“å†²åŒºï¼Œé•¿åº¦ = \np+\ndim+1
+    //! @param [out]    singular çŸ©é˜µæ˜¯å¦å¥‡å¼‚ï¼Œ0=å¦ï¼Œ1=æ˜¯
     static void compute_xps_ts_inv_(int np, int ndim, const double* coords, double* mat_ts, int* ibuffer, int* singular)
     {
         constexpr double eps = 1E-40;
@@ -526,16 +526,16 @@ namespace EasyLib {
         mat_inverse(rank, mat_ts, ibuffer, singular);
     }
 
-    //! @brief ¼ÆËãÑùÌõ²åÖµ¾ØÕó
-    //! @param [in]     np_src     ÒÑÖªµã¸öÊı
-    //! @param [in]     np_des     Î´Öªµã£¨´ı²åÖµµã£©¸öÊı
-    //! @param [in]     ndim       ×ø±ê·ÖÁ¿¸öÊı£º1=spline, 2=ips, 3=tps
-    //! @param [in]     coords_src ÒÑÖªµã×ø±êÊı×é
-    //! @param [in]     coords_des Î´Öªµã×ø±êÊı×é
-    //! @param [in]     ts_inv     TS¾ØÕóµÄÄæ£¬ÓÉ \compute_xps_ts_inv ¼ÆËãµÃµ½
-    //! @param [out]    mat_G      ·µ»Ø²åÖµ¾ØÕó£¬³ß´çÎª np_des * np_src
-    //! @param [in,out] dbuffer    ¸¡µãÊı»º³åÇø£¬³¤¶È = \np_des+\ndim+1
-    void compute_xps_interp_matrix_(int np_src, int np_des, int ndim, const double* coords_src, const double* coords_des, const double* ts_inv, double* mat_G, double* dbuffer)
+    //! @brief è®¡ç®—æ ·æ¡æ’å€¼çŸ©é˜µ
+    //! @param [in]     np_src     å·²çŸ¥ç‚¹ä¸ªæ•°
+    //! @param [in]     np_des     æœªçŸ¥ç‚¹ï¼ˆå¾…æ’å€¼ç‚¹ï¼‰ä¸ªæ•°
+    //! @param [in]     ndim       åæ ‡åˆ†é‡ä¸ªæ•°ï¼š1=spline, 2=ips, 3=tps
+    //! @param [in]     coords_src å·²çŸ¥ç‚¹åæ ‡æ•°ç»„
+    //! @param [in]     coords_des æœªçŸ¥ç‚¹åæ ‡æ•°ç»„
+    //! @param [in]     ts_inv     TSçŸ©é˜µçš„é€†ï¼Œç”± \compute_xps_ts_inv è®¡ç®—å¾—åˆ°
+    //! @param [out]    mat_G      è¿”å›æ’å€¼çŸ©é˜µï¼Œå°ºå¯¸ä¸º np_des * np_src
+    //! @param [in,out] dbuffer    æµ®ç‚¹æ•°ç¼“å†²åŒºï¼Œé•¿åº¦ = \np_des+\ndim+1
+    static void compute_xps_interp_matrix_(int np_src, int np_des, int ndim, const double* coords_src, const double* coords_des, const double* ts_inv, double* mat_G, double* dbuffer)
     {
         constexpr double eps = 1E-40;
         const int rank = np_src + 1 + ndim;// size of matrix TS
@@ -594,6 +594,48 @@ namespace EasyLib {
 
             p += ndim;
         }
+    }
+
+    static bool parse_tec_var_names(const std::string& line, std::vector<std::string>& names)
+    {
+        //variables="x","y","z","id","cp","cfx","cfy","cfz","temp","dtdn" ...
+
+        static const size_t len = 9;//strlen("variables")
+
+        names.clear();
+
+        if (line.length() < len ||
+            ::_strnicmp(line.c_str(), "variables", len) != 0) {
+            return false;
+        }
+
+        auto skipwsp = [](const char*& p) {while (*p != '\0' && isspace(*p))++p; };//skip whitespace
+
+        const char* p = line.data() + len;
+        skipwsp(p);//skip whitespace
+        if (*p != '=')return false;
+        ++p;//skip '='
+        skipwsp(p);//skip whitespace
+
+        //"xx","yy",...
+
+        //parse each name in "xxx"
+        while (*p == '\"') {//find start '"'
+            ++p;//skip start '"'
+            auto p0 = p;
+            skipwsp(p);//skip whitespace
+            //find end '"'
+            for (; *p != '\"' && *p != '\0'; ++p) {}
+            if (*p != '\"')return false;
+            names.push_back(std::string(p0, p));
+            ++p;//skip '"'
+            skipwsp(p);//skip whitespace
+            if (*p == ',') {
+                ++p;
+                skipwsp(p);//skip whitespace
+            }
+        }
+        return true;
     }
 
     //------------------------------------------------
@@ -960,8 +1002,8 @@ namespace EasyLib {
             // do nothing
         }
         else if (shape_ == ZS_COLINEAR) {
-            xps_coords_.resize(node_num(), 0);
-            for (int_l i = 0; i < node_num(); ++i) {
+            xps_coords_.resize(np, 0);
+            for (int_l i = 0; i < np; ++i) {
                 auto& p = node_coords_.at(i);
                 xps_coords_[i] = xps_tm_(0, 0) * p.x + xps_tm_(0, 1) * p.y + xps_tm_(0, 2) * p.z + xps_tm_(0, 3);
             }
@@ -977,8 +1019,8 @@ namespace EasyLib {
             if (singular)error("XPS matrix singular, this maybe caused by coincide points!");
         }
         else if (shape_ == ZS_COPLANER) {
-            xps_coords_.resize(2 * node_num(), 0);
-            for (int_l i = 0; i < node_num(); ++i) {
+            xps_coords_.resize(2 * (size_t)np, 0);
+            for (int_l i = 0; i < np; ++i) {
                 auto& p = node_coords_.at(i);
                 xps_coords_[2 * i + 0] = xps_tm_(0, 0) * p.x + xps_tm_(0, 1) * p.y + xps_tm_(0, 2) * p.z + xps_tm_(0, 3);
                 xps_coords_[2 * i + 1] = xps_tm_(1, 0) * p.x + xps_tm_(1, 1) * p.y + xps_tm_(1, 2) * p.z + xps_tm_(1, 3);
@@ -1338,8 +1380,8 @@ namespace EasyLib {
         while (!fin.eof()) {
             std::getline(fin, s);
 
-            s.erase(0, s.find_first_not_of("\r\t\n "));//ÒÆ³ı¿ªÍ·µÄ¿Õ°×
-            s.erase(s.find_last_not_of("\r\t\n ") + 1);//ÒÆ³ı½áÎ²µÄ¿Õ°×
+            s.erase(0, s.find_first_not_of("\r\t\n "));//ç§»é™¤å¼€å¤´çš„ç©ºç™½
+            s.erase(s.find_last_not_of("\r\t\n ") + 1);//ç§»é™¤ç»“å°¾çš„ç©ºç™½
             if (s.empty() || s.front() != '$')continue;
 
             if      (s == "$Comments") {
@@ -1427,6 +1469,33 @@ namespace EasyLib {
         compute_metics();
     }
 
+    void Boundary::read_f3d_tec(const char* file)
+    {
+        clear();
+
+        std::ifstream ifs(file);
+        if (!ifs.is_open()) {
+            error("%s(), failed open file: %s", __func__, file);
+            return;
+        }
+
+        info("create boundary from f3d tec file: %s\n", file);
+
+        std::string line;
+        std::vector<std::string> vars, keys, values;
+
+        //title="aero loads for ddfdrive"
+        std::getline(ifs, line);
+
+        //variables="x","y","z","id","cp","cfx","cfy","cfz","temp","dtdn"
+        std::getline(ifs, line);
+        if (!parse_tec_var_names(line, vars))error("%s(), failed parsing variables");
+
+        //zone t="mdo boundary 3", i=43825, j=87448, f=fepoint,  solutiontime= 0.1000000E+03, strandid=0
+        std::getline(ifs, line);
+
+    }
+
     std::istream& operator >>(std::istream& is, Boundary& bd)
     {
         bd.clear();
@@ -1496,6 +1565,8 @@ namespace EasyLib {
     }
     std::ostream& operator <<(std::ostream& os, const Boundary& bd)
     {
+        constexpr int prec = std::numeric_limits<double>::digits10 + 1;
+
         // nn nf
         os << bd.node_num() << ' ' << bd.face_num() << '\n';
 
@@ -1503,9 +1574,9 @@ namespace EasyLib {
         for (int_l i = 0; i < bd.node_num(); ++i) {
             auto& c = bd.node_coords().at(i);
             os << bd.nodes().l2g(i) << ' '
-                << std::setprecision(std::numeric_limits<double>::digits10 + 1) << std::scientific << c.x << ' '
-                << std::setprecision(std::numeric_limits<double>::digits10 + 1) << std::scientific << c.y << ' '
-                << std::setprecision(std::numeric_limits<double>::digits10 + 1) << std::scientific << c.z << '\n';
+                << std::setprecision(prec) << std::scientific << c.x << ' '
+                << std::setprecision(prec) << std::scientific << c.y << ' '
+                << std::setprecision(prec) << std::scientific << c.z << '\n';
         }
 
         // faces

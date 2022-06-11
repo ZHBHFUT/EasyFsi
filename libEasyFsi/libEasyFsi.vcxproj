@@ -22,6 +22,7 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -60,6 +61,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -99,6 +101,7 @@
     <ClCompile Include="MeshConnectivity.cpp" />
     <ClCompile Include="MPICommunicator.cpp" />
     <ClCompile Include="SocketCommunicator.cpp" />
+    <ClCompile Include="TecplotFile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp" />
@@ -122,6 +125,7 @@
     <ClInclude Include="MPICommunicator.hpp" />
     <ClInclude Include="ProjectToElement.hpp" />
     <ClInclude Include="SocketCommunicator.hpp" />
+    <ClInclude Include="TecplotFile.hpp" />
     <ClInclude Include="TinyMatrix.hpp" />
     <ClInclude Include="TinyVector.hpp" />
   </ItemGroup>

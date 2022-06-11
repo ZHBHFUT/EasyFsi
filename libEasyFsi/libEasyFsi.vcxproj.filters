@@ -57,6 +57,9 @@
     <ClCompile Include="EasyFsi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TecplotFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IndexSet.hpp">
@@ -126,6 +129,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EasyFsi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TecplotFile.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
