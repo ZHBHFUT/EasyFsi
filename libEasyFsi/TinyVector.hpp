@@ -1027,7 +1027,7 @@ struct TinyVector<T, 2>
 
     friend value_type normalize(TinyVector& a)noexcept
     {
-        value_type l = norm_sq(a);
+        value_type l = std::hypot(a.x, a.y);
         a.x /= l != 0 ? l : 1;
         a.y /= l != 0 ? l : 1;
         return l;
@@ -1387,7 +1387,7 @@ struct TinyVector<T, 3>
 
     friend value_type normalize(TinyVector& a)noexcept
     {
-        value_type l = norm_sq(a);
+        value_type l = std::hypot(a.x, a.y, a.z);
         a.x /= l != 0 ? l : 1;
         a.y /= l != 0 ? l : 1;
         a.z /= l != 0 ? l : 1;
