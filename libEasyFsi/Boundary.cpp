@@ -755,6 +755,11 @@ namespace EasyLib {
         name_.erase(name_.find_last_not_of("\r\t\n ") + 1); // trim right
     }
 
+    void Boundary::set_user_id(int id)
+    {
+        user_id_ = id;
+    }
+
     int Boundary::add_node(double x, double y, double z, int_g global_id/* = -1*/)
     {
         if (global_id < 0)global_id = (int_g)nodes_.size();

@@ -47,6 +47,11 @@ namespace EasyLib {
 
         int_l add(int_g global_id);
 
+        inline bool contains(int_g global_id)const noexcept
+        {
+            return g2l_.contains(global_id);
+        }
+
         inline std::pair<bool, int_l> find(int_g global_id)const
         {
             auto it = g2l_.find(global_id);

@@ -194,6 +194,10 @@ extern "C" int_l     is_add(IndexSet* is, int_g unique_id)
 {
     return is ? reinterpret_cast<IS*>(is)->add(unique_id) : EasyLib::invalid_id;
 }
+extern "C" int       is_contains(const IndexSet* is, int_g unique_id)
+{
+    return is ? reinterpret_cast<const IS*>(is)->contains(unique_id) : false;
+}
 extern "C" int_g     is_l2g(const IndexSet* is, int_l id)
 {
     return is ? reinterpret_cast<const IS*>(is)->l2g(id) : EasyLib::invalid_id;
@@ -318,6 +322,14 @@ extern "C" void  bd_clear(Boundary * bd)
 {
     if (bd)reinterpret_cast<BD*>(bd)->clear();
 }
+extern "C" void  bd_set_user_id(Boundary * bd, int id)
+{
+    if (bd)reinterpret_cast<BD*>(bd)->set_user_id(id);
+}
+extern "C" int   bd_get_user_id(Boundary * bd)
+{
+    return bd ? reinterpret_cast<BD*>(bd)->user_id() : -1;
+}
 extern "C" void  bd_reserve(Boundary * bd, int_l max_node, int_l max_face, int_l max_face_nodes)
 {
     if (bd)reinterpret_cast<BD*>(bd)->reserve(max_node, max_face, max_face_nodes);
@@ -390,7 +402,7 @@ extern "C" void  bd_read_gmsh(Boundary * bd, const char* file)
 //--- Communicator
 
 using CM = EasyLib::Communicator;
-extern "C" Communicator * cm_socket_new(int as_master, int np, const char* master_ip, unsigned short master_port)
+extern "C" Communicator * cm_socket_new(int as_master, int np, const char* master_ip, int master_port)
 {
     char arg_np[16] = {'\0'};
     char arg_port[16] = { '\0' };
@@ -425,6 +437,18 @@ extern "C" Communicator * cm_fluent_new(int myid, int np, func_MPT_csend * csend
             (EasyLib::FluentCommunicator::func_MPT_csend*)csend,
             (EasyLib::FluentCommunicator::func_MPT_crecv*)crecv
         ));
+}
+extern "C" void cm_set_constant(Communicator* cm, const char* name, int value)
+{
+    reinterpret_cast<CM*>(cm)->set_constant(name, value);
+}
+extern "C" void cm_set_pointer(Communicator* cm, const char* name, void* value)
+{
+    reinterpret_cast<CM*>(cm)->set_constant(name, value);
+}
+extern "C" void cm_set_function(Communicator* cm, const char* name, void* value)
+{
+    reinterpret_cast<CM*>(cm)->set_function(name, value);
 }
 extern "C" void cm_delete(Communicator * *p_cm)
 {
@@ -465,27 +489,27 @@ extern "C" void cm_send_char(Communicator * cm, const char* data, int count, int
 {
     if (cm)reinterpret_cast<CM*>(cm)->send(data, count, dest_rank, tag);
 }
-extern "C" void recv_int16(Communicator * cm, int16_t * data, int count, int src_rank, int tag)
+extern "C" void cm_recv_int16(Communicator * cm, int16_t * data, int count, int src_rank, int tag)
 {
     if (cm)reinterpret_cast<CM*>(cm)->recv(data, count, src_rank, tag);
 }
-extern "C" void recv_int32(Communicator * cm, int32_t * data, int count, int src_rank, int tag)
+extern "C" void cm_recv_int32(Communicator * cm, int32_t * data, int count, int src_rank, int tag)
 {
     if (cm)reinterpret_cast<CM*>(cm)->recv(data, count, src_rank, tag);
 }
-extern "C" void recv_int64(Communicator * cm, int64_t * data, int count, int src_rank, int tag)
+extern "C" void cm_recv_int64(Communicator * cm, int64_t * data, int count, int src_rank, int tag)
 {
     if (cm)reinterpret_cast<CM*>(cm)->recv(data, count, src_rank, tag);
 }
-extern "C" void recv_double(Communicator * cm, double* data, int count, int src_rank, int tag)
+extern "C" void cm_recv_double(Communicator * cm, double* data, int count, int src_rank, int tag)
 {
     if (cm)reinterpret_cast<CM*>(cm)->recv(data, count, src_rank, tag);
 }
-extern "C" void recv_float(Communicator * cm, float* data, int count, int src_rank, int tag)
+extern "C" void cm_recv_float(Communicator * cm, float* data, int count, int src_rank, int tag)
 {
     if (cm)reinterpret_cast<CM*>(cm)->recv(data, count, src_rank, tag);
 }
-extern "C" void recv_char(Communicator * cm, char* data, int count, int src_rank, int tag)
+extern "C" void cm_recv_char(Communicator * cm, char* data, int count, int src_rank, int tag)
 {
     if (cm)reinterpret_cast<CM*>(cm)->recv(data, count, src_rank, tag);
 }

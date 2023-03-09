@@ -56,6 +56,7 @@ namespace EasyLib {
 
             // name
             full_bound_.set_name(local_bound.name().c_str());
+            full_bound_.set_user_id(local_bound.user_id());
 
             part_nodes_ia_g_.resize(comm_->size() + 1, 0);
             part_faces_ia_g_.resize(comm_->size() + 1, 0);

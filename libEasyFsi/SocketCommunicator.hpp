@@ -35,6 +35,10 @@ namespace EasyLib {
         //! @brief Destructor.
         virtual ~SocketCommunicator();
 
+        void set_constant(const char* /*name*/, int /*value*/)final {}
+        void set_constant(const char* /*name*/, void* /*value*/)final {}
+        void set_function(const char* /*name*/, void* /*func*/)final {}
+
         //! @brief Initialize the socket communicator.
         //! @param app_name    Application name
         //! @param as_root     Whether to run as the root node

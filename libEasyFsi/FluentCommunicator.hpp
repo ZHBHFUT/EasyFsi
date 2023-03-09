@@ -18,17 +18,15 @@ namespace EasyLib {
         FluentCommunicator& operator = (const FluentCommunicator&) = default;
         virtual ~FluentCommunicator() = default;
 
-        FluentCommunicator(int myid, int np, func_MPT_csend* csend, func_MPT_crecv* crecv)
-            :myid_(myid), np_(np), fsend_(csend), frecv_(crecv)
-        {}
+        FluentCommunicator(int myid, int np, func_MPT_csend* csend, func_MPT_crecv* crecv);
 
-        void create(int myid, int np, func_MPT_csend* csend, func_MPT_crecv* crecv)
-        {
-            myid_ = myid;
-            np_ = np;
-            fsend_ = csend;
-            frecv_ = crecv;
-        }
+        void create(int myid, int np, func_MPT_csend* csend, func_MPT_crecv* crecv);
+
+        //! @brief set internal constants, name = one of: MYID,NP,MPT_CHAR,MPT_SHORT,MPT_INT,MPT_LONG,MPT_FLOAT,MPT_DOUBLE,MPT_LONG_LONG
+        void set_constant(const char* name, int   value)final;
+        void set_constant(const char* name, void* pointer)final;
+        //! @brief set internal functions, name = one of: MPT_csend,MPT_crecv
+        void set_function(const char* name, void* func_pointer)final;
 
         inline void set_mpid(int myid, int np) { myid_ = myid; np_ = np; }
         inline void set_MPT_csend(func_MPT_csend* func) { fsend_ = func; }
@@ -119,17 +117,17 @@ namespace EasyLib {
 
     private:
         int myid_{ -1 };
-        int np_{ 0 };
+        int np_  { 0 };
 
         func_MPT_csend* fsend_{ nullptr };
         func_MPT_crecv* frecv_{ nullptr };
 
-        int mpt_char_type_{ 1 }; // type of int, see MPT_Datatype in mport.h
-        int mpt_short_type_{ 2 }; // type of short, see MPT_Datatype in mport.h
-        int mpt_int_type_{ 3 }; // type of int, see MPT_Datatype in mport.h
-        int mpt_long_type_{ 4 }; // type of long, see MPT_Datatype in mport.h
-        int mpt_float_type_{ 5 }; // type of float, see MPT_Datatype in mport.h
-        int mpt_double_type_{ 6 }; // type of double, see MPT_Datatype in mport.h
+        int mpt_char_type_     { 1 }; // type of int, see MPT_Datatype in mport.h
+        int mpt_short_type_    { 2 }; // type of short, see MPT_Datatype in mport.h
+        int mpt_int_type_      { 3 }; // type of int, see MPT_Datatype in mport.h
+        int mpt_long_type_     { 4 }; // type of long, see MPT_Datatype in mport.h
+        int mpt_float_type_    { 5 }; // type of float, see MPT_Datatype in mport.h
+        int mpt_double_type_   { 6 }; // type of double, see MPT_Datatype in mport.h
         int mpt_long_long_type_{ 8 }; // type of long long, see MPT_Datatype in mport.h
     };
 }

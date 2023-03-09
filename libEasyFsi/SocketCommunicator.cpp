@@ -73,14 +73,14 @@ namespace EasyLib {
         //0--sucessfully, !=0 -- failed
         if (WSAStartup(MAKEWORD(1, 1), &wsaData) != 0) {
             error("InitSocket(): WSAStartup() failed. ERROR CODE = %d.", GetLastSocketError());
-            return false;
+            //return false;
         }
 
         if (LOBYTE(wsaData.wVersion) != 1 ||
             HIBYTE(wsaData.wVersion) != 1) {
             WSACleanup();
             error("InitSocket(): invalid WSADATA");
-            return false;
+            //return false;
         }
 #else
 #error "Platform not supported"

@@ -96,6 +96,10 @@ namespace EasyLib {
 
         void set_name(const char* sname);
 
+        void set_user_id(int id);
+
+        inline int user_id()const noexcept { return user_id_; }
+
         //! @brief Add a node to boundary, and return it's local index.
         //! @param x Coordinate-x of the node
         //! @param y Coordinate-y of the node
@@ -262,6 +266,8 @@ namespace EasyLib {
         
     private:
         std::string      name_; //! The name of this boundary.
+        int              user_id_{ 0 };
+
         IndexSet         nodes_;//! The global index set of nodes.
         MeshConnectivity face_nodes_, node_faces_; //! The face-node connectivities.
         vvec             node_coords_;    //! The node coordinates array.

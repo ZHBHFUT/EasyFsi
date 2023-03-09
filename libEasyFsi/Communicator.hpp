@@ -19,6 +19,10 @@ namespace EasyLib {
 
         virtual void init(int argc, const char** argv) = 0;
 
+        virtual void set_constant(const char* name, int value) = 0;
+        virtual void set_constant(const char* name, void* pointer) = 0;
+        virtual void set_function(const char* name, void* func) = 0;
+
         virtual int rank()const noexcept = 0;
 
         virtual int size()const noexcept = 0;

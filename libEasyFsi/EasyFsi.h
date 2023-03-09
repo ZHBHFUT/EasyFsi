@@ -101,6 +101,7 @@ extern "C" {
     void      is_delete(IndexSet** p_is);
     void      is_clear(IndexSet* is);
     int_l     is_add(IndexSet* is, int_g unique_id);
+    int       is_contains(const IndexSet* is, int_g unique_id);
     int_g     is_l2g(const IndexSet* is, int_l id);
     int_l     is_g2l(const IndexSet* is, int_g unique_id);
     int_l     is_size(const IndexSet* is);
@@ -135,6 +136,8 @@ extern "C" {
     Boundary* bd_new();
     void  bd_delete(Boundary** p_bd);
     void  bd_clear(Boundary* bd);
+    void  bd_set_user_id(Boundary* bd, int id);
+    int   bd_get_user_id(Boundary* bd);
     void  bd_reserve(Boundary* bd, int_l max_node, int_l max_face, int_l max_face_nodes);
     int_l bd_add_node(Boundary* bd, double x, double y, double z, int_g unique_id);
     int_l bd_add_face(Boundary* bd, FaceTopo type, int nnodes, const int_l* fnodes);
@@ -156,25 +159,27 @@ extern "C" {
 
     //--- Communicator
 
-    Communicator* cm_socket_new(int as_master, int np, const char* master_ip, unsigned short master_port);
+    Communicator* cm_socket_new(int as_master, int np, const char* master_ip, int master_port);
     Communicator* cm_mpi_new(int mpi_comm);
     Communicator* cm_fluent_new(int myid, int np, func_MPT_csend* csend, func_MPT_crecv* crecv);
+    void cm_set_constant(Communicator* cm, const char* name, int value);
+    void cm_set_pointer (Communicator* cm, const char* name, void* value);
+    void cm_set_function(Communicator* cm, const char* name, void* value);
     void cm_delete(Communicator** p_cm);
     int  cm_rank(Communicator* cm);
     int  cm_size(Communicator* cm);
-    void cm_send_int16(Communicator* cm, const int16_t* data, int count, int dest_rank, int tag);
-    void cm_send_int32(Communicator* cm, const int32_t* data, int count, int dest_rank, int tag);
-    void cm_send_int64(Communicator* cm, const int64_t* data, int count, int dest_rank, int tag);
+    void cm_send_int16 (Communicator* cm, const int16_t* data, int count, int dest_rank, int tag);
+    void cm_send_int32 (Communicator* cm, const int32_t* data, int count, int dest_rank, int tag);
+    void cm_send_int64 (Communicator* cm, const int64_t* data, int count, int dest_rank, int tag);
     void cm_send_double(Communicator* cm, const double* data, int count, int dest_rank, int tag);
-    void cm_send_float(Communicator* cm, const float* data, int count, int dest_rank, int tag);
-    void cm_send_char(Communicator* cm, const char* data, int count, int dest_rank, int tag);
-    void recv_int16(Communicator* cm, int16_t* data, int count, int src_rank, int tag);
-    void recv_int32(Communicator* cm, int32_t* data, int count, int src_rank, int tag);
-    void recv_int64(Communicator* cm, int64_t* data, int count, int src_rank, int tag);
-    void recv_double(Communicator* cm, double* data, int count, int src_rank, int tag);
-    void recv_float(Communicator* cm, float* data, int count, int src_rank, int tag);
-    void recv_char(Communicator* cm, char* data, int count, int src_rank, int tag);
-
+    void cm_send_float (Communicator* cm, const float* data, int count, int dest_rank, int tag);
+    void cm_send_char  (Communicator* cm, const char* data, int count, int dest_rank, int tag);
+    void cm_recv_int16 (Communicator* cm, int16_t* data, int count, int src_rank, int tag);
+    void cm_recv_int32 (Communicator* cm, int32_t* data, int count, int src_rank, int tag);
+    void cm_recv_int64 (Communicator* cm, int64_t* data, int count, int src_rank, int tag);
+    void cm_recv_double(Communicator* cm, double* data, int count, int src_rank, int tag);
+    void cm_recv_float (Communicator* cm, float* data, int count, int src_rank, int tag);
+    void cm_recv_char  (Communicator* cm, char* data, int count, int src_rank, int tag);
 
     //--- DistributedBoundary
 

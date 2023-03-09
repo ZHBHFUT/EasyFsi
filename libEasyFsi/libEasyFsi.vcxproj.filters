@@ -60,6 +60,9 @@
     <ClCompile Include="TecplotFile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FluentCommunicator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IndexSet.hpp">
@@ -134,5 +137,10 @@
     <ClInclude Include="TecplotFile.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="libEasyFsi.def">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
