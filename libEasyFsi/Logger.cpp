@@ -2,14 +2,18 @@
 #include <cstdarg>
 #include <string>
 
+#include <stdexcept>
+
 #include "Assert.hpp"
 #include "Logger.hpp"
+
+extern void enable_console_color();
 
 namespace EasyLib {
 
     void default_output(const char* msg)
     {
-        //puts(msg);
+        enable_console_color();
         printf("%s", msg);
     }
 
@@ -56,20 +60,34 @@ namespace EasyLib {
     {
         va_list args;
         va_start(args, format);
-        print(format_(format, args, "\n***ERROR*** ", "\n").c_str());
+        std::string msg = format_(format, args, "\n***ERROR*** ", "\n");
         va_end(args);
+
+        if (print == default_output) {
+            std::string msg_with_color = "\u001b[31m" + msg + "\u001b[0m"; // use red text
+            print(msg_with_color.c_str());
+        }
+        else
+            print(msg.c_str());
 
         ASSERT(false);
 
         if (fexit)fexit();
-        abort();
+        throw std::runtime_error(msg);
     }
     void warn(const char* format, ...)
     {
         va_list args;
         va_start(args, format);
-        print(format_(format, args, "\n***WARNING*** ", "\n").c_str());
+        std::string msg = format_(format, args, "\n***WARNING*** ", "\n");
         va_end(args);
+
+        if (print == default_output) {
+            auto msg_with_color = "\u001b[33m" + msg + "\u001b[0m"; // use yellow text
+            print(msg_with_color.c_str());
+        }
+        else
+            print(msg.c_str());
 
         ASSERT(false);
     }

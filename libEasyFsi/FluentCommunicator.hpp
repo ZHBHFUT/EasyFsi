@@ -20,11 +20,10 @@ namespace EasyLib {
 
         FluentCommunicator(int myid, int np, func_MPT_csend* csend, func_MPT_crecv* crecv);
 
-        void create(int myid, int np, func_MPT_csend* csend, func_MPT_crecv* crecv);
-
         //! @brief set internal constants, name = one of: MYID,NP,MPT_CHAR,MPT_SHORT,MPT_INT,MPT_LONG,MPT_FLOAT,MPT_DOUBLE,MPT_LONG_LONG
-        void set_constant(const char* name, int   value)final;
+        void set_constant(const char* name, int   value  )final;
         void set_constant(const char* name, void* pointer)final;
+
         //! @brief set internal functions, name = one of: MPT_csend,MPT_crecv
         void set_function(const char* name, void* func_pointer)final;
 

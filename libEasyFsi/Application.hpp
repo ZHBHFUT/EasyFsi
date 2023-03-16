@@ -26,6 +26,7 @@ namespace EasyLib {
     public:
         using dv = DynamicVector;
 
+        Application() = default;
         explicit Application(const char* name);
         Application(const char* name, Communicator& intra_comm, int root);
 
@@ -33,10 +34,14 @@ namespace EasyLib {
 
         void clear();
 
-        void create(const char* name);
-        void create(const char* name, Communicator& intra_comm, int root);
+        //void create(const char* name);
+        //void create(const char* name, Communicator& intra_comm, int root);
 
         Boundary& add_coupled_boundary();
+
+        int boundary_num()const { return static_cast<int>(bounds_.size()); }
+
+        Boundary* boundary(int ib) { return ib >= 0 && ib < local_bounds_.size() ? &local_bounds_[ib] : nullptr; }
 
         void set_field_function(get_boundary_field_function getter, set_boundary_field_function setter);
 

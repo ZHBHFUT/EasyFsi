@@ -97,6 +97,7 @@
     <ClCompile Include="DistributedBoundary.cpp" />
     <ClCompile Include="DynamicMatrix.cpp" />
     <ClCompile Include="EasyFsi.cpp" />
+    <ClCompile Include="enable_console_color.cpp" />
     <ClCompile Include="FluentCommunicator.cpp" />
     <ClCompile Include="IndexSet.cpp" />
     <ClCompile Include="Interpolator.cpp" />

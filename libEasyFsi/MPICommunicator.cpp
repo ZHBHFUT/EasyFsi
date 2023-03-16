@@ -6,37 +6,9 @@
 
 namespace EasyLib {
 
-    MPICommunicator::MPICommunicator()
-        :comm_(-1)
+    MPICommunicator::MPICommunicator(int mpi_comm, int rank, int size)
+        :comm_(mpi_comm), rank_(rank), size_(size)
     {}
-
-    MPICommunicator::MPICommunicator(int mpi_comm)
-        :comm_(mpi_comm)
-    {}
-
-    void MPICommunicator::create(int mpi_comm)
-    {
-        comm_ = mpi_comm;
-
-        //if (!MPI_Initialized_    )error("function MPI_Initialized is not specified!");
-        //if (!MPI_Init_           )error("function MPI_Init is not specified!");
-        //if (!MPI_Comm_disconnect_)error("function MPI_Comm_disconnect is not specified!");
-        //if (!MPI_Comm_rank_      )error("function MPI_Comm_rank is not specified!");
-        //if (!MPI_Comm_size_      )error("function MPI_Comm_size is not specified!");
-        //if (!MPI_Send_           )error("function MPI_Send is not specified!");
-        //if (!MPI_Recv_           )error("function MPI_Recv is not specified!");
-        //
-        //if (MPI_INT16_T_ < 0)error("constant MPI_INT16_T is not specified!");
-        //if (MPI_INT32_T_ < 0)error("constant MPI_INT32_T is not specified!");
-        //if (MPI_FLOAT_   < 0)error("constant MPI_FLOAT is not specified!");
-        //if (MPI_DOUBLE_  < 0)error("constant MPI_DOUBLE is not specified!");
-        //if (MPI_CHAR_    < 0)error("constant MPI_CHAR is not specified!");
-        //
-        //if (!MPI_STATUS_IGNORE_)error("constant MPI_STATUS_IGNORE is not specified!");
-        //if (MPI_COMM_WORLD_    < 0)error("constant MPI_COMM_WORLD is not specified!");
-        //if (MPI_COMM_SELF_     < 0)error("constant MPI_COMM_SELF is not specified!");
-        //if (MPI_COMM_NULL_     < 0)error("constant MPI_COMM_NULL is not specified!");
-    }
 
     void MPICommunicator::set_constant(const char* name, int value)
     {
@@ -63,44 +35,11 @@ namespace EasyLib {
     }
     void MPICommunicator::set_function(const char* name, void* value)
     {
-        if      (strcmp(name, "MPI_Initialized"    ) == 0)MPI_Initialized_     = (func_MPI_Initialized)value;
-        else if (strcmp(name, "MPI_Init"           ) == 0)MPI_Init_            = (func_MPI_Init)value;
-        else if (strcmp(name, "MPI_Comm_disconnect") == 0)MPI_Comm_disconnect_ = (func_MPI_Comm_disconnect)value;
-        else if (strcmp(name, "MPI_Comm_rank"      ) == 0)MPI_Comm_rank_       = (func_MPI_Comm_rank)value;
-        else if (strcmp(name, "MPI_Comm_size"      ) == 0)MPI_Comm_size_       = (func_MPI_Comm_size)value;
-        else if (strcmp(name, "MPI_Send"           ) == 0)MPI_Send_            = (func_MPI_Send)value;
-        else if (strcmp(name, "MPI_Recv"           ) == 0)MPI_Recv_            = (func_MPI_Recv)value;
+        if      (strcmp(name, "MPI_Send") == 0)MPI_Send_ = (func_MPI_Send)value;
+        else if (strcmp(name, "MPI_Recv") == 0)MPI_Recv_ = (func_MPI_Recv)value;
         else {
             error("unsupported MPI function \"%s\", FILE = %s, FUNC = %s, LINE = %s.", name, __FILE__, __FUNCTION__, __LINE__);
         }
-    }
-
-    void MPICommunicator::init(int argc, const char** argv)
-    {
-        int flag = 0;
-        MPI_Initialized_(&flag);
-        if (!flag)MPI_Init_(&argc, const_cast<char***>(&argv));
-    }
-    void MPICommunicator::disconnect()
-    {
-        if (comm_ != MPI_COMM_WORLD_ &&
-            comm_ != MPI_COMM_SELF_ &&
-            comm_ != MPI_COMM_NULL_)
-            MPI_Comm_disconnect_(&comm_);
-        else
-            comm_ = MPI_COMM_NULL_;
-    }
-    int MPICommunicator::rank()const noexcept
-    {
-        int r = -1;
-        MPI_Comm_rank_(comm_, &r);
-        return r;
-    }
-    int MPICommunicator::size()const noexcept
-    {
-        int r = 0;
-        MPI_Comm_size_(comm_, &r);
-        return r;
     }
 
     bool MPICommunicator::send(const int16_t* data, int count, int dest_rank, int tag)

@@ -86,6 +86,8 @@ bd_face_normal
 bd_face_area
 bd_face_centroid
 bd_node_coords
+bd_node_l2g
+bd_node_g2l
 bd_nodes
 bd_face_nodes
 bd_kdtree
@@ -129,8 +131,9 @@ dbd_accumulate_face_fields
 app_new
 app_delete
 app_clear
-app_create
 app_add_boundary
+app_boundary_num
+app_get_boundary
 app_register_field
 app_start_coupling
 app_exchange_solu

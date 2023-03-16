@@ -44,19 +44,19 @@ namespace EasyLib {
         remote_fields_.clear();
     }
 
-    void Application::create(const char* name)
-    {
-        clear();
-        data_.app_name = name;
-    }
-
-    void Application::create(const char* name, Communicator& intra_comm, int root)
-    {
-        clear();
-        data_.app_name = name;
-        intra_comm_ = &intra_comm;
-        intra_root_ = root;
-    }
+    //void Application::create(const char* name)
+    //{
+    //    clear();
+    //    data_.app_name = name;
+    //}
+    //
+    //void Application::create(const char* name, Communicator& intra_comm, int root)
+    //{
+    //    clear();
+    //    data_.app_name = name;
+    //    intra_comm_ = &intra_comm;
+    //    intra_root_ = root;
+    //}
 
     Boundary& Application::add_coupled_boundary()
     {

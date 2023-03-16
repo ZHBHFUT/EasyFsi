@@ -326,9 +326,9 @@ extern "C" void  bd_set_user_id(Boundary * bd, int id)
 {
     if (bd)reinterpret_cast<BD*>(bd)->set_user_id(id);
 }
-extern "C" int   bd_get_user_id(Boundary * bd)
+extern "C" int   bd_get_user_id(const Boundary * bd)
 {
-    return bd ? reinterpret_cast<BD*>(bd)->user_id() : -1;
+    return bd ? reinterpret_cast<const BD*>(bd)->user_id() : -1;
 }
 extern "C" void  bd_reserve(Boundary * bd, int_l max_node, int_l max_face, int_l max_face_nodes)
 {
@@ -382,6 +382,20 @@ extern "C" const double* bd_node_coords(const Boundary * bd, int_l node)
 {
     return bd ? reinterpret_cast<const BD*>(bd)->node_coords().at(node).data() : nullptr;
 }
+extern "C" int_g bd_node_l2g(const Boundary* bd, int_l node)
+{
+    return bd ? reinterpret_cast<const BD*>(bd)->nodes().l2g(node) : -1;
+}
+extern "C" int_l bd_node_g2l(const Boundary * bd, int_g node)
+{
+    if (bd) {
+        auto& x = reinterpret_cast<const BD*>(bd)->nodes();
+        auto res = x.find(node);
+        return res.first ? res.second : -1;
+    }
+    else
+        return -1;
+}
 extern "C" const IndexSet * bd_nodes(const Boundary * bd)
 {
     return bd ? (IndexSet*)&reinterpret_cast<const BD*>(bd)->nodes() : nullptr;
@@ -425,9 +439,9 @@ extern "C" Communicator * cm_socket_new(int as_master, int np, const char* maste
     cm->init(8, args);
     return reinterpret_cast<Communicator*>((CM*)cm);
 }
-extern "C" Communicator * cm_mpi_new(int mpi_comm)
+extern "C" Communicator * cm_mpi_new(int mpi_comm, int rank, int size)
 {
-    return reinterpret_cast<Communicator*>((CM*)new EasyLib::MPICommunicator(mpi_comm));
+    return reinterpret_cast<Communicator*>((CM*)new EasyLib::MPICommunicator(mpi_comm, rank, size));
 }
 extern "C" Communicator * cm_fluent_new(int myid, int np, func_MPT_csend * csend, func_MPT_crecv * crecv)
 {
@@ -596,13 +610,17 @@ extern "C" void app_clear(Application * app)
 {
     if (app)reinterpret_cast<APP*>(app)->clear();
 }
-extern "C" void app_create(Application * app, const char* name, Communicator * intra_comm, int root)
-{
-    if (app)reinterpret_cast<APP*>(app)->create(name, *reinterpret_cast<CM*>(intra_comm), root);
-}
 extern "C" Boundary * app_add_boundary(Application * app)
 {
     return app ? reinterpret_cast<Boundary*>(&(reinterpret_cast<APP*>(app)->add_coupled_boundary())) : nullptr;
+}
+extern "C" int app_boundary_num(const Application* app)
+{
+    return app ? reinterpret_cast<const APP*>(app)->boundary_num() : 0;
+}
+extern "C" Boundary* app_get_boundary(Application* app, int ib)
+{
+    return app ? reinterpret_cast<Boundary*>(reinterpret_cast<APP*>(app)->boundary(ib)) : nullptr;
 }
 extern "C" void app_register_field(Application * app, const char* name, int ncomp, FieldLocation location, FieldIO iotype, const char* units)
 {

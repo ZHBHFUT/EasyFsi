@@ -3,11 +3,11 @@
 
 namespace EasyLib {
 
-    typedef int(__stdcall *func_MPI_Initialized)(int* flag);
-    typedef int(__stdcall *func_MPI_Init)(const int* argc, char*** argv);
-    typedef int(__stdcall *func_MPI_Comm_disconnect)(int* comm);
-    typedef int(__stdcall *func_MPI_Comm_rank)(int comm, int* rank);
-    typedef int(__stdcall *func_MPI_Comm_size)(int comm, int* size);
+    //typedef int(__stdcall *func_MPI_Initialized)(int* flag);
+    //typedef int(__stdcall *func_MPI_Init)(const int* argc, char*** argv);
+    //typedef int(__stdcall *func_MPI_Comm_disconnect)(int* comm);
+    //typedef int(__stdcall *func_MPI_Comm_rank)(int comm, int* rank);
+    //typedef int(__stdcall *func_MPI_Comm_size)(int comm, int* size);
     typedef int(__stdcall *func_MPI_Send)(const void* buffer, int count, int datatype, int dest, int tag, int comm);
     typedef int(__stdcall *func_MPI_Recv)(void* buffer, int count, int datatype, int source, int tag, int comm, int* status);
 
@@ -17,8 +17,8 @@ namespace EasyLib {
         using Communicator::send;
         using Communicator::recv;
 
-        MPICommunicator();
-        explicit MPICommunicator(int mpi_comm);
+        MPICommunicator() = default;
+        explicit MPICommunicator(int mpi_comm, int rank, int size);
 
         MPICommunicator(const MPICommunicator&) = default;
         MPICommunicator& operator = (const MPICommunicator&) = default;
@@ -43,14 +43,12 @@ namespace EasyLib {
         //!   MPI_Recv
         void set_function(const char* name, void* func_pointer)final;
 
-        void create(int mpi_comm);
+        void init(int /*argc*/, const char** /*argv*/)final {}
 
-        void init(int argc, const char** argv)final;
+        void disconnect()final {}
 
-        void disconnect()final;
-
-        int rank()const noexcept final;
-        int size()const noexcept final;
+        int rank()const noexcept final { return rank_; }
+        int size()const noexcept final { return size_; }
 
         bool send(const int16_t* data, int count, int dest_rank, int tag)final;
         bool send(const int32_t* data, int count, int dest_rank, int tag)final;
@@ -67,24 +65,19 @@ namespace EasyLib {
         bool recv(char* data, int count, int src_rank, int tag)final;
 
     private:
-        int comm_;
-        func_MPI_Initialized     MPI_Initialized_    { nullptr };
-        func_MPI_Init            MPI_Init_           { nullptr };
-        func_MPI_Comm_disconnect MPI_Comm_disconnect_{ nullptr };
-        func_MPI_Comm_rank       MPI_Comm_rank_      { nullptr };
-        func_MPI_Comm_size       MPI_Comm_size_      { nullptr };
-        func_MPI_Send            MPI_Send_           { nullptr };
-        func_MPI_Recv            MPI_Recv_           { nullptr };
-        int MPI_SUCCESS_ { -1 };
-        int MPI_INT16_T_ { -1 };
-        int MPI_INT32_T_ { -1 };
-        int MPI_INT64_T_ { -1 };
-        int MPI_FLOAT_   { -1 };
-        int MPI_DOUBLE_  { -1 };
-        int MPI_CHAR_    { -1 };
+        int comm_{ 0 }, rank_{ 0 }, size_{ 1 };
+        func_MPI_Send MPI_Send_{ nullptr };
+        func_MPI_Recv MPI_Recv_{ nullptr };
+        int  MPI_SUCCESS_      { -1 };
+        int  MPI_INT16_T_      { -1 };
+        int  MPI_INT32_T_      { -1 };
+        int  MPI_INT64_T_      { -1 };
+        int  MPI_FLOAT_        { -1 };
+        int  MPI_DOUBLE_       { -1 };
+        int  MPI_CHAR_         { -1 };
         int* MPI_STATUS_IGNORE_{ nullptr };
-        int MPI_COMM_WORLD_{ -1 };
-        int MPI_COMM_SELF_ { -1 };
-        int MPI_COMM_NULL_ { -1 };
+        int  MPI_COMM_WORLD_   { -1 };
+        int  MPI_COMM_SELF_    { -1 };
+        int  MPI_COMM_NULL_    { -1 };
     };
 }
