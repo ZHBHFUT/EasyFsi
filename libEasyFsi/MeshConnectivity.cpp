@@ -24,13 +24,13 @@ namespace EasyLib {
         ja_.clear();
     }
 
-    void MeshConnectivity::reserve(int_l max_nrow, int_l max_ndata)
+    void MeshConnectivity::reserve(value_type max_nrow, value_type max_ndata)
     {
         ia_.reserve(max_nrow + 1);
         ja_.reserve(max_ndata);
     }
 
-    std::span<int_l> MeshConnectivity::push_back(int_l n, const int_l* data/* = nullptr*/)
+    std::span<int_l> MeshConnectivity::push_back(value_type n, const value_type* data/* = nullptr*/)
     {
         if (n < 0)n = 0;
 
@@ -42,11 +42,11 @@ namespace EasyLib {
             ? std::span<int>(ja_.data() + pos, n)
             : std::span<int>{};
     }
-    std::span<int_l> MeshConnectivity::push_back(std::span<const int> data)
+    std::span<int_l> MeshConnectivity::push_back(std::span<const value_type> data)
     {
         return push_back(static_cast<int_l>(data.size()), data.data());
     }
-    std::span<int_l> MeshConnectivity::push_back(const std::initializer_list<int>& list)
+    std::span<int_l> MeshConnectivity::push_back(const std::initializer_list<value_type>& list)
     {
         auto pos = ia_.back();
         ia_.push_back(pos + static_cast<int_l>(list.size()));
@@ -56,7 +56,7 @@ namespace EasyLib {
             ? std::span<int>(ja_.data() + pos, list.size())
             : std::span<int>{};
     }
-    void MeshConnectivity::flip(const MeshConnectivity& a2b, int nb, MeshConnectivity& b2a)
+    void MeshConnectivity::flip(const MeshConnectivity& a2b, value_type nb, MeshConnectivity& b2a)
     {
         b2a.clear();
 
@@ -85,6 +85,5 @@ namespace EasyLib {
             }
         }
     }
-
 
 }

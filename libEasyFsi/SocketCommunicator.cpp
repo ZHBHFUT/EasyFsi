@@ -250,7 +250,7 @@ namespace EasyLib {
         int np = 0;
         int timeout_sec = 60;
         for (int i = 0; i < argc; ++i) {
-            if      (strcmp(argv[i], "-master") == 0)as_master = true;
+            if (strcmp(argv[i], "-master") == 0)as_master = true;
             else if (strcmp(argv[i], "-np") == 0) {
                 ++i;
                 if (i >= argc) {
@@ -277,6 +277,11 @@ namespace EasyLib {
             }
         }
 
+        this->init(as_master, np, master_ip, port, timeout_sec);
+    }
+
+    void SocketCommunicator::init(bool as_master, int np, const char* master_ip/* = "127.0.0.1"*/, unsigned short port/* = 50001*/, int timeout_sec/* = 60*/)
+    {
         debug("  initialize socket communicator\n");
 
         if (as_master && np < 1)error("invalid participator number: %d", np);

@@ -12,12 +12,13 @@
 #ifndef ASSERT
 #  ifndef __CUDACC__
 #    ifdef _MSC_VER // for vc++
+#      include <crtdbg.h> // _ASSERT
 #      ifdef _DEBUG
-#        include <crtdbg.h> // _ASSERT
 #        define ASSERT(expr) _ASSERT(expr)
 #      else
 #        define ASSERT(expr)
 #      endif
+#      define BREAK_IF(expr) (void) (!!(expr)) || (__debugbreak(), 0))
 #    else // for other compiler
 #      ifdef NDEBUG
 #        define ASSERT(expr)
@@ -25,8 +26,10 @@
 #        include <assert.h>
 #        define ASSERT(expr) assert(expr)
 #      endif
+#      define BREAK_IF(expr)
 #    endif // _MSC_VER
 #  else
 #    define ASSERT(expr)
+#    define BREAK_IF(expr)
 #  endif // __CUDACC__
 #endif

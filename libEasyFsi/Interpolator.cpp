@@ -721,7 +721,7 @@ namespace EasyLib {
                 auto& fnodes = bd->face_nodes();
 
                 // all are triangles
-                if (std::all_of(fts.begin(), fts.end(), [](int ft) {return ft == FT_TRI3 || ft == FT_TRI6; })) {
+                if (std::all_of(fts.begin(), fts.end(), [](int ft) {return ft == TRI3 || ft == TRI6; })) {
                     fout
                         << "ZONE T=\"" << bd->name() << ".Elements\""
                         << " ZONETYPE=FETRIANGLE"
@@ -747,7 +747,7 @@ namespace EasyLib {
                         << " VARSHARELIST=([1-" << 3 + nfield << "]=" << sp_zone << ")\n";
 
                     for (int i = 0; i < bd->face_num(); ++i) {
-                        if (fts[i] == FT_TRI3 || fts[i] == FT_TRI6) {
+                        if (fts[i] == TRI3 || fts[i] == TRI6) {
                             fout
                                 << fnodes(i, 0) + 1 << ' '
                                 << fnodes(i, 1) + 1 << ' '
@@ -857,7 +857,7 @@ namespace EasyLib {
                 auto& fnodes = bd->face_nodes();
 
                 // all faces are triangle
-                if (std::all_of(fts.begin(), fts.end(), [](int ft) {return ft == FT_TRI3 || ft == FT_TRI6; })) {
+                if (std::all_of(fts.begin(), fts.end(), [](int ft) {return ft == TRI3 || ft == TRI6; })) {
                     fout
                         << "ZONE T=\"" << bd->name() << ".Elements\""
                         << " ZONETYPE=FETRIANGLE"
@@ -883,7 +883,7 @@ namespace EasyLib {
                         << " VARSHARELIST=([1-" << 3 + nfield << "] = " << fp_zone << ")\n";
 
                     for (int i = 0; i < nff; ++i) {
-                        if (fts[i] == FT_TRI3 || fts[i] == FT_TRI6) {
+                        if (fts[i] == TRI3 || fts[i] == TRI6) {
                             fout
                                 << fnodes(i, 0) + 1 << ' '
                                 << fnodes(i, 1) + 1 << ' '

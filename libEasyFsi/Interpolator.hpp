@@ -1,6 +1,5 @@
 #pragma once
 #include <limits>
-#include <vector>
 
 #include "DynamicMatrix.hpp"
 
@@ -82,7 +81,6 @@ namespace EasyLib {
         struct InterpInfo
         {
             int    src_bd_id{ 0 };
-            //int    unused{ 0 };
             int    ndonor{ 0 };
             int_l  donor_nodes[max_donor]{ 0 };
             double donor_weights[max_donor]{ 0 };
@@ -91,11 +89,5 @@ namespace EasyLib {
         };
         std::vector<InterpInfo> node_info_;
         std::vector<InterpInfo> face_info_;
-
-        //std::vector<int_l > donors_;
-        //std::vector<double> weights_;
-
-        //std::vector<DynamicMatrix> node_coeffs_global_xps_;
-        //std::vector<DynamicMatrix> face_coeffs_global_xps_;
     };
 }

@@ -34,15 +34,15 @@ enum FieldIO
 };
 
 //! @brief Topology type of face on coupled boundary.
-typedef enum FaceTopo
+typedef enum ElementShape
 {
-    FT_BAR2 = 0,//! 2-nodes linear element
-    FT_BAR3,    //! 3-nodes quadratic element
-    FT_TRI3,    //! 3-nodes linear triangle element
-    FT_TRI6,    //! 6-nodes quadratic triangle element
-    FT_QUAD4,   //! 4-node linear quadrilateral element
-    FT_QUAD8,   //! 8-node quadratic quadrilateral element
-    FT_POLYGON  //! general polygon element (node number > 4)
+    BAR2 = 0,//! 2-nodes linear element
+    BAR3,    //! 3-nodes quadratic element
+    TRI3,    //! 3-nodes linear triangle element
+    TRI6,    //! 6-nodes quadratic triangle element
+    QUAD4,   //! 4-node linear quadrilateral element
+    QUAD8,   //! 8-node quadratic quadrilateral element
+    POLYGON  //! general polygon element (node number > 4)
 }FaceTopo;
 
 //! @brief function prototype used to read boundary field data from current application.
@@ -58,11 +58,20 @@ typedef int (__stdcall *func_MPT_crecv)(int mpid, void* data, unsigned int n, in
 //! @brief function prototype used to send data to other process of this application.
 typedef int(__stdcall* func_MPI_Send)(const void* buffer, int count, int datatype, int dest,   int tag, int comm);
 //! @brief function prototype used to receive data from other process of this application.
-typedef int(__stdcall* func_MPI_Recv)(      void* buffer, int count, int datatype, int source, int tag, int comm, int* status);
+typedef int(__stdcall* func_MPI_Recv)(      void* buffer, int count, int datatype, int source, int tag, int comm);
+
+typedef void* (*func_allocate  )(size_t nbytes);
+typedef void  (*func_deallocate)(void* pointer);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+    void set_allocator(func_allocate falloc, func_deallocate fdealloc);
+
+    void* allocate(size_t size_in_bytes);
+
+    void  deallocate(void* pointer);
 
     //--------------------------------------------------------
     // interface of DynamicVector
@@ -167,7 +176,7 @@ extern "C" {
     int   bd_get_user_id(const Boundary* bd);
     void  bd_reserve(Boundary* bd, int_l max_node, int_l max_face, int_l max_face_nodes);
     int_l bd_add_node(Boundary* bd, double x, double y, double z, int_g unique_id);
-    int_l bd_add_face(Boundary* bd, FaceTopo type, int nnodes, const int_l* fnodes);
+    int_l bd_add_face(Boundary* bd, ElementShape type, int nnodes, const int_l* fnodes);
     void  bd_set_face_centroid(Boundary* bd, int_l face, double cx, double cy, double cz);
     void  bd_set_face_area    (Boundary* bd, int_l face, double sx, double sy, double sz);
     void  bd_set_node_coords  (Boundary* bd, int_l node, double x, double y, double z);

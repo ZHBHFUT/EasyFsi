@@ -1,7 +1,6 @@
 #pragma once
 #include <istream>
 #include <ostream>
-#include <vector>
 #include <string>
 #include <array>
 
@@ -17,25 +16,25 @@
 namespace EasyLib {
 
     //! @brief Topology type of face on coupled boundary.
-    typedef enum FaceTopo
+    typedef enum ElementShape
     {
-        FT_BAR2 = 0,//! 2-nodes linear element
-        FT_BAR3,    //! 3-nodes quadratic element
-        FT_TRI3,    //! 3-nodes linear triangle element
-        FT_TRI6,    //! 6-nodes quadratic triangle element
-        FT_QUAD4,   //! 4-node linear quadrilateral element
-        FT_QUAD8,   //! 8-node quadratic quadrilateral element
-        FT_POLYGON  //! general polygon element (node number > 4)
+        BAR2 = 0,//! 2-nodes linear element
+        BAR3,    //! 3-nodes quadratic element
+        TRI3,    //! 3-nodes linear triangle element
+        TRI6,    //! 6-nodes quadratic triangle element
+        QUAD4,   //! 4-node linear quadrilateral element
+        QUAD8,   //! 8-node quadratic quadrilateral element
+        POLYGON  //! general polygon element (node number > 4)
     }FaceTopo;
 
     //! @brief Node number of specific face topology.
-    extern const int npf[FT_POLYGON + 1];
+    extern const int npf[POLYGON + 1];
 
     //! @brief Maximum number of face.
     inline constexpr int npf_max = 8;
 
     //! @brief The order of face, 1=Linear，2=Quadratic
-    extern const int face_order[FT_POLYGON + 1];
+    extern const int face_order[POLYGON + 1];
 
     //! @brief Topology of coupled zone.
     typedef enum ZoneTopo
@@ -59,10 +58,10 @@ namespace EasyLib {
     class Boundary
     {
     public:
-        using dvec = std::vector<double>;
-        using ivec = std::vector<int>;
+        using dvec = DynamicVector;
+        using ivec = DynamicArray<int_l, 1>;
         using vec3 = TinyVector<double, 3>;
-        using vvec = std::vector<vec3>;
+        using vvec = DynamicArray<vec3, 1>;
 
         struct Edge
         {
@@ -94,7 +93,7 @@ namespace EasyLib {
         //! @param max_fnodes Maximum face-nodes number
         void reserve(int_l max_node, int_l max_face, int_l max_fnodes);
 
-        void set_name(const char* sname);
+        void set_name(std::string sname);
 
         void set_user_id(int id);
 
@@ -119,9 +118,9 @@ namespace EasyLib {
         //! @param count   Node number of face, should be \npf[\type].
         //! @param fnodes  Local indices of face nodes.
         //! @return Return face index.
-        int add_face(FaceTopo type, int count, const int_l* fnodes);
-        int add_face(FaceTopo type, int count, const int_l* fnodes, double cx, double cy, double cz);
-        int add_face(FaceTopo type, int count, const int_l* fnodes, const vec3& fcent);
+        int add_face(ElementShape type, int count, const int_l* fnodes);
+        int add_face(ElementShape type, int count, const int_l* fnodes, double cx, double cy, double cz);
+        int add_face(ElementShape type, int count, const int_l* fnodes, const vec3& fcent);
 
         //! @brief Modify node coordinates.
         //! @param id  Index of the node
@@ -199,19 +198,19 @@ namespace EasyLib {
         inline auto& name()const noexcept { return name_; }
 
         //! @brief Get topology of the boundary.
-        inline auto topo ()const { ASSERT(!mesh_changed_); return topo_; }
+        inline auto topo()const { ASSERT(!mesh_changed_); return topo_; }
 
         //! @brief Get shape of the boundary.
         inline auto shape()const { ASSERT(!mesh_changed_); return shape_; }
 
         //! @brief Whether or not this boundary contains any polygon element.
-        inline bool contains_polygon()const noexcept { return face_count_[FT_POLYGON] > 0; }
+        inline bool contains_polygon()const noexcept { return face_count_[POLYGON] > 0; }
 
         //! @brief Whether or not this boundary contains any high order element.
-        inline bool contains_high_order_face()const noexcept { return face_count_[FT_BAR3] || face_count_[FT_TRI6] || face_count_[FT_QUAD8]; }
+        inline bool contains_high_order_face()const noexcept { return face_count_[BAR3] || face_count_[TRI6] || face_count_[QUAD8]; }
 
         //! @brief Whether or not all faces are high-order element.
-        inline bool all_high_order()const { return face_num() > 0 && (face_count_[FT_BAR3] + face_count_[FT_TRI6] + face_count_[FT_QUAD8] == face_num()); }
+        inline bool all_high_order()const { return face_num() > 0 && (face_count_[BAR3] + face_count_[TRI6] + face_count_[QUAD8] == face_num()); }
 
         //! @brief Get edges for surface boundary.
         inline auto& edges_for_surface()const noexcept { return edges_; }
@@ -228,27 +227,27 @@ namespace EasyLib {
         //! @brief Get face number.
         inline int_l face_num()const { return face_nodes_.nrow(); }
 
-        inline const IndexSet&         nodes     ()const noexcept { return nodes_; }
+        inline const IndexSet& nodes()const noexcept { return nodes_; }
         inline const MeshConnectivity& face_nodes()const noexcept { return face_nodes_; }
 
-        inline const auto& node_coords   ()const noexcept { return node_coords_; }
+        inline const auto& node_coords()const noexcept { return node_coords_; }
         inline const auto& face_centroids()const noexcept { ASSERT(!mesh_changed_); return face_centroids_; }
-        inline const auto& face_areas    ()const noexcept { ASSERT(!mesh_changed_); return face_area_; }
-        inline const auto& face_normals  ()const noexcept { ASSERT(!mesh_changed_); return face_normal_; }
-        inline const auto& face_types    ()const noexcept { return face_types_; }
+        inline const auto& face_areas()const noexcept { ASSERT(!mesh_changed_); return face_area_; }
+        inline const auto& face_normals()const noexcept { ASSERT(!mesh_changed_); return face_normal_; }
+        inline const auto& face_types()const noexcept { return face_types_; }
 
         //! @brief Get face number list of each face type.
-        inline auto& face_type_num(           )const noexcept { return face_count_; }
+        inline auto& face_type_num()const noexcept { return face_count_; }
 
         //! @brief Get face number of specified type.
-        inline auto  face_type_num(FaceTopo ft)const noexcept { return face_count_[ft]; }
+        inline auto  face_type_num(ElementShape ft)const noexcept { return face_count_[ft]; }
 
-        inline auto& get_fields()const noexcept { return fields_; }
+        inline auto& fields()const noexcept { return fields_; }
 
-        Field&       get_field(const char* field_name);
-        const Field& get_field(const char* field_name)const;
+        Field& field(const char* field_name);
+        const Field& field(const char* field_name)const;
 
-        friend std::istream& operator >>(std::istream& is,       Boundary& bd);
+        friend std::istream& operator >>(std::istream& is, Boundary& bd);
         friend std::ostream& operator <<(std::ostream& os, const Boundary& bd);
 
         friend class Communicator;
@@ -258,12 +257,12 @@ namespace EasyLib {
         //! @brief Reading boundary(s) from file.
         //! @param [in]  file    Boundary file.
         //! @param [out] bounds  Boundary list.
-        static void read_from_file(const char* file, std::vector<Boundary> bounds);
+        static void read_from_file(const char* file, DynamicArray<Boundary, 1>& bounds);
         static void write_to_file(const char* file, int nbound, const Boundary* bounds);
         static void write_to_file(const char* file, int nbound, const Boundary** bounds);
     private:
         void register_field_(const FieldInfo& fd);
-        
+
     private:
         std::string      name_; //! The name of this boundary.
         int              user_id_{ 0 };
@@ -280,15 +279,15 @@ namespace EasyLib {
         // Following Data will be ignored by communicator.
         //---------------------------------------------------
 
-        std::array<int_l, FT_POLYGON + 1> face_count_{ 0 }; //! The element number of each type.
+        std::array<int_l, POLYGON + 1> face_count_{ 0 }; //! The element number of each type.
         //MeshConnectivity face_faces_;
 
         bool             mesh_changed_{ false };//! Is mesh changed?
 
-        ZoneTopo         topo_ { ZT_POINTS };   //! update in add_face()
+        ZoneTopo         topo_{ ZT_POINTS };   //! update in add_face()
         ZoneShape        shape_{ ZS_GENERAL };  //! update in compute_metics()
 
-        std::vector<Edge> edges_;  //! Edges data for polygon faces.
+        DynamicArray<Edge, 1> edges_;  //! Edges data for polygon faces.
 
         vec3              coord_min_{ 0,0,0 };  //! update in compute_metics()
         vec3              coord_max_{ 0,0,0 };  //! update in compute_metics()
@@ -310,7 +309,7 @@ namespace EasyLib {
 
         //--- buffers used by global/local IPS/TPS/SPLINE methods
 
-        std::vector<int>      ibuffer_; //! used for inverse xps_ts_inv_.
+        DynamicArray<int, 1>  ibuffer_; //! used for inverse xps_ts_inv_.
         dvec                  dbuffer_; //! used for computing XPS interpolation coefficient.
     };
 }

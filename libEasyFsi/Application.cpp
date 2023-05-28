@@ -723,7 +723,7 @@ namespace EasyLib {
                 << "T = \"" << bd->name() << "\"\n";
 
             // 
-            bool all_tri  = bd->face_type_num(FT_TRI3) + bd->face_type_num(FT_TRI6) == bd->face_num();
+            bool all_tri  = bd->face_type_num(TRI3) + bd->face_type_num(TRI6) == bd->face_num();
             //bool all_quad = bd->face_count(FT_QUAD4) + bd->face_count(FT_QUAD8) == bd->face_num();
 
             // Polygon not exists: write finite element grid (ignore middle node)
@@ -765,7 +765,7 @@ namespace EasyLib {
             for (auto& fd : data_.field_defs) {
                 if (fd.is_orphan)continue;
 
-                auto& field = bd->get_fields().at(fd.id);
+                auto& field = bd->fields().at(fd.id);
                 for (int j = 0; j < fd.ncomp; ++j) {
                     write_field(ofs, field.data.data() + j, (int_l)field.data.nrow(), fd.ncomp);
                 }
@@ -794,10 +794,10 @@ namespace EasyLib {
                     for (int_l i = 0; i < bd->face_num(); ++i) {
                         auto nodes = bd->face_nodes()[i];
                         switch (bd->face_types().at(i)) {
-                        case FT_TRI3: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;
-                        case FT_TRI6: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;
-                        case FT_QUAD4:ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << ' ' << nodes[3] + 1 << '\n'; break;
-                        case FT_QUAD8:ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << ' ' << nodes[3] + 1 << '\n'; break;
+                        case TRI3: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;
+                        case TRI6: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;
+                        case QUAD4:ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << ' ' << nodes[3] + 1 << '\n'; break;
+                        case QUAD8:ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << ' ' << nodes[3] + 1 << '\n'; break;
                         }
                     }
                 }

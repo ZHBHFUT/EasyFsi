@@ -33,13 +33,6 @@ namespace EasyLib {
         void accumulate_face_fields(int nfields, const double* local_fields, double* global_fields);
         void scatter_node_fields   (int nfields, const double* global_fields, double* local_fields);
         void scatter_face_fields   (int nfields, const double* global_fields, double* local_fields);
-        
-        //void allocate_node_fields  (int nfields, double** local_fields, double** global_fields);
-        //void allocate_face_fields  (int nfields, double** local_fields, double** global_fields);
-        //void delete_fields         (double** local_fields, double** global_fields);
-
-        //void gather_fields (const char* field_name);
-        //void scatter_fields(const char* field_name);
 
     private:
         Boundary* local_bound_{ nullptr };

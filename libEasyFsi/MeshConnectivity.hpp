@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
-#include <vector>
 #include <span>
+#include <vector>
 
 #include "Index.hpp"
 
@@ -11,7 +11,7 @@ namespace EasyLib {
     {
     public:
         using value_type = int_l;
-        using ivec = std::vector<int_l>;
+        using ivec       = std::vector<int_l>;
 
         MeshConnectivity() = default;
         MeshConnectivity(const MeshConnectivity&) = default;
@@ -66,12 +66,12 @@ namespace EasyLib {
             };
         };
 
-        inline value_type operator()(int i, int j)const
+        inline value_type operator()(value_type i, value_type j)const
         {
             return ja_.at(ia_.at(i) + j);
         }
 
-        static void flip(const MeshConnectivity& a2b, int nb, MeshConnectivity& b2a);
+        static void flip(const MeshConnectivity& a2b, value_type nb, MeshConnectivity& b2a);
 
         friend class Boundary;
         friend class Interpolator;

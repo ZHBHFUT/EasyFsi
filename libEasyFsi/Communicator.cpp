@@ -57,7 +57,7 @@ namespace EasyLib {
     {
         using DM = DynamicMatrix;
 
-        const int_l size[2] = { static_cast<int_l>(dm.size(0)),static_cast<int_l>(dm.size(1)) };
+        const int_l size[2] = { static_cast<int_l>(dm.extent(0)),static_cast<int_l>(dm.extent(1)) };
         if (!this->send(size, 2, dest_rank, tag))return false;
         if (dm.empty())return true;
         return !dm.empty() ? send(dm.data(), static_cast<int_l>(dm.numel()), dest_rank, tag + 1) : true;

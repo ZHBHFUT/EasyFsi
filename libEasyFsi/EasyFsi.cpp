@@ -8,6 +8,21 @@
 
 #include "EasyFsi.h"
 
+//extern "C" void set_allocator(func_allocate falloc, func_deallocate fdealloc)
+//{
+//    EasyLib::set_user_allocator(falloc, fdealloc);
+//}
+//
+//extern "C" void* allocate(size_t size_in_bytes)
+//{
+//    return EasyLib::allocate(size_in_bytes);
+//}
+//
+//extern "C" void  deallocate(void* pointer)
+//{
+//    EasyLib::deallocate(pointer);
+//}
+
 //--- DynamicVector
 
 using DV = EasyLib::DynamicVector;
@@ -217,7 +232,7 @@ extern "C" const int_g* is_glist(const IndexSet* is)
 
 //--- KdTree
 
-using KDT = KDTree<double, 3, int_l>;
+using KDT = EasyLib::KDTree<double, 3, int_l>;
 extern "C" KdTree * kdt_new(const double* coords, int npts, int persistent)
 {
     return reinterpret_cast<KdTree*>(new KDT(coords, npts, persistent));
@@ -338,9 +353,9 @@ extern "C" int_l bd_add_node(Boundary * bd, double x, double y, double z, int_g 
 {
     return bd ? reinterpret_cast<BD*>(bd)->add_node(x, y, z, unique_id) : EasyLib::invalid_id;
 }
-extern "C" int_l bd_add_face(Boundary * bd, FaceTopo type, int nnodes, const int_l * fnodes)
+extern "C" int_l bd_add_face(Boundary * bd, ElementShape type, int nnodes, const int_l * fnodes)
 {
-    return bd ? reinterpret_cast<BD*>(bd)->add_face((EasyLib::FaceTopo)type, nnodes, fnodes) : EasyLib::invalid_id;
+    return bd ? reinterpret_cast<BD*>(bd)->add_face((EasyLib::ElementShape)type, nnodes, fnodes) : EasyLib::invalid_id;
 }
 extern "C" void  bd_set_face_centroid(Boundary * bd, int_l face, double cx, double cy, double cz)
 {

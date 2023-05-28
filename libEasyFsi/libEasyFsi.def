@@ -1,5 +1,9 @@
 LIBRARY
 EXPORTS
+set_allocator
+allocate
+deallocate
+
 dv_new
 dv_delete
 dv_clear
@@ -138,3 +142,13 @@ app_register_field
 app_start_coupling
 app_exchange_solu
 app_stop_coupling
+
+mat_inverse
+mat_transpose
+mat_transpose_to
+mat_apply_vec
+mat_transpose_apply_vec
+mat_apply_mat
+mat_transpose_apply_mat
+mat_apply_add_vec
+mat_apply_add_mat

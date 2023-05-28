@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+#include "DynamicVector.hpp"
 #include "MeshConnectivity.hpp"
 
 namespace EasyLib {
@@ -47,9 +48,9 @@ namespace EasyLib {
 
         //std::vector<int> face_neighbor_mode_;
 
-        std::vector<TecVarLocation>      var_loc;
-        std::vector<int>                 var_share_list;
-        std::vector<std::vector<double>> vars;
+        std::vector<TecVarLocation> var_loc;
+        std::vector<int>            var_share_list;
+        std::vector<DynamicVector>  vars;
 
         MeshConnectivity                 elem_nodes; //! zero-based index
         MeshConnectivity                 face_nodes; //! zero-based index
@@ -74,4 +75,5 @@ namespace EasyLib {
         std::vector<std::string> variables_;
         std::vector<TecplotZone> zones_;
     };
+
 }

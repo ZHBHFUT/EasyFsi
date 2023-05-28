@@ -40,13 +40,12 @@ namespace EasyLib {
         void set_function(const char* /*name*/, void* /*func*/)final {}
 
         //! @brief Initialize the socket communicator.
-        //! @param app_name    Application name
         //! @param as_root     Whether to run as the root node
         //! @param np          Number of applications that participate in communication.
         //! @param master_ip   The IP address of the root node, default using the local IP address£º127.0.0.1
-        //! @param start_port  Port number of the root node£¬default is 50001.
+        //! @param port        Port number of the root node£¬default is 50001.
         //! @param timeout_sec Timeout value in seconds for connecting to server, default is 60s.
-        //void init(const char* app_name, bool as_root, int np, const char* master_ip = "127.0.0.1", unsigned short start_port = 50001, int timeout_sec = 60);
+        void init(bool as_root, int np, const char* master_ip = "127.0.0.1", unsigned short port = 50001, int timeout_sec = 60);
 
         void init(int argc, const char** argv)final;
 

@@ -6,119 +6,86 @@
 #include <span>
 
 #include "Assert.hpp"
+#include "LinAlgs.h"
 #include "DynamicVector.hpp"
 
 namespace EasyLib {
 
     class Communicator;
 
-    class DynamicMatrix
+    class DynamicMatrix : public DynamicArray<double, 2>
     {
     public:
-        using value_type             = double;
-        using size_type              = size_t;
-        using reference              = double&;
-        using const_reference        = const double&;
-        using pointer                = double*;
-        using const_pointer          = const double*;
+        using DynamicArray<double, 2>::DynamicArray;
 
-        using iterator               = std::vector<double>::iterator;
-        using const_iterator         = std::vector<double>::const_iterator;
-        using reverse_iterator       = std::vector<double>::reverse_iterator;
-        using const_reverse_iterator = std::vector<double>::const_reverse_iterator;
+        inline constexpr bool is_square()const noexcept { return extent(0) == extent(1); }
 
-        inline static constexpr int dimension = 2;
+        inline size_type nrow()const noexcept { return extent(0); }
+        inline size_type ncol()const noexcept { return extent(1); }
 
-        DynamicMatrix() = default;
-        DynamicMatrix(const DynamicMatrix&) = default;
-        DynamicMatrix& operator=(const DynamicMatrix&) = default;
-
-        DynamicMatrix(DynamicMatrix&& m)noexcept;
-
-        DynamicMatrix& operator=(DynamicMatrix&& m)noexcept;
-
-        DynamicMatrix(size_type m, size_type n, value_type init_val = value_type{ 0 });
-
-        void clear()noexcept;
-
-        void resize(size_type m, size_type n, value_type init_val = value_type{ 0 });
-
-        void reshape(size_type m, size_type n);
-
-        void fill(value_type value);
-
-        void copy_from(const DynamicMatrix& mat);
-
-        inline constexpr int  ndim()const noexcept { return 2; }
-
-        inline constexpr bool is_square()const noexcept { return size_[0] == size_[1]; }
-
-        inline constexpr bool empty()const noexcept { return data_.empty(); }
-
-        inline size_type nrow()const noexcept { return size_[0]; }
-        inline size_type ncol()const noexcept { return size_[1]; }
-
-        inline size_type size(int idim)const noexcept { ASSERT(idim >= 0 && idim < 2); return size_[idim]; }
-        inline size_type numel()const noexcept { return size_[0] * size_[1]; }
-
-        inline       pointer data()      noexcept { return data_.data(); }
-        inline const_pointer data()const noexcept { return data_.data(); }
-
-        inline auto operator[](size_type i)
+        inline void zero()
         {
-            ASSERT(i >= 0 && i < size_[0]);
-            return std::span<value_type>{&data_.at(i* size_[1]), size_[1]};
-        }
-        inline auto operator[](size_type i)const
-        {
-            ASSERT(i >= 0 && i < size_[0]);
-            return std::span<const value_type>{&data_.at(i* size_[1]), size_[1]};
+            std::memset(data(), 0, sizeof(element_type) * numel());
         }
 
-        inline reference       operator()(size_type i)                   noexcept { ASSERT(i >= 0 && i < data_.size()); return data_[i]; }
-        inline const_reference operator()(size_type i)const              noexcept { ASSERT(i >= 0 && i < data_.size()); return data_[i]; }
-        inline reference       operator()(size_type i, size_type j)      noexcept { ASSERT(i >= 0 && i < size_[0] && j >= 0 && j < size_[1]); return data_[i * size_[1] + j]; }
-        inline const_reference operator()(size_type i, size_type j)const noexcept { ASSERT(i >= 0 && i < size_[0] && j >= 0 && j < size_[1]); return data_[i * size_[1] + j]; }
+        inline void identity()
+        {
+            zero();
+            auto n = std::min(extent(0), extent(1));
+            for (size_type i = 0; i < n; ++i)
+                this->operator()(i * extent(1) + i) = 1;
+        }
 
-        inline reference       at(size_type i) { return data_.at(i); }
-        inline const_reference at(size_type i)const { return data_.at(i); }
-        inline reference       at(size_type i, size_type j) { ASSERT(i >= 0 && i < size_[0] && j >= 0 && j < size_[1]); return data_.at(i * size_[1] + j); }
-        inline const_reference at(size_type i, size_type j)const { ASSERT(i >= 0 && i < size_[0] && j >= 0 && j < size_[1]); return data_.at(i * size_[1] + j); }
-
-        inline auto begin ()noexcept { return data_.begin(); }
-        inline auto end   ()noexcept { return data_.end(); }
-        inline auto begin ()const noexcept { return data_.begin(); }
-        inline auto end   ()const noexcept { return data_.end(); }
-        inline auto cbegin()const noexcept { return data_.cbegin(); }
-        inline auto cend  ()const noexcept { return data_.cend(); }
-
-        inline auto rbegin()noexcept { return data_.rbegin(); }
-        inline auto rend  ()noexcept { return data_.rend(); }
-        inline auto rbegin()const noexcept { return data_.rbegin(); }
-        inline auto rend  ()const noexcept { return data_.rend(); }
-
-        //! 设置为单位矩阵
-        //! @note 如果矩阵不是方阵，则填充对角线元素为1
-        void identity();
-
-        //! @brief 对矩阵求逆
-        //! @return true=成功，false=失败（矩阵奇异）
-        bool inverse();
-        bool inverse(std::vector<int>& buffer);
+        //! @brief inverse this matrix.
+        //! @return true=OK，false=Failed(matrix is singular)
+        inline bool inverse()
+        {
+            if (!is_square())throw std::logic_error("DynamicMatrix::inverse, matrix is not square!");
+            DynamicArray<int, 1> buffer(2 * extent(0), 0);
+            return inverse(buffer);
+        }
+        inline bool inverse(DynamicArray<int, 1>& buffer)
+        {
+            if (!is_square())throw std::logic_error("DynamicMatrix::inverse, matrix is not square!");
+            buffer.resize(2 * extent(0));
+            int singular = 0;
+            mat_inverse((int)extent(0), data(), buffer.data(), &singular);
+            return singular != 0;
+        }
 
         //! @brief compute y = A.x
-        void apply(const DynamicVector& x, DynamicVector& y)const;
-        void apply(const DynamicMatrix& x, DynamicMatrix& y)const;
+        inline void apply(const DynamicVector& x, DynamicVector& y)const
+        {
+            if (ncol() != x.numel() || nrow() != y.numel())
+                throw std::invalid_argument("DynamicMatrix::apply(), size not agree!");
+            mat_apply_vec((int)nrow(), (int)ncol(), data(), x.data(), y.data());
+        }
+        inline void apply(const DynamicMatrix& x, DynamicMatrix& y)const
+        {
+            if (ncol() != x.nrow() ||
+                nrow() != y.nrow() ||
+                x.ncol() != y.ncol())
+                throw std::invalid_argument("DynamicMatrix::apply(), size not agree!");
+            mat_apply_mat((int)nrow(), (int)ncol(), (int)x.ncol(), data(), x.data(), y.data());
+        }
 
         //! @brief compute y = A . x + y
-        void apply_add(const DynamicVector& x, DynamicVector& y)const;
-        void apply_add(const DynamicMatrix& x, DynamicMatrix& y)const;
+        inline void apply_add(const DynamicVector& x, DynamicVector& y)const
+        {
+            if (ncol() != x.numel() || nrow() != y.numel())
+                throw std::invalid_argument("DynamicMatrix::mat_apply_add_vec(), size not agree!");
+            mat_apply_add_vec((int)nrow(), (int)ncol(), data(), x.data(), y.data());
+        }
+        inline void apply_add(const DynamicMatrix& x, DynamicMatrix& y)const
+        {
+            if (ncol() != x.nrow() ||
+                nrow() != y.nrow() ||
+                x.ncol() != y.ncol())
+                throw std::invalid_argument("DynamicMatrix::apply(), size not agree!");
+            mat_apply_add_mat((int)nrow(), (int)ncol(), (int)x.ncol(), data(), x.data(), y.data());
+        }
 
         friend class Communicator;
-
-    private:
-        std::array<size_type,2> size_{ 0,0 };
-        std::vector<value_type> data_;
     };
 
 }

@@ -105,26 +105,26 @@ public:
     //TinyVector<T, N>& operator[](size_t i)
     //{
     //    ASSERT(i >= 0 && i < M);
-    //    return TinyVector<T, N>::view_of(data_ + i * N);
+    //    return TinyVector<T, N>::view(data_ + i * N);
     //}
     ////!get i-row of matrix, return reference a vector
     //const TinyVector<T, N>& operator[](size_t i)const
     //{
     //    ASSERT(i >= 0 && i < M);
-    //    return TinyVector<T, N>::view_of(data_ + i * N);
+    //    return TinyVector<T, N>::view(data_ + i * N);
     //}
 
     //! get one row using zero-based index, is same with opreator []
     TinyVector<T, N>& row(size_t i)
     {
         ASSERT(i >= 0 && i < M);
-        return TinyVector<T, N>::view_of(data_ + i * N);
+        return TinyVector<T, N>::view(data_ + i * N);
     }
     //! get one row using zero-based index, is same with opreator []
     const TinyVector<T, N>& row(size_t i)const
     {
         ASSERT(i >= 0 && i < M);
-        return TinyVector<T, N>::view_of(data_ + i * N);
+        return TinyVector<T, N>::view(data_ + i * N);
     }
 
     //! get element value by 2d subscript
@@ -322,7 +322,7 @@ public:
 
             //loop each row
             for (size_t i = 0; i < M; ++i) {
-                data_[i * N + j] = dot(m[i], cj);
+                data_[i * N + j] = dot(m.row(i), cj);
             }
         }
         return *this;

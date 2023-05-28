@@ -8,16 +8,6 @@
 
 namespace EasyLib {
 
-    struct ApplicationData
-    {
-        std::string            app_name;
-        std::vector<Boundary*> bounds;
-        int                    rank{ -1 };
-        int                    iter{ 0 };
-        double                 time{ 0 };
-        std::vector<FieldInfo> field_defs;
-    };
-
     typedef void(__stdcall *get_boundary_field_function)(const Boundary* bd, const char* name, int ncomp, FieldLocation loc, double*       data, void* user_data);
     typedef void(__stdcall *set_boundary_field_function)(const Boundary* bd, const char* name, int ncomp, FieldLocation loc, const double* data, void* user_data);
 
@@ -76,23 +66,34 @@ namespace EasyLib {
         void write_incoming_(void* user_data);
 
     private:
+        struct ApplicationData
+        {
+            std::string            app_name;
+            DynamicArray<Boundary*, 1> bounds;
+            int                    rank{ -1 };
+            int                    iter{ 0 };
+            double                 time{ 0 };
+            DynamicArray<FieldInfo, 1> field_defs;
+        };
+
         Communicator*                    inter_comm_{ nullptr }; //! communicator between coupled applications
         Communicator*                    intra_comm_{ nullptr }; //! communicator between each partition of current application.
         int                              intra_root_{ 0 };
         ApplicationData                  data_;
-        std::vector<ApplicationData>     remote_apps_; //! available only on root process.
-        std::vector<Boundary>            local_bounds_;
-        std::vector<DistributedBoundary> bounds_;
-        std::vector<Boundary>            remote_bounds_;
+
+        DynamicArray<ApplicationData,1>      remote_apps_; //! available only on root process.
+        DynamicArray<Boundary, 1>            local_bounds_;
+        DynamicArray<DistributedBoundary, 1> bounds_;
+        DynamicArray<Boundary, 1>            remote_bounds_;
 
         bool                             is_started_{ false };
-        std::vector<Interpolator>        interps_;
-        std::vector<Interpolator*>       field_interps_;
+        DynamicArray<Interpolator, 1>    interps_;
+        DynamicArray<Interpolator*, 1>   field_interps_;
 
         get_boundary_field_function      getter_{ nullptr };
         set_boundary_field_function      setter_{ nullptr };
 
-        std::vector<Field*> this_fields_;
-        std::vector<Field*> remote_fields_;
+        DynamicArray<Field*, 1> this_fields_;
+        DynamicArray<Field*, 1> remote_fields_;
     };
 }

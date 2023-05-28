@@ -11,7 +11,7 @@
 #include "Boundary.hpp"
 
 namespace EasyLib {
-    const int npf[FT_POLYGON + 1] = {
+    const int npf[POLYGON + 1] = {
         2, // FT_BAR2 = 0,
         3, // FT_BAR3,
         3, // FT_TRI3,
@@ -21,7 +21,7 @@ namespace EasyLib {
         0  // FT_POLYGON
     };
     
-    const int face_order[FT_POLYGON + 1] = {
+    const int face_order[POLYGON + 1] = {
         1, // FT_BAR2 = 0,
         2, // FT_BAR3,
         1, // FT_TRI3,
@@ -30,7 +30,7 @@ namespace EasyLib {
         2, // FT_QUAD8,
         1  // FT_POLYGON
     };
-    static const ZoneTopo ft2zt[FT_POLYGON + 1] = {
+    static const ZoneTopo ft2zt[POLYGON + 1] = {
         ZT_CURVE,   // FT_BAR2 = 0,
         ZT_CURVE,   // FT_BAR3,
         ZT_SURFACE, // FT_TRI3,
@@ -40,26 +40,26 @@ namespace EasyLib {
         ZT_SURFACE  // FT_POLYGON
     };
 
-    static void compute_fc(int nf, const Boundary::vec3* pnts, const FaceTopo* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* fcent)
+    static void compute_fc(int nf, const Boundary::vec3* pnts, const ElementShape* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* fcent)
     {
         double fn[npf_max] = { 0 };
         for (int i = 0; i < nf; ++i) {
             auto nodes = face_nodes[i];
-            if      (ftopo[i] == FT_BAR2) {
+            if      (ftopo[i] == BAR2) {
                 auto& x0 = pnts[nodes[0]];
                 auto& x1 = pnts[nodes[1]];
                 fcent[i] = 0.5 * (x0 + x1);
             }
-            else if (ftopo[i] == FT_BAR3) {
+            else if (ftopo[i] == BAR3) {
                 fcent[i] = pnts[nodes[2]];
             }
-            else if (ftopo[i] == FT_TRI3) {
+            else if (ftopo[i] == TRI3) {
                 auto& x0 = pnts[nodes[0]];
                 auto& x1 = pnts[nodes[1]];
                 auto& x2 = pnts[nodes[2]];
                 fcent[i] = (x0 + x1 + x2) / 3.0;
             }
-            else if (ftopo[i] == FT_TRI6) {
+            else if (ftopo[i] == TRI6) {
                 fn[0] = -1.0 / 9.0;
                 fn[1] = -1.0 / 9.0;
                 fn[2] = -1.0 / 9.0;
@@ -76,7 +76,7 @@ namespace EasyLib {
                 fcent[i].y = fn[0] * x0.y + fn[1] * x1.y + fn[2] * x2.y + fn[3] * x3.y + fn[4] * x4.y + fn[5] * x5.y;
                 fcent[i].z = fn[0] * x0.z + fn[1] * x1.z + fn[2] * x2.z + fn[3] * x3.z + fn[4] * x4.z + fn[5] * x5.z;
             }
-            else if (ftopo[i] == FT_QUAD4) {
+            else if (ftopo[i] == QUAD4) {
                 //  3-----2
                 //  |   / |
                 //  | /   |
@@ -99,7 +99,7 @@ namespace EasyLib {
                 fcent[i] += s3 / ss * c3;
                 fcent[i] += s4 / ss * c4;
             }
-            else if (ftopo[i] == FT_QUAD8) {
+            else if (ftopo[i] == QUAD8) {
                 fn[0] = -0.25;
                 fn[1] = -0.25;
                 fn[2] = -0.25;
@@ -120,7 +120,7 @@ namespace EasyLib {
                 fcent[i].y = fn[0] * x0.y + fn[1] * x1.y + fn[2] * x2.y + fn[3] * x3.y + fn[4] * x4.y + fn[5] * x5.y + fn[6] * x6.y + fn[7] * x7.y;
                 fcent[i].z = fn[0] * x0.z + fn[1] * x1.z + fn[2] * x2.z + fn[3] * x3.z + fn[4] * x4.z + fn[5] * x5.z + fn[6] * x6.z + fn[7] * x7.z;
             }
-            else if (ftopo[i] == FT_POLYGON) {
+            else if (ftopo[i] == POLYGON) {
                 auto& x0 = pnts[nodes[0]];
                 double ss = 0;
                 auto& fc = fcent[i];
@@ -138,12 +138,12 @@ namespace EasyLib {
         }
     }
 
-    static void compute_farea(int nf, const Boundary::vec3* pnts, const FaceTopo* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* farea)
+    static void compute_farea(int nf, const Boundary::vec3* pnts, const ElementShape* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* farea)
     {
         //double fn[8];
         for (int i = 0; i < nf; ++i) {
             auto nodes = face_nodes[i];
-            if (ftopo[i] == FT_BAR2 || ftopo[i] == FT_BAR3) {
+            if (ftopo[i] == BAR2 || ftopo[i] == BAR3) {
                 auto& x0 = pnts[nodes[0]];
                 auto& x1 = pnts[nodes[1]];
                 farea[i] = cross(x1 - x0, Boundary::vec3{ 0,0,1 });
@@ -155,7 +155,7 @@ namespace EasyLib {
             //    auto& x2 = pnts[nodes[2]];
             //    fcent[i] = fn[0] * x0 + fn[1] * x1 + fn[2] * x2;
             //}
-            else if (ftopo[i] == FT_TRI3 || ftopo[i] == FT_TRI6) {
+            else if (ftopo[i] == TRI3 || ftopo[i] == TRI6) {
                 auto& x0 = pnts[nodes[0]];
                 auto& x1 = pnts[nodes[1]];
                 auto& x2 = pnts[nodes[2]];
@@ -173,7 +173,7 @@ namespace EasyLib {
             //    fcent[i].y = fn[0] * x0.y + fn[1] * x1.y + fn[2] * x2.y + fn[3] * x3.y + fn[4] * x4.y + fn[5] * x5.y;
             //    fcent[i].z = fn[0] * x0.z + fn[1] * x1.z + fn[2] * x2.z + fn[3] * x3.z + fn[4] * x4.z + fn[5] * x5.z;
             //}
-            else if (ftopo[i] == FT_QUAD4 || ftopo[i] == FT_QUAD8) {
+            else if (ftopo[i] == QUAD4 || ftopo[i] == QUAD8) {
                 //  3-----2
                 //  |   / |
                 //  | /   |
@@ -203,7 +203,7 @@ namespace EasyLib {
             //    fcent[i].y = fn[0] * x0.y + fn[1] * x1.y + fn[2] * x2.y + fn[3] * x3.y + fn[4] * x4.y + fn[5] * x5.y + fn[6] * x6.y + fn[7] * x7.y;
             //    fcent[i].z = fn[0] * x0.z + fn[1] * x1.z + fn[2] * x2.z + fn[3] * x3.z + fn[4] * x4.z + fn[5] * x5.z + fn[6] * x6.z + fn[7] * x7.z;
             //}
-            else if (ftopo[i] == FT_POLYGON) {
+            else if (ftopo[i] == POLYGON) {
                 auto& x0 = pnts[nodes[0]];
                 auto& fs = farea[i];
                 fs.assign(0, 0, 0);
@@ -324,8 +324,8 @@ namespace EasyLib {
 
             //--- 5. 更新局部坐标系变换矩阵的第4列
 
-            mt4x4_g2l[3] = -dot(axis_x, origin);
-            mt4x4_g2l[7] = -dot(axis_y, origin);
+            mt4x4_g2l[ 3] = -dot(axis_x, origin);
+            mt4x4_g2l[ 7] = -dot(axis_y, origin);
             mt4x4_g2l[11] = -dot(axis_z, origin);
 
             return ZS_COLINEAR;
@@ -748,7 +748,7 @@ namespace EasyLib {
         face_normal_.reserve(max_face);
     }
 
-    void Boundary::set_name(const char* sname)
+    void Boundary::set_name(std::string sname)
     {
         name_ = sname;
         name_.erase(0, name_.find_first_not_of("\r\t\n ")); // trim left
@@ -784,15 +784,15 @@ namespace EasyLib {
         return add_node(coord.x, coord.y, coord.z, global_id);
     }
 
-    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes, double cx, double cy, double cz)
+    int Boundary::add_face(ElementShape type, int count, const int_l* fnodes, double cx, double cy, double cz)
     {
-        if (type != FT_POLYGON && npf[type] != count) {
+        if (type != POLYGON && npf[type] != count) {
             error("Boundary::add_face(), node number not agree.");
             return -1;
         }
-        if (type == FT_POLYGON) {
-            if      (count == 3)type = FT_TRI3;
-            else if (count == 4)type = FT_QUAD4;
+        if (type == POLYGON) {
+            if      (count == 3)type = TRI3;
+            else if (count == 4)type = QUAD4;
         }
 
         // check
@@ -823,17 +823,17 @@ namespace EasyLib {
         
         mesh_changed_ = true;
 
-        if (type == FT_POLYGON)edges_.clear();
+        if (type == POLYGON)edges_.clear();
 
         ++face_count_[type];
 
         return id;
     }
-    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes, const vec3& fcent)
+    int Boundary::add_face(ElementShape type, int count, const int_l* fnodes, const vec3& fcent)
     {
         return add_face(type, count, fnodes, fcent.x, fcent.y, fcent.z);
     }
-    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes)
+    int Boundary::add_face(ElementShape type, int count, const int_l* fnodes)
     {
         return add_face(type, count, fnodes, 0, 0, 0);
     }
@@ -860,7 +860,7 @@ namespace EasyLib {
         if (topo_ != ZT_SURFACE || !edges_.empty())return;
 
         edges_.clear();
-        if (face_nodes_.empty() || face_count_[FT_POLYGON] == 0)return;
+        if (face_nodes_.empty() || face_count_[POLYGON] == 0)return;
 
         // add edge to set
         auto add_edge = [](std::set<Edge>& edges, Edge&& e) {
@@ -885,12 +885,12 @@ namespace EasyLib {
             auto ft = face_types_.at(i);
             auto fnodes = face_nodes_[i];
             switch (ft) {
-            case FT_TRI3:
+            case TRI3:
                 add_edge(edges, Edge{ fnodes[0], fnodes[1], i, invalid_id });
                 add_edge(edges, Edge{ fnodes[1], fnodes[2], i, invalid_id });
                 add_edge(edges, Edge{ fnodes[2], fnodes[0], i, invalid_id });
                 break;
-            case FT_TRI6:
+            case TRI6:
                 //         2
                 //         +
                 //       /  \
@@ -906,13 +906,13 @@ namespace EasyLib {
                 add_edge(edges, Edge{ fnodes[2], fnodes[5], i, invalid_id });
                 add_edge(edges, Edge{ fnodes[5], fnodes[0], i, invalid_id });
                 break;
-            case FT_QUAD4:
+            case QUAD4:
                 add_edge(edges, Edge{ fnodes[0], fnodes[1], i, invalid_id });
                 add_edge(edges, Edge{ fnodes[1], fnodes[2], i, invalid_id });
                 add_edge(edges, Edge{ fnodes[2], fnodes[3], i, invalid_id });
                 add_edge(edges, Edge{ fnodes[3], fnodes[0], i, invalid_id });
                 break;
-            case FT_QUAD8:
+            case QUAD8:
                 //        6
                 // 3+-----+-----+ 2
                 //  |           |
@@ -932,7 +932,7 @@ namespace EasyLib {
                 add_edge(edges, Edge{ fnodes[3], fnodes[7], i, invalid_id });
                 add_edge(edges, Edge{ fnodes[7], fnodes[0], i, invalid_id });
                 break;
-            case FT_POLYGON:
+            case POLYGON:
                 for (size_t j = 1; j < fnodes.size(); ++j) {
                     add_edge(edges, Edge{ fnodes[j - 1], fnodes[j], i, invalid_id });
                 }
@@ -969,8 +969,8 @@ namespace EasyLib {
 
         // compute face centroid, normal and area.
         if (!face_nodes_.empty()) {
-            compute_fc(face_num(), node_coords_.data(), (const FaceTopo*)face_types_.data(), face_nodes_, face_centroids_.data());
-            compute_farea(face_num(), node_coords_.data(), (const FaceTopo*)face_types_.data(), face_nodes_, face_normal_.data());
+            compute_fc   (face_num(), node_coords_.data(), (const ElementShape*)face_types_.data(), face_nodes_, face_centroids_.data());
+            compute_farea(face_num(), node_coords_.data(), (const ElementShape*)face_types_.data(), face_nodes_, face_normal_.data());
             // normalize
             for (int i = 0; i < face_num(); ++i)face_area_[i] = face_normal_[i].normalize();
 
@@ -1226,7 +1226,7 @@ namespace EasyLib {
         for (const auto face : node_faces_[id]) {
             auto nodes = face_nodes_[face];
 
-            if (face_types_[face] == FT_POLYGON) {
+            if (face_types_[face] == POLYGON) {
                 error("Polygon face is unsupported by projection algorithm!");
                 return;
             }
@@ -1242,32 +1242,32 @@ namespace EasyLib {
             // projection
             
             switch (face_types_[face]) {
-            case FT_BAR2:
+            case BAR2:
                 ProjectToLINE2(Xe[0], Xe[1], p, Xi[0]);
                 ShapeFunctionLINE2(Xi[0], Fn);
                 p_proj = dot(tmat_1x2::view(Fn), tmat_2x3::view(&Xe[0].x)); // projection point
                 break;
-            case FT_BAR3:
+            case BAR3:
                 ProjectToLINE3(Xe[0], Xe[1], Xe[2], p, Xi[0]);
                 ShapeFunctionLINE2(Xi[0], Fn);
                 p_proj = dot(tmat_1x3::view(Fn), tmat_3x3::view(&Xe[0].x)); // projection point
                 break;
-            case FT_TRI3:
+            case TRI3:
                 ProjectToTRI3(Xe, p, Xi[0], Xi[1]);
                 ShapeFunctionTRI3(Xi[0], Xi[1], Fn);
                 p_proj = dot(tmat_1x3::view(Fn), tmat_3x3::view(&Xe[0].x)); // projection point
                 break;
-            case FT_TRI6:
+            case TRI6:
                 ProjectToTRI6(Xe, p, Xi[0], Xi[1]);
                 ShapeFunctionTRI6(Xi[0], Xi[1], Fn);
                 p_proj = dot(tmat_1x6::view(Fn), tmat_6x3::view(&Xe[0].x)); // projection point
                 break;
-            case FT_QUAD4:
+            case QUAD4:
                 ProjectToQUAD4(Xe, p, Xi[0], Xi[1]);
                 ShapeFunctionQUAD4(Xi[0], Xi[1], Fn);
                 p_proj = dot(tmat_1x4::view(Fn), tmat_4x3::view(&Xe[0].x)); // projection point
                 break;
-            case FT_QUAD8:
+            case QUAD8:
                 ProjectToQUAD8(Xe, p, Xi[0], Xi[1]);
                 ShapeFunctionQUAD8(Xi[0], Xi[1], Fn);
                 p_proj = dot(tmat_1x8::view(Fn), tmat_8x3::view(&Xe[0].x)); // projection point
@@ -1337,14 +1337,14 @@ namespace EasyLib {
         f.data.resize(fd.location == NodeCentered ? node_num() : face_num(), fd.ncomp, 0);
     }
 
-    Field& Boundary::get_field(const char* field_name)
+    Field& Boundary::field(const char* field_name)
     {
         for (auto& f : fields_)
             if (f.info->name == field_name)return f;
         error("field not found!");
         return *(Field*)nullptr;
     }
-    const Field& Boundary::get_field(const char* field_name)const
+    const Field& Boundary::field(const char* field_name)const
     {
         for (auto& f : fields_)
             if (f.info->name == field_name)return f;
@@ -1449,14 +1449,14 @@ namespace EasyLib {
                         nodes[0] = nodes_.find(nodes[0]).second;
                         nodes[1] = nodes_.find(nodes[1]).second;
                         nodes[2] = nodes_.find(nodes[2]).second;
-                        add_face(FT_TRI3, 3, nodes);
+                        add_face(TRI3, 3, nodes);
                     }
                     else if (type == 3) {
                         nodes[0] = nodes_.find(nodes[0]).second;
                         nodes[1] = nodes_.find(nodes[1]).second;
                         nodes[2] = nodes_.find(nodes[2]).second;
                         nodes[3] = nodes_.find(nodes[3]).second;
-                        add_face(FT_QUAD4, 4, nodes);
+                        add_face(QUAD4, 4, nodes);
                     }
                 }
             }
@@ -1531,17 +1531,17 @@ namespace EasyLib {
             char type[3] = { '\0' };
             is >> type[0]>>type[1];
 
-            FaceTopo ft = FT_POLYGON;
-            if      (_stricmp(type, "L2") == 0)ft = FT_BAR2;
-            else if (_stricmp(type, "L3") == 0)ft = FT_BAR3;
-            else if (_stricmp(type, "T3") == 0)ft = FT_TRI3;
-            else if (_stricmp(type, "T6") == 0)ft = FT_TRI6;
-            else if (_stricmp(type, "Q4") == 0)ft = FT_QUAD4;
-            else if (_stricmp(type, "Q8") == 0)ft = FT_QUAD8;
-            else if (_stricmp(type, "PN") == 0)ft = FT_POLYGON;
+            ElementShape ft = POLYGON;
+            if      (_stricmp(type, "L2") == 0)ft = BAR2;
+            else if (_stricmp(type, "L3") == 0)ft = BAR3;
+            else if (_stricmp(type, "T3") == 0)ft = TRI3;
+            else if (_stricmp(type, "T6") == 0)ft = TRI6;
+            else if (_stricmp(type, "Q4") == 0)ft = QUAD4;
+            else if (_stricmp(type, "Q8") == 0)ft = QUAD8;
+            else if (_stricmp(type, "PN") == 0)ft = POLYGON;
 
             int n2f = 0;
-            if (ft != FT_POLYGON)n2f = npf[ft];
+            if (ft != POLYGON)n2f = npf[ft];
             else is >> n2f;
 
             if (n2f <= 0) {
@@ -1588,12 +1588,12 @@ namespace EasyLib {
         for (int_l i = 0; i < bd.face_num(); ++i) {
             auto nodes = bd.face_nodes()[i];
             switch (bd.face_types().at(i)) {
-            case FT_BAR2 : os << "L2"; break;
-            case FT_BAR3 : os << "L3"; break;
-            case FT_TRI3 : os << "T3"; break;
-            case FT_TRI6 : os << "T6"; break;
-            case FT_QUAD4: os << "Q4"; break;
-            case FT_QUAD8: os << "Q8"; break;
+            case BAR2 : os << "L2"; break;
+            case BAR3 : os << "L3"; break;
+            case TRI3 : os << "T3"; break;
+            case TRI6 : os << "T6"; break;
+            case QUAD4: os << "Q4"; break;
+            case QUAD8: os << "Q8"; break;
             default:
                 os << "PN " << nodes.size();
             }
@@ -1605,7 +1605,7 @@ namespace EasyLib {
         return os;
     }
 
-    void Boundary::read_from_file(const char* file, std::vector<Boundary> bounds)
+    void Boundary::read_from_file(const char* file, DynamicArray<Boundary, 1>& bounds)
     {
         bounds.clear();
 

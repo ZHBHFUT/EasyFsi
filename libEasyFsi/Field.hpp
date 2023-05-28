@@ -1,6 +1,5 @@
 #pragma once
 #include <string>
-#include <vector>
 
 #include "DynamicMatrix.hpp"
 
@@ -45,6 +44,6 @@ namespace EasyLib {
         const FieldInfo* info{ nullptr };
         DynamicMatrix    data;
     };
-    using Fields = std::vector<Field>;
 
+    using Fields = DynamicArray<Field, 1>;
 }

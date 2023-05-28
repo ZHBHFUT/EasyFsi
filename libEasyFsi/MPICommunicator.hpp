@@ -9,7 +9,7 @@ namespace EasyLib {
     //typedef int(__stdcall *func_MPI_Comm_rank)(int comm, int* rank);
     //typedef int(__stdcall *func_MPI_Comm_size)(int comm, int* size);
     typedef int(__stdcall *func_MPI_Send)(const void* buffer, int count, int datatype, int dest, int tag, int comm);
-    typedef int(__stdcall *func_MPI_Recv)(void* buffer, int count, int datatype, int source, int tag, int comm, int* status);
+    typedef int(__stdcall *func_MPI_Recv)(void* buffer, int count, int datatype, int source, int tag, int comm);
 
     class MPICommunicator : public Communicator
     {
@@ -26,19 +26,13 @@ namespace EasyLib {
 
         //! @brief  set internal constants, name = one of:
         //!   MPI_INT16_T,MPI_INT32_T,MPI_INT64_T,MPI_FLOAT,MPI_DOUBLE,MPI_CHAR
-        //!   MPI_SUCCESS,
-        //!   MPI_COMM_WORLD,MPI_COMM_SELF,MPI_COMM_NULL
+        //!   MPI_SUCCESS
         void set_constant(const char* name, int   value)final;
 
         //! @brief set internal pointer, name = MPI_STATUS_IGNORE
-        void set_constant(const char* name, void* pointer)final;
+        void set_constant(const char* /*name*/, void* /*pointer*/)final {}
 
         //! @brief set internal function pointer, name = one of
-        //!   MPI_Initialized
-        //!   MPI_Init
-        //!   MPI_Comm_disconnect
-        //!   MPI_Comm_rank
-        //!   MPI_Comm_size
         //!   MPI_Send
         //!   MPI_Recv
         void set_function(const char* name, void* func_pointer)final;
@@ -49,6 +43,9 @@ namespace EasyLib {
 
         int rank()const noexcept final { return rank_; }
         int size()const noexcept final { return size_; }
+
+        int comm()const noexcept { return comm_; }
+        int get_constant(const char* name)const;
 
         bool send(const int16_t* data, int count, int dest_rank, int tag)final;
         bool send(const int32_t* data, int count, int dest_rank, int tag)final;
@@ -75,9 +72,9 @@ namespace EasyLib {
         int  MPI_FLOAT_        { -1 };
         int  MPI_DOUBLE_       { -1 };
         int  MPI_CHAR_         { -1 };
-        int* MPI_STATUS_IGNORE_{ nullptr };
-        int  MPI_COMM_WORLD_   { -1 };
-        int  MPI_COMM_SELF_    { -1 };
-        int  MPI_COMM_NULL_    { -1 };
+        //int* MPI_STATUS_IGNORE_{ nullptr };
+        //int  MPI_COMM_WORLD_   { -1 };
+        //int  MPI_COMM_SELF_    { -1 };
+        //int  MPI_COMM_NULL_    { -1 };
     };
 }

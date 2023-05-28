@@ -10,24 +10,17 @@
 extern void enable_console_color();
 
 namespace EasyLib {
-
-    void default_output(const char* msg)
-    {
-        enable_console_color();
-        printf("%s", msg);
-    }
-
-    static void (*print)(const char*) = &default_output;
-    static void(*fexit)() = nullptr;
+    static void (*print)(const char*) = nullptr;
+    static void (*fexit)() = nullptr;
 
     void set_output_func(void (*func)(const char*))
     {
-        print = func ? func : &default_output;
+        print = func;
     }
 
     void set_exit_func(void(*func)())
     {
-        fexit = func;// ? func : &::abort;
+        fexit = func;
     }
 
     std::string format_(const char* format, va_list args, const char* prefix = nullptr, const char* postfix = nullptr)
@@ -58,36 +51,36 @@ namespace EasyLib {
 
     void error(const char* format, ...)
     {
+        enable_console_color();
+
         va_list args;
         va_start(args, format);
         std::string msg = format_(format, args, "\n***ERROR*** ", "\n");
         va_end(args);
 
-        if (print == default_output) {
-            std::string msg_with_color = "\u001b[31m" + msg + "\u001b[0m"; // use red text
-            print(msg_with_color.c_str());
-        }
-        else
-            print(msg.c_str());
+        std::string msg_with_color = "\u001b[31m" + msg + "\u001b[0m"; // use red text
+        fputs(msg_with_color.c_str(), stderr);
+        if (print)print(msg.c_str());
 
         ASSERT(false);
 
-        if (fexit)fexit();
-        throw std::runtime_error(msg);
+        if (fexit)
+            fexit();
+        else
+            throw std::runtime_error(msg);
     }
     void warn(const char* format, ...)
     {
+        enable_console_color();
+
         va_list args;
         va_start(args, format);
         std::string msg = format_(format, args, "\n***WARNING*** ", "\n");
         va_end(args);
 
-        if (print == default_output) {
-            auto msg_with_color = "\u001b[33m" + msg + "\u001b[0m"; // use yellow text
-            print(msg_with_color.c_str());
-        }
-        else
-            print(msg.c_str());
+        auto msg_with_color = "\u001b[33m" + msg + "\u001b[0m"; // use yellow text
+        fputs(msg_with_color.c_str(), stdout);
+        if (print)print(msg.c_str());
 
         ASSERT(false);
     }
@@ -95,14 +88,20 @@ namespace EasyLib {
     {
         va_list args;
         va_start(args, format);
-        print(format_(format, args).c_str());
+        std::string msg = format_(format, args);
         va_end(args);
+
+        fputs(msg.c_str(), stdout);
+        if (print)print(msg.c_str());
     }
     void debug(const char* format, ...)
     {
         va_list args;
         va_start(args, format);
-        print(format_(format, args).c_str());
+        std::string msg = format_(format, args).c_str();
         va_end(args);
+
+        fputs(msg.c_str(), stdout);
+        if (print)print(msg.c_str());
     }
 }
