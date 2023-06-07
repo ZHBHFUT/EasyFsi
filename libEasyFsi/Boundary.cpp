@@ -40,7 +40,7 @@ namespace EasyLib {
         ZT_SURFACE  // FT_POLYGON
     };
 
-    static void compute_fc(int nf, const Boundary::vec3* pnts, const ElementShape* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* fcent)
+    static void compute_fc(int nf, const Boundary::vec3* pnts, const FaceTopo* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* fcent)
     {
         double fn[npf_max] = { 0 };
         for (int i = 0; i < nf; ++i) {
@@ -138,7 +138,7 @@ namespace EasyLib {
         }
     }
 
-    static void compute_farea(int nf, const Boundary::vec3* pnts, const ElementShape* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* farea)
+    static void compute_farea(int nf, const Boundary::vec3* pnts, const FaceTopo* ftopo, const MeshConnectivity& face_nodes, Boundary::vec3* farea)
     {
         //double fn[8];
         for (int i = 0; i < nf; ++i) {
@@ -784,7 +784,7 @@ namespace EasyLib {
         return add_node(coord.x, coord.y, coord.z, global_id);
     }
 
-    int Boundary::add_face(ElementShape type, int count, const int_l* fnodes, double cx, double cy, double cz)
+    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes, double cx, double cy, double cz)
     {
         if (type != POLYGON && npf[type] != count) {
             error("Boundary::add_face(), node number not agree.");
@@ -829,11 +829,11 @@ namespace EasyLib {
 
         return id;
     }
-    int Boundary::add_face(ElementShape type, int count, const int_l* fnodes, const vec3& fcent)
+    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes, const vec3& fcent)
     {
         return add_face(type, count, fnodes, fcent.x, fcent.y, fcent.z);
     }
-    int Boundary::add_face(ElementShape type, int count, const int_l* fnodes)
+    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes)
     {
         return add_face(type, count, fnodes, 0, 0, 0);
     }
@@ -969,8 +969,8 @@ namespace EasyLib {
 
         // compute face centroid, normal and area.
         if (!face_nodes_.empty()) {
-            compute_fc   (face_num(), node_coords_.data(), (const ElementShape*)face_types_.data(), face_nodes_, face_centroids_.data());
-            compute_farea(face_num(), node_coords_.data(), (const ElementShape*)face_types_.data(), face_nodes_, face_normal_.data());
+            compute_fc   (face_num(), node_coords_.data(), (const FaceTopo*)face_types_.data(), face_nodes_, face_centroids_.data());
+            compute_farea(face_num(), node_coords_.data(), (const FaceTopo*)face_types_.data(), face_nodes_, face_normal_.data());
             // normalize
             for (int i = 0; i < face_num(); ++i)face_area_[i] = face_normal_[i].normalize();
 
@@ -1329,7 +1329,11 @@ namespace EasyLib {
     //    }
     //}
 
-    void Boundary::register_field_(const FieldInfo& fd)
+    void Boundary::remove_all_field()
+    {
+        fields_.clear();
+    }
+    void Boundary::register_field(const FieldInfo& fd)
     {
         for (auto& f : fields_)if (f.info == &fd)return;
         auto & f = fields_.emplace_back(Field{});
@@ -1341,18 +1345,101 @@ namespace EasyLib {
     {
         for (auto& f : fields_)
             if (f.info->name == field_name)return f;
-        error("field not found!");
+        error("field \"%s\" is not found!", field_name);
         return *(Field*)nullptr;
     }
     const Field& Boundary::field(const char* field_name)const
     {
         for (auto& f : fields_)
             if (f.info->name == field_name)return f;
-        error("field not found!");
+        error("field \"%s\" is not found!", field_name);
         return *(const Field*)nullptr;
     }
+    Field& Boundary::field(const std::string& field_name)
+    {
+        for (auto& f : fields_)
+            if (f.info->name == field_name)return f;
+        error("field \"%s\" is not found!", field_name.c_str());
+        return *(Field*)nullptr;
+    }
+    const Field& Boundary::field(const std::string& field_name)const
+    {
+        for (auto& f : fields_)
+            if (f.info->name == field_name)return f;
+        error("field \"%s\" is not found!", field_name.c_str());
+        return *(Field*)nullptr;
+    }
+    std::pair<bool, Field*> Boundary::find_field(const char* field_name)
+    {
+        for (auto& f : fields_)
+            if (f.info->name == field_name)
+                return std::pair<bool, Field*>{true, &f};
+        return std::pair<bool, Field*>{false, nullptr};
+    }
+    std::pair<bool, const Field*> Boundary::find_field(const char* field_name)const
+    {
+        for (auto& f : fields_)
+            if (f.info->name == field_name)
+                return std::pair<bool, const Field*>{true, & f};
+        return std::pair<bool, const Field*>{false, nullptr};
+    }
+    std::pair<bool, Field*> Boundary::find_field(const std::string& field_name)
+    {
+        for (auto& f : fields_)
+            if (f.info->name == field_name)
+                return std::pair<bool, Field*>{true, & f};
+        return std::pair<bool, Field*>{false, nullptr};
+    }
+    std::pair<bool, const Field*> Boundary::find_field(const std::string& field_name)const
+    {
+        for (auto& f : fields_)
+            if (f.info->name == field_name)
+                return std::pair<bool, const Field*>{true, & f};
+        return std::pair<bool, const Field*>{false, nullptr};
+    }
 
-    void Boundary::read_gmsh(const char* file)
+    void Boundary::load(const char* file)
+    {
+        std::string sname(file);
+        if (sname.empty())sname = name_ + ".bound";
+
+        auto it = sname.find_last_of('.');
+        auto ext = it != std::string::npos ? sname.substr(it) : "";
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](char c) {return (char)std::tolower(c); });
+
+        if      (ext == ".msh")
+            load_gmsh(file);
+        else if (ext == ".plt")
+            load_tec(file);
+        else if (ext == ".bound")
+            load_bound(file);
+        else if (ext == ".cgns")
+            load_cgns(file);
+        else
+            error("unknown file type!");
+    }
+    void Boundary::save(const char* file)const
+    {
+        std::string sname(file);
+        if (sname.empty())sname = name_ + ".bound";
+
+        auto it = sname.find_last_of('.');
+        auto ext = it != std::string::npos ? sname.substr(it) : "";
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](char c) {return (char)std::tolower(c); });
+
+        if      (ext == ".msh")
+            save_gmsh(file);
+        else if (ext == ".plt")
+            save_tec(file);
+        else if (ext == ".bound")
+            save_bound(file);
+        else if (ext == ".cgns")
+            save_cgns(file);
+        else
+            error("unknown file type!");
+    }
+
+    void Boundary::load_gmsh (const char* file)
     {
         clear();
 
@@ -1361,6 +1448,8 @@ namespace EasyLib {
             error("%s(), failed open file: %s", __func__, file);
             return;
         }
+
+        info("reading boundary from Gmsh file: %s\n", file);
 
         enum SectionType {
             ST_Null,
@@ -1469,12 +1558,12 @@ namespace EasyLib {
             }
         }
         fin.close();
+        info("!!!OK!!!\n");
 
         mesh_changed_ = true;
         compute_metics();
     }
-
-    void Boundary::read_f3d_tec(const char* file)
+    void Boundary::load_tec  (const char* file)
     {
         clear();
 
@@ -1499,6 +1588,326 @@ namespace EasyLib {
         //zone t="mdo boundary 3", i=43825, j=87448, f=fepoint,  solutiontime= 0.1000000E+03, strandid=0
         std::getline(ifs, line);
 
+        // TBD
+        throw std::runtime_error("not implemented!");
+    }
+    void Boundary::load_bound(const char* file)
+    {
+        std::ifstream ifs(file);
+        if (!ifs.is_open()) { error("failed opening file: %s", file); return; }
+        info("reading boundary mesh from file: %s\n", file);
+        ifs >> *this;
+        ifs.close();
+        info("!!!OK!!!\n");
+    }
+    void Boundary::load_cgns(const char* /*file*/)
+    {
+        // TBD
+        throw std::runtime_error("not implement!");
+    }
+
+    void Boundary::save_gmsh(const char* /*file*/)const
+    {
+        // TBD
+        throw std::runtime_error("not implement!");
+    }
+    void Boundary::save_tec(const char* file)const
+    {
+        // create var names
+        std::vector<std::string> varnames;
+        make_tec_var_names(varnames);
+        std::vector<const char*> names(varnames.size());
+        for (size_t i = 0; i < varnames.size(); ++i)names[i] = varnames[i].c_str();
+
+        // write file
+        std::ofstream ofs(file);
+        if (!ofs.is_open()) { error("failed opening file: %s", file); return; }
+        info("save boundary mesh to file: %s\n", file);
+
+        // write header
+        ofs
+            << "TITLE=\"Boundary Results\" FILETYPE=" << (varnames.empty() ? "GRID" : "FULL")
+            << " VARIABLES = \"X\" \"Y\" \"Z\"";
+        for (auto& s : varnames)
+            ofs << " \"" << s << '\"';
+        ofs << '\n';
+
+        // write zone
+        write_tec_zone(ofs, (int)names.size(), names.data());
+        ofs.close();
+        info("!!!OK!!!\n");
+    }
+    void Boundary::save_bound(const char* file)const
+    {
+        std::ofstream ofs(file);
+        if (!ofs.is_open()) { error("failed opening file: %s", file); return; }
+        info("save boundary mesh to file: %s\n", file);
+        ofs << *this;
+        ofs.close();
+        info("!!!OK!!!\n");
+    }
+    void Boundary::save_cgns(const char* /*file*/)const
+    {
+        // TBD
+        throw std::runtime_error("not implement!");
+    }
+
+    void Boundary::make_tec_var_names(std::vector<std::string>& var_names)const
+    {
+        var_names.clear();
+        for (auto& f : fields_) {
+            if (f.info->ncomp == 1) {
+                var_names.push_back(f.info->name);
+            }
+            else {
+                for (int j = 0; j < f.info->ncomp; ++j) {
+                    var_names.emplace_back(f.info->name + "." + std::to_string(j + 1));
+                }
+            }
+        }
+    }
+
+    void Boundary::write_tec_zone(std::ostream& os, int nvar, const char* var_names[])const
+    {
+        auto write_var = [](std::ostream& os, int_l np, const double* ptr, int_l stride = 1) {
+            int_l i = 1;
+            if (ptr) {
+                for (; i <= np; ++i, ptr += stride) {
+                    os << std::scientific << *ptr << ' ';
+                    if (i % 8 == 0)os << '\n'; // 8 value per line
+                }
+                if (i % 8)os << '\n';
+            }
+            else {
+                for (; i <= np; ++i) {
+                    os << " 0";
+                    if (i % 8 == 0)os << '\n'; // 8 value per line
+                }
+                if (i % 8)os << '\n';
+            }
+        };
+
+        for (auto& f : fields_) {
+            if (!f.info)throw std::runtime_error("invalid field info!");
+        }
+
+        // build var info
+        struct Var
+        {
+            const double* ptr     { nullptr };
+            int           stride  { 1 };
+            FieldLocation location{ NodeCentered };
+        };
+        std::vector<Var> vars(nvar);
+        for (int ivar = 0; ivar < nvar; ++ivar) {
+            bool found = false;
+            for (auto& f : fields_) {
+                if (f.info->ncomp == 1) {
+                    if (f.info->name == var_names[ivar]) {
+                        vars[ivar].ptr = f.data.data();
+                        vars[ivar].stride = 1;
+                        vars[ivar].location = NodeCentered;
+                        break;
+                    }
+                }
+                else {
+                    for (int j = 0; j < f.info->ncomp; ++j) {
+                        std::string s = f.info->name + "." + std::to_string(j + 1);
+                        if (s == var_names[ivar]) {
+                            vars[ivar].ptr      = f.data.data() + j;
+                            vars[ivar].stride   = f.info->ncomp;
+                            vars[ivar].location = f.info->location;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found)break;
+                }
+            }
+        }
+
+        // build var location: VARLOCATION=([x,x,...]=CELLCENTERED)
+        std::string sloc;
+        for (int ivar = 0; ivar < nvar; ++ivar) {
+            if (vars[ivar].location != NodeCentered) {
+                if(!sloc.empty())sloc.push_back(',');
+                sloc.append(std::to_string(ivar + 1 + 3));
+            }
+        }
+        if (!sloc.empty())sloc = " VARLOCATION=([" + sloc + "]=CELLCENTERED)";
+
+        // point zone
+        if     (topo_ == ZT_POINTS) {
+            // zone header: ZONE T=Title ZONETYPE=type I=nnode DATAPACKING=BLOCK
+            os
+                << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                << " ZONETYPE=ORDERED"
+                << " I=" << node_num()
+                << " DATAPACKING=BLOCK\n";
+            // x,y,z
+            write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
+            write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
+            write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+            
+            // fields
+            for (auto& var : vars)
+                write_var(os, node_num(), var.ptr, var.stride);
+        }
+        // curve zone
+        else if(topo_ == ZT_CURVE){
+            // zone header: ZONE T=Title ZONETYPE=FELINESEG NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
+            os
+                << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                << " ZONETYPE=FELINESEG"
+                << " NODES=" << node_num()
+                << " ELEMENTS=" << face_num()
+                << " DATAPACKING=BLOCK"
+                << sloc << '\n';
+            // x,y,z
+            write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
+            write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
+            write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+
+            // fields
+            for (auto& var : vars) {
+                if (var.location == NodeCentered)
+                    write_var(os, node_num(), var.ptr, var.stride);
+                else
+                    write_var(os, face_num(), var.ptr, var.stride);
+            }
+
+            // elements
+            for (int_l face = 0; face < face_num(); ++face) {
+                auto enodes = face_nodes_[face];
+                os << (enodes[0] + 1) << ' ' << (enodes[1] + 1) << '\n';
+            }
+        }
+        // surface zone
+        else /*if (topo_ == ZT_SURFACE)*/ {
+            if      (face_count_[TRI3 ] == face_num()) {
+                // zone header: ZONE T=Title ZONETYPE=FETRIANGLE NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
+                os
+                    << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                    << " ZONETYPE=FETRIANGLE"
+                    << " NODES=" << node_num()
+                    << " ELEMENTS=" << face_num()
+                    << " DATAPACKING=BLOCK"
+                    << sloc << '\n';
+                // x,y,z
+                write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
+                write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
+                write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+                // fields
+                for (auto& var : vars) {
+                    if (var.location == NodeCentered)
+                        write_var(os, node_num(), var.ptr, var.stride);
+                    else
+                        write_var(os, face_num(), var.ptr, var.stride);
+                }
+                // elements
+                for (int_l face = 0; face < face_num(); ++face) {
+                    auto enodes = face_nodes_[face];
+                    os
+                        << (enodes[0] + 1) << ' '
+                        << (enodes[1] + 1) << ' '
+                        << (enodes[2] + 1) << '\n';
+                }
+            }
+            else if (face_count_[QUAD4] == face_num()) {
+                // zone header: ZONE T=Title ZONETYPE=FEQUADRILATERAL NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
+                os
+                    << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                    << " ZONETYPE=FEQUADRILATERAL"
+                    << " NODES=" << node_num()
+                    << " ELEMENTS=" << face_num()
+                    << " DATAPACKING=BLOCK"
+                    << sloc << '\n';
+                // x,y,z
+                write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
+                write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
+                write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+                // fields
+                for (auto& var : vars) {
+                    if (var.location == NodeCentered)
+                        write_var(os, node_num(), var.ptr, var.stride);
+                    else
+                        write_var(os, face_num(), var.ptr, var.stride);
+                }
+                // elements
+                for (int_l face = 0; face < face_num(); ++face) {
+                    auto enodes = face_nodes_[face];
+                    os
+                        << (enodes[0] + 1) << ' '
+                        << (enodes[1] + 1) << ' '
+                        << (enodes[2] + 1) << ' '
+                        << (enodes[3] + 1) << '\n';
+                }
+            }
+            // triangle and quads
+            else if (face_count_[POLYGON] == 0) {
+                // zone header: ZONE T=Title ZONETYPE=FEQUADRILATERAL NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
+                os
+                    << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                    << " ZONETYPE=FEQUADRILATERAL"
+                    << " NODES=" << node_num()
+                    << " ELEMENTS=" << face_num()
+                    << " DATAPACKING=BLOCK"
+                    << sloc << '\n';
+                // x,y,z
+                write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
+                write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
+                write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+                // fields
+                for (auto& var : vars) {
+                    if (var.location == NodeCentered)
+                        write_var(os, node_num(), var.ptr, var.stride);
+                    else
+                        write_var(os, face_num(), var.ptr, var.stride);
+                }
+                // elements
+                for (int_l face = 0; face < face_num(); ++face) {
+                    auto enodes = face_nodes_[face];
+                    os
+                        << (enodes[0] + 1) << ' '
+                        << (enodes[1] + 1) << ' '
+                        << (enodes[2] + 1) << ' '
+                        << (enodes.back() + 1) << '\n';
+                }
+            }
+            // polygon
+            else {
+                // zone header: ZONE T=Title ZONETYPE=FEPOLYGON NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
+                os
+                    << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                    << " ZONETYPE=FEPOLYGON"
+                    << " NODES=" << node_num()
+                    << " FACES=" << edges_.size()
+                    << " ELEMENTS=" << face_num()
+                    << " DATAPACKING=BLOCK"
+                    << sloc << '\n';
+                // x,y,z
+                write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
+                write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
+                write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+                // fields
+                for (auto& var : vars) {
+                    if (var.location == NodeCentered)
+                        write_var(os, node_num(), var.ptr, var.stride);
+                    else
+                        write_var(os, face_num(), var.ptr, var.stride);
+                }
+                // face nodes
+                for (auto& e : edges_) {
+                    os << e.n0 + 1 << ' ' << e.n1 + 1 << '\n';
+                }
+                // face cells
+                for (auto& e : edges_) {
+                    auto f0 = e.f0 + 1;
+                    auto f1 = e.f1 == invalid_id ? 0 : e.f1 + 1;
+                    os << f0 << ' ' << f1 << '\n';
+                }
+            }
+        }
     }
 
     std::istream& operator >>(std::istream& is, Boundary& bd)
@@ -1531,7 +1940,7 @@ namespace EasyLib {
             char type[3] = { '\0' };
             is >> type[0]>>type[1];
 
-            ElementShape ft = POLYGON;
+            FaceTopo ft = POLYGON;
             if      (_stricmp(type, "L2") == 0)ft = BAR2;
             else if (_stricmp(type, "L3") == 0)ft = BAR3;
             else if (_stricmp(type, "T3") == 0)ft = TRI3;

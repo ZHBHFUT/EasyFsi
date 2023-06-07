@@ -1394,3 +1394,6 @@ struct TinyVector<T, 3>
         return l;
     }
 };
+
+using Vec2 = TinyVector<double, 2>;
+using Vec3 = TinyVector<double, 3>;

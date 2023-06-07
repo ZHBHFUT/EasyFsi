@@ -1,4 +1,5 @@
 #include <fstream>
+#include <sstream>
 
 #include "Field.hpp"
 #include "Boundary.hpp"
@@ -7,22 +8,57 @@
 
 namespace EasyLib {
 
+    template<typename InfoIterator>
+    void do_interp_dofs_s2t(int ndof, int_l np_des, InfoIterator it_info, const double** dofs_src, double* dofs_des)
+    {
+        // interpolate nodal dofs
+        for (int_l i = 0; i < np_des; ++i, ++it_info) {
+            auto& coeff = *it_info;
+            auto  fs    = dofs_src[coeff.src_bd_id]; // source field
+            std::fill(dofs_des, dofs_des + ndof, 0);
+            for (int j = 0; j < coeff.ndonor; ++j) {
+                auto donor  = coeff.donor_nodes  [j];
+                auto weight = coeff.donor_weights[j];
+                auto dofs_s = fs + ndof * donor;
+                for (int k = 0; k < ndof; ++k)
+                    dofs_des[k] += weight * dofs_s[k];
+            }
+            dofs_des += ndof;
+        }
+    }
+    template<typename InfoIterator>
+    void do_interp_loads_t2s(int nload, int_l np_des, InfoIterator it_info, const double* load_des, double** load_src)
+    {
+        // interpolate nodal dofs
+        for (int_l i = 0; i < np_des; ++i, ++it_info) {
+            auto& coeff = *it_info;
+            auto  fs    = load_src[coeff.src_bd_id]; // source loads
+            for (int j = 0; j < coeff.ndonor; ++j) {
+                auto donor  = coeff.donor_nodes  [j];
+                auto weight = coeff.donor_weights[j];
+                auto vals_s = fs + nload * donor;
+                
+                for (int k = 0; k < nload; ++k)
+                    vals_s[k] += weight * load_des[k];
+            }
+            load_des += nload;
+        }
+    }
+
     //-----------------------------------------
     // implements of Interpolator
     //-----------------------------------------
 
-    void Interpolator::clear()
+    void Interpolator::clear()noexcept
     {
         source_bounds_.clear();
         target_bounds_.clear();
         node_info_.clear();
         face_info_.clear();
-        //donors_.clear();
-        //weights_.clear();
         computed_ = false;
     }
 
-    void Interpolator::set_app_id(int source_app, int target_app)
+    void Interpolator::set_app_id(int source_app, int target_app)noexcept
     {
         source_app_ = source_app;
         target_app_ = target_app;
@@ -65,7 +101,7 @@ namespace EasyLib {
             max_donor_for_xps = min_donor;
         }
 
-        // TODO: Interpolation method:
+        // Interpolation method:
         // 
         // If use Automatic:
         //   If face is not defined on source boundary:
@@ -151,7 +187,7 @@ namespace EasyLib {
             }// next target boundary
         }
 
-        // do interpolate
+        // compute interpolation coefficients
         for (int ib = 0; ib < static_cast<int>(source_bounds_.size()); ++ib) {
             auto bd_s = source_bounds_.at(ib);
 
@@ -270,12 +306,12 @@ namespace EasyLib {
 
     void Interpolator::interp_dofs_s2t(std::span<Field* const> sources, std::span<Field*> targets)const
     {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
         if (!computed_)error("coefficients are not computed!");
-        if (target_bounds_.empty())return;
 
         // check
         int nerr = 0;
-        const int ncomp = targets[0]->info->ncomp;
+        const int ndof = targets[0]->info->ncomp;
         for (size_t ib = 0; ib < target_bounds_.size(); ++ib) {
             if (targets[ib] == nullptr)continue;
 
@@ -283,7 +319,7 @@ namespace EasyLib {
                 info("***ERROR*** target field \"%s\" is not incoming DOFs!\n", targets[ib]->info->name.c_str());
                 ++nerr;
             }
-            if (targets[ib]->info->ncomp != ncomp) {
+            if (targets[ib]->info->ncomp != ndof) {
                 info("***ERROR*** components number of target field \"%s\" not agree!\n", targets[ib]->info->name.c_str());
                 ++nerr;
             }
@@ -297,71 +333,47 @@ namespace EasyLib {
                 warn("source field \"%s\" is not node-centered!", sources[ib]->info->name.c_str());
                 ++nerr;
             }
-            if (sources[ib]->info->ncomp != ncomp) {
+            if (sources[ib]->info->ncomp != ndof) {
                 info("***ERROR*** components number of source field \"%s\" not agree!\n", sources[ib]->info->name.c_str());
                 ++nerr;
             }
         }
         if (nerr)return;
 
+        std::vector<const double*> sdofs;
+        sdofs.reserve(sources.size());
+        for (auto f : sources)sdofs.push_back(f->data.data());
+
         auto nit = node_info_.begin();
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto& bt = target_bounds_.at(ib);
+            auto&& bt = target_bounds_.at(ib);
+            auto nnode = bt->node_num();
+            auto nface = bt->face_num();
+            auto& tdofs = *targets[ib];
 
-            if (targets[ib] == nullptr) {
-                nit += bt->node_num();
-                fit += bt->face_num();
-                continue;
+            if (!tdofs.data.empty()) {
+                // interpolate nodal dofs
+                if (tdofs.info->location == NodeCentered)
+                    do_interp_dofs_s2t(ndof, nnode, nit, sdofs.data(), tdofs.data.data());
+                // interpolate face dofs
+                else
+                    do_interp_dofs_s2t(ndof, nface, fit, sdofs.data(), tdofs.data.data());
             }
-
-            auto& ft = *(targets[ib]);
             
-            // interpolate nodal dofs
-            if (ft.info->location == NodeCentered) {
-                for (int_l i = 0; i < bt->node_num(); ++i, ++nit) {
-                    auto& coeff = *nit;
-                    auto& fs = *(sources[coeff.src_bd_id]); // source field
-                    auto vals_t = ft.data[i];
-                    std::fill(vals_t.begin(), vals_t.end(), 0);
-                    for (int j = 0; j < coeff.ndonor; ++j) {
-                        auto donor    = coeff.donor_nodes[j];
-                        auto weight   = coeff.donor_weights[j];
-                        auto vals_s   = fs.data[donor];
-                        for (int k = 0; k < ncomp; ++k)
-                            vals_t[k] += weight * vals_s[k];
-                    }
-                }
-                fit += bt->face_num();
-            }
-            // interpolate face dofs
-            else {
-                for (int_l i = 0; i < bt->face_num(); ++i, ++fit) {
-                    auto& coeff = *fit;
-                    auto& fs = *(sources[coeff.src_bd_id]); // source field
-                    auto vals_t = ft.data[i];
-                    std::fill(vals_t.begin(), vals_t.end(), 0);
-                    for (int j = 0; j < coeff.ndonor; ++j) {
-                        auto donor = coeff.donor_nodes[j];
-                        auto weight = coeff.donor_weights[j];
-                        auto vals_s = fs.data[donor];
-                        for (int k = 0; k < ncomp; ++k)
-                            vals_t[k] += weight * vals_s[k];
-                    }
-                }
-                nit += bt->node_num();
-            }
+            nit += nnode;
+            fit += nface;
         }
     }
 
-    void Interpolator::interp_load_t2s(std::span<Field* const> targets, std::span<Field*> sources, bool fill_src_zeros_first/* = true*/)const
+    void Interpolator::interp_load_t2s(std::span<Field* const> targets, std::span<Field*> sources/*, bool fill_src_zeros_first = true*/)const
     {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
         if (!computed_)error("coefficients are not computed!");
-        if (source_bounds_.empty())return;
 
         // check
         int nerr = 0;
-        const int ncomp = targets[0]->info->ncomp;
+        const int nload = targets[0]->info->ncomp;
         for (size_t ib = 0; ib < target_bounds_.size(); ++ib) {
             if (targets[ib] == nullptr)continue;
 
@@ -369,7 +381,7 @@ namespace EasyLib {
                 info("***ERROR*** target field \"%s\" is not outgoing LOADs!\n", targets[ib]->info->name.c_str());
                 ++nerr;
             }
-            if (targets[ib]->info->ncomp != ncomp) {
+            if (targets[ib]->info->ncomp != nload) {
                 info("***ERROR*** components number of target field \"%s\" not agree!\n", targets[ib]->info->name.c_str());
                 ++nerr;
             }
@@ -383,7 +395,7 @@ namespace EasyLib {
                 warn("source field \"%s\" is not node-centered!", sources[ib]->info->name.c_str());
                 ++nerr;
             }
-            if (sources[ib]->info->ncomp != ncomp) {
+            if (sources[ib]->info->ncomp != nload) {
                 info("***ERROR*** components number of source field \"%s\" not agree!\n", sources[ib]->info->name.c_str());
                 ++nerr;
             }
@@ -391,180 +403,275 @@ namespace EasyLib {
         if (nerr)return;
 
         // zero
-        if (fill_src_zeros_first) {
+        //if (fill_src_zeros_first) {
             for (size_t ib = 0; ib < source_bounds_.size(); ++ib) {
                 auto& fs = *(sources[ib]);
                 fs.data.fill(0);
             }
-        }
+        //}
+
+        std::vector<double*> sload;
+        sload.reserve(sources.size());
+        for (auto f : sources)sload.push_back(f->data.data());
 
         auto nit = node_info_.begin();
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto& bt = target_bounds_.at(ib);
-            if (targets[ib] == nullptr) {
-                nit += bt->node_num();
-                fit += bt->face_num();
-                continue;
+            auto&& bt = target_bounds_.at(ib);
+            auto nnode = bt->node_num();
+            auto nface = bt->face_num();
+            auto& tload = *targets[ib];
+
+            if (!tload.data.empty()) {
+                // interpolate nodal loads
+                if (targets[ib]->info->location == NodeCentered)
+                    do_interp_loads_t2s(nload, nnode, nit, tload.data.data(), sload.data());
+                // interpolate face loads
+                else
+                    do_interp_loads_t2s(nload, nface, fit, tload.data.data(), sload.data());
             }
 
-            auto& ft = *(targets[ib]);
-
-            // interpolate nodal loads
-            if (ft.info->location == NodeCentered) {
-                for (int_l i = 0; i < bt->node_num(); ++i, ++nit) {
-                    auto& coeff = *nit;
-                    auto& fs = *(sources[coeff.src_bd_id]); // source field
-                    auto vals_t = ft.data[i];
-                    for (int j = 0; j < coeff.ndonor; ++j) {
-                        auto donor = coeff.donor_nodes[j];
-                        auto weight = coeff.donor_weights[j];
-                        auto vals_s = fs.data[donor];
-                        for (int k = 0; k < ncomp; ++k)
-                            vals_s[k] += weight * vals_t[k];
-                    }
-                }
-                fit += bt->face_num();
-            }
-            // interpolate face dofs
-            else {
-                for (int_l i = 0; i < bt->face_num(); ++i, ++fit) {
-                    auto& coeff = *fit;
-                    auto& fs = *(sources[coeff.src_bd_id]); // source field
-                    auto vals_t = ft.data[i];
-                    for (int j = 0; j < coeff.ndonor; ++j) {
-                        auto donor = coeff.donor_nodes[j];
-                        auto weight = coeff.donor_weights[j];
-                        auto vals_s = fs.data[donor];
-                        for (int k = 0; k < ncomp; ++k)
-                            vals_s[k] += weight * vals_t[k];
-                    }
-                }
-                nit += bt->node_num();
-            }
+            nit += nnode;
+            fit += nface;
         }
     }
 
-    void Interpolator::interp_node_dofs_s2t(int nfield, const double** src_node_dofs, double** des_node_dofs)const
+    void Interpolator::interp_node_dofs_s2t(int ndof, const double** src_node_dofs, double** des_node_dofs)const
     {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
         auto nit = node_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto& bt = target_bounds_.at(ib);
-            if (des_node_dofs[ib] == nullptr) {
-                nit += bt->node_num();
-                continue;
-            }
-
-            auto vals_t = des_node_dofs[ib];
-
+            auto nnode = target_bounds_.at(ib)->node_num();
+            
             // interpolate nodal dofs
-            for (int_l i = 0; i < bt->node_num(); ++i, ++nit) {
-                auto& coeff = *nit;
-                auto  fs = src_node_dofs[coeff.src_bd_id]; // source field
-                std::fill(vals_t, vals_t + nfield, 0);
-                for (int j = 0; j < coeff.ndonor; ++j) {
-                    auto donor = coeff.donor_nodes[j];
-                    auto weight = coeff.donor_weights[j];
-                    auto vals_s = fs + nfield * donor;
-                    for (int k = 0; k < nfield; ++k, ++vals_t)
-                        vals_t[k] += weight * vals_s[k];
-                }
-                vals_t += nfield;
-            }
+            if (des_node_dofs[ib])
+                do_interp_dofs_s2t(ndof, nnode, nit, src_node_dofs, des_node_dofs[ib]);
+
+            nit += nnode;
         }
     }
-    void Interpolator::interp_face_dofs_s2t(int nfield, const double** src_node_dofs, double** des_face_dofs)const
+    void Interpolator::interp_face_dofs_s2t(int ndof, const double** src_node_dofs, double** des_face_dofs)const
     {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto& bt = target_bounds_.at(ib);
-            if (des_face_dofs[ib] == nullptr) {
-                fit += bt->face_num();
-                continue;
-            }
-
-            auto vals_t = des_face_dofs[ib];
-
+            auto nface = target_bounds_.at(ib)->face_num();
+            
             // interpolate face dofs
-            for (int_l i = 0; i < bt->face_num(); ++i, ++fit) {
-                auto& coeff = *fit;
-                auto  fs = src_node_dofs[coeff.src_bd_id]; // source field
-                std::fill(vals_t, vals_t + nfield, 0);
-                for (int j = 0; j < coeff.ndonor; ++j) {
-                    auto donor = coeff.donor_nodes[j];
-                    auto weight = coeff.donor_weights[j];
-                    auto vals_s = fs + nfield * donor;
-                    for (int k = 0; k < nfield; ++k, ++vals_t)
-                        vals_t[k] += weight * vals_s[k];
-                }
-                vals_t += nfield;
-            }
+            if (des_face_dofs[ib])
+                do_interp_dofs_s2t(ndof, nface, fit, src_node_dofs, des_face_dofs[ib]);
+
+            fit += nface;
         }
     }
-    void Interpolator::interp_node_load_t2s(int nfield, double** src_node_load, const double** des_node_load, bool fill_src_zeros_first/* = true*/)const
+    void Interpolator::interp_node_load_t2s(int nload, double** src_node_load, const double** des_node_load, bool fill_src_zeros_first/* = true*/)const
     {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
         if (fill_src_zeros_first) {
             for (size_t ib = 0; ib < source_bounds_.size(); ++ib) {
-                std::memset(src_node_load[ib], 0, sizeof(double) * nfield * source_bounds_.at(ib)->node_num());
+                std::memset(src_node_load[ib], 0, sizeof(double) * nload * source_bounds_.at(ib)->node_num());
             }
         }
 
         auto nit = node_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto& bt = target_bounds_.at(ib);
-            if (des_node_load[ib] == nullptr) {
-                nit += bt->node_num();
-                continue;
-            }
+            auto nnode = target_bounds_.at(ib)->node_num();
 
-            auto vals_t = des_node_load[ib];
+            if (des_node_load[ib])
+                do_interp_loads_t2s(nload, nnode, nit, des_node_load[ib], src_node_load);
 
-            // interpolate nodal loads
-            for (int_l i = 0; i < bt->node_num(); ++i, ++nit) {
-                auto& coeff = *nit;
-                auto fs = src_node_load[coeff.src_bd_id]; // source field
-                for (int j = 0; j < coeff.ndonor; ++j) {
-                    auto donor = coeff.donor_nodes[j];
-                    auto weight = coeff.donor_weights[j];
-                    auto vals_s = fs + donor * nfield;
-                    for (int k = 0; k < nfield; ++k)
-                        vals_s[k] += weight * vals_t[k];
-                }
-                vals_t += nfield;
-            }
+            nit += nnode;
         }
     }
-    void Interpolator::interp_face_load_t2s(int nfield, double** src_node_load, const double** des_face_load, bool fill_src_zeros_first/* = true*/)const
+    void Interpolator::interp_face_load_t2s(int nload, double** src_node_load, const double** des_face_load, bool fill_src_zeros_first/* = true*/)const
     {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
         if (fill_src_zeros_first) {
             for (size_t ib = 0; ib < source_bounds_.size(); ++ib) {
-                std::memset(src_node_load[ib], 0, sizeof(double) * nfield * source_bounds_.at(ib)->node_num());
+                std::memset(src_node_load[ib], 0, sizeof(double) * nload * source_bounds_.at(ib)->node_num());
             }
         }
 
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
+            auto nface = target_bounds_.at(ib)->face_num();
+
+            if (des_face_load[ib])
+                do_interp_loads_t2s(nload, nface, fit, des_face_load[ib], src_node_load);
+
+            fit += nface;
+        }
+    }
+
+    void Interpolator::interp_all_dofs_s2t()const
+    {
+        // compute all incoming dofs of target boundaries
+
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
+        std::vector<const double*> sdofs;
+        sdofs.reserve(source_bounds_.size());
+
+        auto it_n = node_info_.begin();
+        auto it_f = face_info_.begin();
+        for (auto&& bt : target_bounds_) {
+            auto nnode = bt->node_num();
+            auto nface = bt->face_num();
+
+            for (auto&& dofs_t : bt->fields()) {
+                if (dofs_t.info->iotype != IncomingDofs)continue;
+
+                sdofs.clear();
+                for (auto&& bs : source_bounds_) {
+                    auto&& dofs_s = bs->field(dofs_t.info->name.c_str());
+                    if      (dofs_s.info->iotype != OutgoingDofs)
+                        error("source field is not outgoing DOFs!");
+                    else if (dofs_s.info->location != NodeCentered)
+                        error("source field is not node-centered!");
+                    else if (dofs_s.info->ncomp != dofs_t.info->ncomp)
+                        error("component number not agree!");
+                    sdofs.push_back(dofs_s.data.data());
+                }
+
+                // interpolate
+                if (dofs_t.info->location == NodeCentered)
+                    do_interp_dofs_s2t(dofs_t.info->ncomp, nnode, it_n, sdofs.data(), const_cast<double*>(dofs_t.data.data()));
+                else
+                    do_interp_dofs_s2t(dofs_t.info->ncomp, nface, it_f, sdofs.data(), const_cast<double*>(dofs_t.data.data()));
+            }
+            it_n += nnode;
+            it_f += nface;
+        }
+    }
+    void Interpolator::interp_all_load_t2s()const
+    {
+        // compute all incoming loads of source boundaries
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
+        std::vector<double*> sloads;
+        sloads.reserve(source_bounds_.size());
+
+        auto nit = node_info_.begin();
+        auto fit = face_info_.begin();
+        for (int ib = 0; ib < target_bounds_.size(); ++ib) {
             auto& bt = target_bounds_.at(ib);
-            if (des_face_load[ib] == nullptr) {
-                fit += bt->face_num();
-                continue;
+            auto nnode = bt->node_num();
+            auto nface = bt->face_num();
+
+            for (auto&& tload : bt->fields()) {
+                if (tload.info->iotype != OutgoingLoads)continue;
+
+                sloads.clear();
+                for (auto&& bs : source_bounds_) {
+                    auto&& sload = bs->field(tload.info->name.c_str());
+                    if      (sload.info->iotype != IncomingLoads)
+                        error("source field is not incoming load!");
+                    else if (sload.info->ncomp != tload.info->ncomp)
+                        error("component number not agree!");
+                    sloads.push_back(sload.data.data());
+                }
+
+                // interpolate nodal loads
+                if (tload.info->location == NodeCentered)
+                    do_interp_loads_t2s(tload.info->ncomp, nnode, nit, tload.data.data(), sloads.data());
+                // interpolate face loads
+                else
+                    do_interp_loads_t2s(tload.info->ncomp, nface, fit, tload.data.data(), sloads.data());
             }
 
-            auto vals_t = des_face_load[ib];
+            nit += nnode;
+            fit += nface;
+        }
+    }
+
+    void Interpolator::interp_dofs_s2t(const char* dof_name)const
+    {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
+        std::vector<const double*> sdofs;
+        sdofs.reserve(source_bounds_.size());
+
+        auto it_n = node_info_.begin();
+        auto it_f = face_info_.begin();
+        for (auto&& bt : target_bounds_) {
+            auto nnode = bt->node_num();
+            auto nface = bt->face_num();
+
+            auto&& dofs_t = bt->field(dof_name);
+            if (dofs_t.info->iotype != IncomingDofs)
+                error("target field is not incoming DOFs!");
+
+            sdofs.clear();
+            for (auto&& bs : source_bounds_) {
+                auto&& dofs_s = bs->field(dof_name);
+                if      (dofs_s.info->iotype != OutgoingDofs)
+                    error("source field is not outgoing DOFs!");
+                else if (dofs_s.info->location != NodeCentered)
+                    error("source field is not node-centered!");
+                else if (dofs_s.info->ncomp != dofs_t.info->ncomp)
+                    error("component number not agree!");
+                sdofs.push_back(dofs_s.data.data());
+            }
+
+            // interpolate
+            if (dofs_t.info->location == NodeCentered)
+                do_interp_dofs_s2t(dofs_t.info->ncomp, nnode, it_n, sdofs.data(), const_cast<double*>(dofs_t.data.data()));
+            else
+                do_interp_dofs_s2t(dofs_t.info->ncomp, nface, it_f, sdofs.data(), const_cast<double*>(dofs_t.data.data()));
+            
+            it_n += nnode;
+            it_f += nface;
+        }
+    }
+    void Interpolator::interp_load_t2s(const char* load_name)const
+    {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
+        std::vector<double*> sloads;
+        sloads.reserve(source_bounds_.size());
+
+        auto nit = node_info_.begin();
+        auto fit = face_info_.begin();
+        for (int ib = 0; ib < target_bounds_.size(); ++ib) {
+            auto& bt = target_bounds_.at(ib);
+            auto nnode = bt->node_num();
+            auto nface = bt->face_num();
+
+            auto&& tload = bt->field(load_name);
+            if (tload.info->iotype != OutgoingLoads)
+                error("target field \"%s\" is not outgoing loads!", load_name);
+
+            sloads.clear();
+            for (auto&& bs : source_bounds_) {
+                auto&& sload = bs->field(load_name);
+                if      (sload.info->iotype != IncomingLoads)
+                    error("source field is not incoming load!");
+                else if (sload.info->ncomp != tload.info->ncomp)
+                    error("component number not agree!");
+                sloads.push_back(sload.data.data());
+            }
 
             // interpolate nodal loads
-            for (int_l i = 0; i < bt->face_num(); ++i, ++fit) {
-                auto& coeff = *fit;
-                auto fs = src_node_load[coeff.src_bd_id]; // source field
-                for (int j = 0; j < coeff.ndonor; ++j) {
-                    auto donor = coeff.donor_nodes[j];
-                    auto weight = coeff.donor_weights[j];
-                    auto vals_s = fs + donor * nfield;
-                    for (int k = 0; k < nfield; ++k)
-                        vals_s[k] += weight * vals_t[k];
-                }
-                vals_t += nfield;
-            }
+            if (tload.info->location == NodeCentered)
+                do_interp_loads_t2s(tload.info->ncomp, nnode, nit, tload.data.data(), sloads.data());
+            // interpolate face loads
+            else
+                do_interp_loads_t2s(tload.info->ncomp, nface, fit, tload.data.data(), sloads.data());
+
+            nit += nnode;
+            fit += nface;
         }
     }
 
@@ -600,7 +707,7 @@ namespace EasyLib {
         info("!!!OK!!!\n");
     }
 
-    void Interpolator::read_coefficients(const char* file)
+    void Interpolator::load_coefficients(const char* file)
     {
         if (computed_) { warn("coefficient data already exists and will be overrided."); }
 
@@ -949,4 +1056,88 @@ namespace EasyLib {
 
         info("!!!OK!!!\n");
     }
+
+    //void Interpolator::write_tecplot(const char* file)const
+    //{
+    //    // TODO: write all fields of boundary
+    //
+    //    std::ofstream ofs(file);
+    //    if (!ofs) {
+    //        error("%s(), failed open file: %s\n", __func__, file);
+    //        return;
+    //    }
+    //    info("\nwriting Tecplot file: %s\n", file);
+    //
+    //    if (source_bounds_.empty() && target_bounds_.empty())return;
+    //
+    //    // create field names
+    //    std::ostringstream oss;
+    //    std::vector<std::string> names;
+    //    oss << "\"X\",\"Y\",\"Z\"";
+    //    for (auto&& bt : target_bounds_) {
+    //        for (auto&& field : bt->fields()) {
+    //            if (std::find(names.begin(), names.end(), field.info->name) == names.end()) {
+    //                oss << ",\"" << field.info->name << '\"';
+    //                names.push_back(field.info->name);
+    //            }
+    //        }
+    //    }
+    //    for (auto&& bs : source_bounds_) {
+    //        for (auto&& field : bs->fields()) {
+    //            if (std::find(names.begin(), names.end(), field.info->name) == names.end()) {
+    //                oss << ",\"" << field.info->name << '\"';
+    //                names.push_back(field.info->name);
+    //            }
+    //        }
+    //    }
+    //
+    //    //--- file header
+    //
+    //    ofs
+    //        << "TITLE = \"Interpolator Data for FSI\"\n"
+    //        << "FILETYPE = FULL\n"
+    //        << "VARIABLES = " << oss.str()
+    //        << '\n';
+    //
+    //    //--- solid zones
+    //
+    //    int iz = 0;
+    //    for (auto&& bd : source_bounds_) {
+    //        int nns = bd->node_num();
+    //
+    //        // VARLOCATION=([x,x,x]=CELLCENTERED)
+    //        std::string svarloc;
+    //        for (int id = 4; auto && field : bd->fields()) {
+    //            if (std::find(names.begin(), names.end(), field.info->name) != names.end()) {
+    //                if (field.info->location != NodeCentered) {
+    //                    if (!svarloc.empty())svarloc.push_back(',');
+    //                    svarloc.append(std::to_string(id));
+    //                }
+    //            }
+    //            ++id;
+    //        }
+    //        if (!svarloc.empty())svarloc = " VARLOCATION=([" + svarloc + "]=CELLCENTERED)";
+    //
+    //        // point zone
+    //        if (bd->face_num() == 0) {
+    //
+    //            ofs << "ZONE T=\"" << bd->name() << " ZONETYPE=ORDERED I=" << nns << " DATAPACKING = POINT\n";
+    //            for (int_l i = 0; i < bd->node_num(); ++i) {
+    //                auto& xyz = bd->node_coords()[i];
+    //                ofs
+    //                    << std::scientific << xyz.x << ' '
+    //                    << std::scientific << xyz.y << ' '
+    //                    << std::scientific << xyz.z;
+    //
+    //            }
+    //        }
+    //        // face zone
+    //        else {
+    //
+    //        }
+    //
+    //        ++iz;
+    //    }
+    //
+    //}
 }

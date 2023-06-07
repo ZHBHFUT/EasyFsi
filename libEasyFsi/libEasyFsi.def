@@ -89,6 +89,7 @@ bd_compute_metrics
 bd_face_normal
 bd_face_area
 bd_face_centroid
+bd_face_type
 bd_node_coords
 bd_node_l2g
 bd_node_g2l
@@ -131,6 +132,21 @@ dbd_scatter_node_fields
 dbd_scatter_face_fields
 dbd_accumulate_node_fields
 dbd_accumulate_face_fields
+
+it_new
+it_delete
+it_clear
+it_add_source_boundary
+it_add_target_boundary
+it_compute_interp_coeff
+it_save_coefficients
+it_load_coefficients
+it_interp_all_dofs_s2t
+it_interp_all_load_t2s
+it_interp_node_dofs_s2t
+it_interp_face_dofs_s2t
+it_interp_node_loads_t2s
+it_interp_face_loads_t2s
 
 app_new
 app_delete

@@ -23,12 +23,22 @@ namespace EasyLib {
         inline static constexpr const int max_donor = 20;
         inline static constexpr const int min_donor = 8;
 
+        struct InterpInfo
+        {
+            int    src_bd_id{ 0 };
+            int    ndonor{ 0 };
+            int_l  donor_nodes  [max_donor]{ 0 };
+            double donor_weights[max_donor]{ 0 };
+            size_t donor_beg{ 0 }, donor_end{ 0 };
+            double dist_sq{ std::numeric_limits<double>::max() };
+        };
+
         Interpolator() = default;
         virtual ~Interpolator() = default;
 
-        void clear();
+        void clear()noexcept;
 
-        void set_app_id(int source_app, int target_app);
+        void set_app_id(int source_app, int target_app)noexcept;
 
         //! @brief Add a source boundary to interpolator. All fields of source boundary must be node-centered.
         //! @param bd The source boundary
@@ -43,33 +53,60 @@ namespace EasyLib {
         //! @brief Compute interpolation coefficients.
         void compute_interp_coeff(InterpolationMethod method = Automatic, int max_donor_for_xps = max_donor);
 
-        //! @brief Interpolate incoming DOFs from source bounds to target bounds.
+        //! @brief Compute incoming DOFs from source bounds to target bounds.
         //! @param sources Field of source boundaries. size = source bounds number.
         //! @param targets Field of target boundaries. size = target bounds number.
         //! @note each of \sources field must be node-centered.
         void interp_dofs_s2t(std::span<Field* const> sources, std::span<Field*> targets)const;
 
-        //! @brief Interpolate incoming LOADs from target bounds to source bounds. 
+        //! @brief Compute incoming LOADs from target bounds to source bounds. 
         //! @param targets Field of target boundaries. size = target bounds number.
         //! @param sources Field of source boundaries. size = source bounds number.
         //! @param fill_src_zeros_first  Whether or not to fill the source fields with zeros before computing.
         //! @note
         //!  + each of \sources field must be node-centered.
-        void interp_load_t2s(std::span<Field* const> targets, std::span<Field*> sources, bool fill_src_zeros_first = true)const;
+        void interp_load_t2s(std::span<Field* const> targets, std::span<Field*> sources/*, bool fill_src_zeros_first = true*/)const;
 
-        void interp_node_dofs_s2t(int nfield, const double** src_node_dofs, double** des_node_dofs)const;
-        void interp_face_dofs_s2t(int nfield, const double** src_node_dofs, double** des_face_dofs)const;
+        //! @brief Compute nodal DOFs of target boundaries by source boundaries.
+        //! @param [in]  ndof           DOF number
+        //! @param [in]  src_node_dofs  Nodal DOFs of source boundaries: {{u1,v1,...,u2,v2,...}, {u1,v1,...,u2,v2,...},...}
+        //! @param [out] des_node_dofs  Nodal DOFs of target boundaries: {{u1,v1,...,u2,v2,...}, {u1,v1,...,u2,v2,...},...}
+        void interp_node_dofs_s2t(int ndof, const double** src_node_dofs, double** des_node_dofs)const;
+        //! @brief Compute face-centered DOFs of target boundaries by nodal DOFs of source boundaries.
+        //! @param [in]  ndof           DOF number
+        //! @param [in]  src_node_dofs  Nodal DOFs of source boundaries: {{u1,v1,...,u2,v2,...}, {u1,v1,...,u2,v2,...},...}
+        //! @param [out] des_node_dofs  Nodal DOFs of target boundaries: {{u1,v1,...,u2,v2,...}, {u1,v1,...,u2,v2,...},...}
+        void interp_face_dofs_s2t(int ndof, const double** src_node_dofs, double** des_face_dofs)const;
 
-        void interp_node_load_t2s(int nfield, double** src_node_load, const double** des_node_load, bool fill_src_zeros_first = true)const;
-        void interp_face_load_t2s(int nfield, double** src_node_load, const double** des_face_load, bool fill_src_zeros_first = true)const;
+        //! @brief Compute nodal loads of source boundaries by target boundaries.
+        //! @param [in]  nload          Load number
+        //! @param [out] src_node_load  Nodal loads of source boundaries: {{f1,f2,...,g1,g2,...},{f1,f2,...,g1,g2,...},...}
+        //! @param [in]  des_node_load  Nodal loads of target boundaries: {{f1,f2,...,g1,g2,...},{f1,f2,...,g1,g2,...},...}
+        //! @param [in]  fill_src_zeros_first Should we fill output array with zeros?
+        void interp_node_load_t2s(int nload, double** src_node_load, const double** des_node_load, bool fill_src_zeros_first = true)const;
+
+        //! @brief Compute face-centered loads of source boundaries by nodal loads of target boundaries.
+        //! @param [in]  nload          Load number
+        //! @param [out] src_node_load  Face-centered loads of source boundaries: {{f1,f2,...,g1,g2,...},{f1,f2,...,g1,g2,...},...}
+        //! @param [in]  des_face_load  Face-centered loads of target boundaries: {{f1,f2,...,g1,g2,...},{f1,f2,...,g1,g2,...},...}
+        //! @param [in]  fill_src_zeros_first Should we fill output array with zeros?
+        void interp_face_load_t2s(int nload, double** src_node_load, const double** des_face_load, bool fill_src_zeros_first = true)const;
+
+        void interp_all_dofs_s2t()const;
+        void interp_all_load_t2s()const;
+
+        void interp_dofs_s2t(const char* dof_name)const;
+        void interp_load_t2s(const char* load_name)const;
 
         inline int source_app_id()const noexcept { return source_app_; }
         inline int target_app_id()const noexcept { return target_app_; }
 
         void save_coefficients(const char* file)const;
-        void read_coefficients(const char* file);
+        void load_coefficients(const char* file);
 
         void write_tecplot(const char* file, int nfield, const char** field_names, const double** src_node_fields, const double** des_node_fields)const;
+
+        //void write_tecplot(const char* file)const;
 
     private:
         int source_app_{ -1 };
@@ -78,15 +115,7 @@ namespace EasyLib {
         std::vector<Boundary*> target_bounds_;
         bool computed_{ false };
 
-        struct InterpInfo
-        {
-            int    src_bd_id{ 0 };
-            int    ndonor{ 0 };
-            int_l  donor_nodes[max_donor]{ 0 };
-            double donor_weights[max_donor]{ 0 };
-            size_t donor_beg{ 0 }, donor_end{ 0 };
-            double dist_sq{ std::numeric_limits<double>::max() };
-        };
+        
         std::vector<InterpInfo> node_info_;
         std::vector<InterpInfo> face_info_;
     };

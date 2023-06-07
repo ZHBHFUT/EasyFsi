@@ -28,9 +28,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
     <EnableASAN>true</EnableASAN>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugDll|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -96,10 +96,9 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
-      <LanguageStandard_C>stdc11</LanguageStandard_C>
       <DisableSpecificWarnings>4819;4251;4267</DisableSpecificWarnings>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -199,6 +198,7 @@
     <ClInclude Include="Application.hpp" />
     <ClInclude Include="Assert.hpp" />
     <ClInclude Include="Boundary.hpp" />
+    <ClInclude Include="ByteSwap.hpp" />
     <ClInclude Include="Communicator.hpp" />
     <ClInclude Include="CoupledRegion.hpp" />
     <ClInclude Include="DistributedBoundary.hpp" />
@@ -228,6 +228,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="libEasyFsi.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="DynamicArray.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

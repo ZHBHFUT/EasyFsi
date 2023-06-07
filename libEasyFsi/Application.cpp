@@ -160,15 +160,17 @@ namespace EasyLib {
 
         // allocate fields for coupled boundaries
         for (auto bd : data_.bounds) {
+            bd->remove_all_field();
             for (auto& fd : data_.field_defs)
-                bd->register_field_(fd);
+                bd->register_field(fd);
         }
 
         // allocate local fields for parallel solver of this application
         if (intra_comm_ && intra_comm_->size() > 1) {
             for (auto& bd : local_bounds_) {
+                bd.remove_all_field();
                 for (auto& fd : data_.field_defs)
-                    bd.register_field_(fd);
+                    bd.register_field(fd);
             }
         }
         
@@ -193,17 +195,12 @@ namespace EasyLib {
         is_started_ = false;
     }
 
-    void Application::exchange_solution(double time, void* user_data)
+    void Application::send_outgoing_fields_(double time)
     {
-        // read outgoing fields
-        read_outgoing_(user_data);
-
-        data_.time = time;
-
         // Operations on root solver of this application
         if (!intra_comm_ || intra_comm_->rank() == intra_root_) {
             // send outgoing fields
-            for (int remote = 0; remote < inter_comm_->size();++remote) {
+            for (int remote = 0; remote < inter_comm_->size(); ++remote) {
                 if (remote == data_.rank)continue;
 
                 // send time
@@ -224,6 +221,13 @@ namespace EasyLib {
                     }
                 }
             }
+        }
+    }
+
+    void Application::recv_incoming_fields_([[maybe_unused]]double time)
+    {
+        // Operations on root solver of this application
+        if (!intra_comm_ || intra_comm_->rank() == intra_root_) {
 
             // receiving incoming fields
             for (int i = 0; i < inter_comm_->size(); ++i) {
@@ -247,6 +251,8 @@ namespace EasyLib {
                 }
             }
 
+            // TODO: time interpolate
+
             // interpolate incoming fields
             this_fields_.resize(data_.bounds.size(), nullptr);
             for (auto& this_fd : data_.field_defs) {
@@ -260,7 +266,7 @@ namespace EasyLib {
                 }
 
                 // this fields
-                for (size_t i = 0; i < data_.bounds.size();++i) {
+                for (size_t i = 0; i < data_.bounds.size(); ++i) {
                     auto bd = data_.bounds.at(i);
                     this_fields_.at(i) = &bd->fields_.at(this_fd.id);
                 }
@@ -280,7 +286,7 @@ namespace EasyLib {
                     );
                 }
                 // interpolate LOADs for this
-                else if(this_fd.iotype == IncomingLoads) {
+                else if (this_fd.iotype == IncomingLoads) {
                     ip->interp_load_t2s(
                         std::span<Field* const>(remote_fields_.data(), remote_fields_.size()),
                         std::span<Field*>(this_fields_.data(), this_fields_.size())
@@ -292,8 +298,16 @@ namespace EasyLib {
                 }
             }
         }
+    }
 
-        // writing incoming fields
+    void Application::exchange_solution(double time, void* user_data)
+    {
+        if (data_.time != time) { data_.iter = 0; }
+        data_.time = time; ++data_.iter;
+
+        read_outgoing_(user_data);
+        send_outgoing_fields_(time);
+        recv_incoming_fields_(time);
         write_incoming_(user_data);
     }
     
@@ -574,7 +588,7 @@ namespace EasyLib {
                     auto& local_bd = local_bounds_.at(ib);
                     auto& local_f  = local_bd.fields_.at(i);
                     ASSERT(local_f.info == &fd);
-                    getter_(&local_bd, fd.name.c_str(), fd.ncomp, fd.location, local_f.data.data(), user_data);
+                    getter_(this, &local_bd, fd.name.c_str(), fd.ncomp, fd.location, local_f.data.data(), user_data);
 
                     // assemble the full-field
                     auto& global_bd = bounds_.at(ib).full_boundary();
@@ -600,7 +614,7 @@ namespace EasyLib {
                 for (auto bd : data_.bounds) {
                     auto& f = bd->fields_.at(i);
                     ASSERT(f.info == &fd);
-                    getter_(bd, fd.name.c_str(), fd.ncomp, fd.location, f.data.data(), user_data);
+                    getter_(this, bd, fd.name.c_str(), fd.ncomp, fd.location, f.data.data(), user_data);
                 }
             }
         }
@@ -631,7 +645,7 @@ namespace EasyLib {
                         bounds_.at(ib).scatter_face_fields(fd.ncomp, global_f.data.data(), local_f.data.data());
 
                     // writing
-                    setter_(&local_bd, fd.name.c_str(), fd.ncomp, fd.location, local_f.data.data(), user_data);
+                    setter_(this, &local_bd, fd.name.c_str(), fd.ncomp, fd.location, local_f.data.data(), user_data);
                 }
             }
         }
@@ -647,7 +661,7 @@ namespace EasyLib {
                 for (auto bd : data_.bounds) {
                     auto& f = bd->fields_.at(i);
                     ASSERT(f.info == &fd);
-                    setter_(bd, fd.name.c_str(), fd.ncomp, fd.location, f.data.data(), user_data);
+                    setter_(this, bd, fd.name.c_str(), fd.ncomp, fd.location, f.data.data(), user_data);
                 }
             }
         }

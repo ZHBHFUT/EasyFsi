@@ -201,10 +201,10 @@ namespace EasyLib {
             return std::inner_product(idx.begin(), idx.end(), stride_.begin(), size_type{ 0 });
         }
     
-        iterator       begin()noexcept { return iterator{ data_ }; }
-        iterator       end  ()noexcept { return iterator{ data_ + numel()}; }
-        const_iterator begin()const noexcept { return const_iterator{ data_ }; }
-        const_iterator end  ()const noexcept { return const_iterator{ data_ + numel() }; }
+        iterator       begin()noexcept { return data_.begin(); }
+        iterator       end  ()noexcept { return data_.end(); }
+        const_iterator begin()const noexcept { return data_.begin(); }
+        const_iterator end  ()const noexcept { return  data_.end(); }
         reverse_iterator       rbegin()noexcept { return reverse_iterator(end()); }
         reverse_iterator       rend  ()noexcept { return reverse_iterator(begin()); }
         const_reverse_iterator rbegin()const noexcept { return const_reverse_iterator(end()); }
@@ -416,10 +416,10 @@ namespace EasyLib {
             return idx[0] * extent_[1] + idx[1];
         }
 
-        iterator       begin()noexcept { return iterator{ data_ }; }
-        iterator       end  ()noexcept { return iterator{ data_ + numel()}; }
-        const_iterator begin()const noexcept { return const_iterator{ data_ }; }
-        const_iterator end  ()const noexcept { return const_iterator{ data_ + numel() }; }
+        iterator       begin()noexcept { return data_.begin(); }
+        iterator       end  ()noexcept { return data_.end(); }
+        const_iterator begin()const noexcept { return data_.begin(); }
+        const_iterator end  ()const noexcept { return data_.end(); }
         reverse_iterator       rbegin()noexcept { return reverse_iterator(end()); }
         reverse_iterator       rend  ()noexcept { return reverse_iterator(begin()); }
         const_reverse_iterator rbegin()const noexcept { return const_reverse_iterator(end()); }

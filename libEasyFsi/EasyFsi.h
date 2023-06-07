@@ -14,6 +14,7 @@ typedef struct MeshConnectivity    MeshConnectivity;
 typedef struct Boundary            Boundary;
 typedef struct DistributedBoundary DistributedBoundary;
 typedef struct Communicator        Communicator;
+typedef struct Interpolator        Interpolator;
 typedef struct Application         Application;
 
 //! @brief The location of field.
@@ -34,7 +35,7 @@ enum FieldIO
 };
 
 //! @brief Topology type of face on coupled boundary.
-typedef enum ElementShape
+enum FaceTopo
 {
     BAR2 = 0,//! 2-nodes linear element
     BAR3,    //! 3-nodes quadratic element
@@ -43,12 +44,21 @@ typedef enum ElementShape
     QUAD4,   //! 4-node linear quadrilateral element
     QUAD8,   //! 8-node quadratic quadrilateral element
     POLYGON  //! general polygon element (node number > 4)
-}FaceTopo;
+};
+
+enum InterpMethod
+{
+    //GlobalXPS,  //! Use global IPS/TPS/Spline method.
+    LocalXPS,   //! Use local IPS/TPS/Spline method.
+    Projection, //! Used projection method, faces should be defined on boundary.
+    Mapping,    //! This is not implemented now.
+    Automatic   //! Automatic select above method.
+};
 
 //! @brief function prototype used to read boundary field data from current application.
-typedef void(__stdcall* get_boundary_field_function)(const Boundary* bd, const char* name, int ncomp, FieldLocation loc,       double* data, void* user_data);
+typedef void(__stdcall* get_boundary_field_function)(const Application* app, const Boundary* bd, const char* name, int ncomp, FieldLocation loc,       double* data, void* user_data);
 //! @brief function prototype used to write boundary field data to current application.
-typedef void(__stdcall* set_boundary_field_function)(const Boundary* bd, const char* name, int ncomp, FieldLocation loc, const double* data, void* user_data);
+typedef void(__stdcall* set_boundary_field_function)(const Application* app, const Boundary* bd, const char* name, int ncomp, FieldLocation loc, const double* data, void* user_data);
 
 //! @brief function prototype used to send data to other process of this application.
 typedef void(__stdcall *func_MPT_csend)(int mpid, void* data, unsigned int n, int data_type, int tag, const char* file, int line);
@@ -176,7 +186,7 @@ extern "C" {
     int   bd_get_user_id(const Boundary* bd);
     void  bd_reserve(Boundary* bd, int_l max_node, int_l max_face, int_l max_face_nodes);
     int_l bd_add_node(Boundary* bd, double x, double y, double z, int_g unique_id);
-    int_l bd_add_face(Boundary* bd, ElementShape type, int nnodes, const int_l* fnodes);
+    int_l bd_add_face(Boundary* bd, FaceTopo type, int nnodes, const int_l* fnodes);
     void  bd_set_face_centroid(Boundary* bd, int_l face, double cx, double cy, double cz);
     void  bd_set_face_area    (Boundary* bd, int_l face, double sx, double sy, double sz);
     void  bd_set_node_coords  (Boundary* bd, int_l node, double x, double y, double z);
@@ -186,6 +196,7 @@ extern "C" {
     const double* bd_face_normal  (const Boundary* bd, int_l face);
     double        bd_face_area    (const Boundary* bd, int_l face);
     const double* bd_face_centroid(const Boundary* bd, int_l face);
+    FaceTopo      bd_face_type    (const Boundary* bd, int_l face);
     const double* bd_node_coords  (const Boundary* bd, int_l node);
 
     int_g bd_node_l2g(const Boundary* bd, int_l node);
@@ -240,6 +251,25 @@ extern "C" {
     void dbd_accumulate_face_fields(DistributedBoundary* dbd, int nfields, const double* local_fields, double* global_fields);
 
     //--------------------------------------------------------
+    // interfaces of Interpolator
+    //--------------------------------------------------------
+
+    Interpolator* it_new();
+    void it_delete(Interpolator** it);
+    void it_clear(Interpolator* it);
+    int  it_add_source_boundary(Interpolator* it, Boundary* bd);
+    int  it_add_target_boundary(Interpolator* it, Boundary* bd);
+    void it_compute_interp_coeff(Interpolator* it, InterpMethod method = Automatic, int max_donor = 20);
+    void it_save_coefficients(Interpolator* it, const char* file);
+    void it_load_coefficients(Interpolator* it, const char* file);
+    void it_interp_all_dofs_s2t(Interpolator* it);
+    void it_interp_all_load_t2s(Interpolator* it);
+    void it_interp_node_dofs_s2t(Interpolator* it, int ndof, const double** src_node_dofs, double** des_node_dofs);
+    void it_interp_face_dofs_s2t(Interpolator* it, int ndof, const double** src_node_dofs, double** des_face_dofs);
+    void it_interp_node_loads_t2s(Interpolator* it, int nload, double** src_node_load, const double** des_node_load, bool fill_src_zeros_first = true);
+    void it_interp_face_loads_t2s(Interpolator* it, int nload, double** src_node_load, const double** des_face_load, bool fill_src_zeros_first = true);
+
+    //--------------------------------------------------------
     // interfaces of Application
     //--------------------------------------------------------
 
@@ -276,6 +306,12 @@ extern "C" {
     //! @param units     The units of this field.
     void app_register_field(Application* app, const char* name, int ncomp, FieldLocation location, FieldIO iotype, const char* units);
 
+    //! @brief Set field functions
+    //! @param app The object pointer of application created by \app_new.
+    //! @param getter    A function pointer used to read outgoing fields from this application.
+    //! @param setter    A function pointer used to writ incoming fields to this application.
+    void app_set_field_func(Application* app, get_boundary_field_function getter, set_boundary_field_function setter);
+
     //! @brief Start coupling between applications.
     //! @param app        The object pointer of application created by \app_new.
     //! @param inter_comm The inter-communicator, usually is socket communicator.
@@ -288,11 +324,9 @@ extern "C" {
 
     //! @brief Exchange fields between applications.
     //! @param app       The object pointer of application created by \app_new.
-    //! @param getter    A function pointer used to read outgoing fields from this application.
-    //! @param setter    A function pointer used to writ incoming fields to this application.
     //! @param time      Current physical time of this application.
     //! @param user_data User data will be transfer to \getter and \setter functions, can be null.
-    void app_exchange_solu(Application* app, get_boundary_field_function getter, set_boundary_field_function setter, double time, void* user_data);
+    void app_exchange_solu(Application* app, double time, void* user_data);
 
     //! @brief Stop coupling of all applications and disconnect from inter-communicator.
     //! @param app  The object pointer of application created by \app_new.

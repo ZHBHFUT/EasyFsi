@@ -64,11 +64,11 @@ extern "C" void    dv_fill(DynamicVector * dv, double value)
 }
 extern "C" void    dv_copy_from(const DynamicVector* dv_src, DynamicVector* dv_des)
 {
-    if (dv_des)reinterpret_cast<DV*>(dv_des)->copy_from(*reinterpret_cast<const DV*>(dv_src));
+    if (dv_des)reinterpret_cast<DV*>(dv_des)->copy_elements(*reinterpret_cast<const DV*>(dv_src));
 }
 extern "C" void    dv_swap(DynamicVector * dvA, DynamicVector * dvB)
 {
-    if (dvA)reinterpret_cast<DV*>(dvA)->copy_from(*reinterpret_cast<DV*>(dvB));
+    if (dvA)reinterpret_cast<DV*>(dvA)->swap_elements(*reinterpret_cast<DV*>(dvB));
 }
 extern "C" double  dv_norm(const DynamicVector * dv)
 {
@@ -144,7 +144,7 @@ extern "C" void dm_fill(DynamicMatrix * dm, double value)
 }
 extern "C" void dm_copy_from(const DynamicMatrix * dm_src, DynamicMatrix * dm_des)
 {
-    if (dm_src && dm_des)reinterpret_cast<DM*>(dm_des)->copy_from(*reinterpret_cast<const DM*>(dm_src));
+    if (dm_src && dm_des)reinterpret_cast<DM*>(dm_des)->copy_elements(*reinterpret_cast<const DM*>(dm_src));
 }
 //extern "C" void dm_swap(DynamicMatrix * dmA, DynamicMatrix * dmB)
 //{
@@ -353,9 +353,9 @@ extern "C" int_l bd_add_node(Boundary * bd, double x, double y, double z, int_g 
 {
     return bd ? reinterpret_cast<BD*>(bd)->add_node(x, y, z, unique_id) : EasyLib::invalid_id;
 }
-extern "C" int_l bd_add_face(Boundary * bd, ElementShape type, int nnodes, const int_l * fnodes)
+extern "C" int_l bd_add_face(Boundary * bd, FaceTopo type, int nnodes, const int_l * fnodes)
 {
-    return bd ? reinterpret_cast<BD*>(bd)->add_face((EasyLib::ElementShape)type, nnodes, fnodes) : EasyLib::invalid_id;
+    return bd ? reinterpret_cast<BD*>(bd)->add_face((EasyLib::FaceTopo)type, nnodes, fnodes) : EasyLib::invalid_id;
 }
 extern "C" void  bd_set_face_centroid(Boundary * bd, int_l face, double cx, double cy, double cz)
 {
@@ -393,6 +393,10 @@ extern "C" const double* bd_face_centroid(const Boundary * bd, int_l face)
 {
     return bd ? reinterpret_cast<const BD*>(bd)->face_centroids().at(face).data() : nullptr;
 }
+extern "C" FaceTopo      bd_face_type(const Boundary* bd, int_l face)
+{
+    return bd ? (FaceTopo)reinterpret_cast<const BD*>(bd)->face_types().at(face) : BAR2;
+}
 extern "C" const double* bd_node_coords(const Boundary * bd, int_l node)
 {
     return bd ? reinterpret_cast<const BD*>(bd)->node_coords().at(node).data() : nullptr;
@@ -425,7 +429,7 @@ extern "C" const KdTree * bd_kdtree(const Boundary * bd)
 }
 extern "C" void  bd_read_gmsh(Boundary * bd, const char* file)
 {
-    if (bd)reinterpret_cast<BD*>(bd)->read_gmsh(file);
+    if (bd)reinterpret_cast<BD*>(bd)->load_gmsh(file);
 }
 
 //--- Communicator
@@ -606,6 +610,69 @@ extern "C" void dbd_accumulate_face_fields(DistributedBoundary * dbd, int nfield
     if (dbd)reinterpret_cast<DBD*>(dbd)->accumulate_face_fields(nfields, local_fields, global_fields);
 }
 
+//--- Interpolator
+
+using IT = EasyLib::Interpolator;
+extern "C" Interpolator* it_new()
+{
+    return reinterpret_cast<Interpolator*>(new IT);
+}
+extern "C" void it_delete(Interpolator** it)
+{
+    if (it && *it) {
+        delete reinterpret_cast<IT*>(*it);
+        *it = nullptr;
+    }
+}
+extern "C" void it_clear(Interpolator * it)
+{
+    if (it)reinterpret_cast<IT*>(it)->clear();
+}
+extern "C" int it_add_source_boundary(Interpolator* it, Boundary* bd)
+{
+    return (it && bd) ? reinterpret_cast<IT*>(it)->add_source_boundary(*reinterpret_cast<BD*>(bd)) : -1;
+}
+extern "C" int it_add_target_boundary(Interpolator* it, Boundary* bd)
+{
+    return (it && bd) ? reinterpret_cast<IT*>(it)->add_target_boundary(*reinterpret_cast<BD*>(bd)) : -1;
+}
+extern "C" void it_compute_interp_coeff(Interpolator* it, InterpMethod method, int max_donor)
+{
+    if (it)reinterpret_cast<IT*>(it)->compute_interp_coeff((EasyLib::InterpolationMethod)method, max_donor);
+}
+extern "C" void it_save_coefficients(Interpolator* it, const char* file)
+{
+    if (it)reinterpret_cast<IT*>(it)->save_coefficients(file);
+}
+extern "C" void it_load_coefficients(Interpolator* it, const char* file)
+{
+    if (it)reinterpret_cast<IT*>(it)->load_coefficients(file);
+}
+extern "C" void it_interp_all_dofs_s2t(Interpolator* it)
+{
+    if (it)reinterpret_cast<IT*>(it)->interp_all_dofs_s2t();
+}
+extern "C" void it_interp_all_load_t2s(Interpolator* it)
+{
+    if (it)reinterpret_cast<IT*>(it)->interp_all_load_t2s();
+}
+extern "C" void it_interp_node_dofs_s2t(Interpolator * it, int ndof, const double** src_node_dofs, double** des_node_dofs)
+{
+    if (it)reinterpret_cast<IT*>(it)->interp_node_dofs_s2t(ndof, src_node_dofs, des_node_dofs);
+}
+extern "C" void it_interp_face_dofs_s2t(Interpolator * it, int ndof, const double** src_node_dofs, double** des_face_dofs)
+{
+    if (it)reinterpret_cast<IT*>(it)->interp_face_dofs_s2t(ndof, src_node_dofs, des_face_dofs);
+}
+extern "C" void it_interp_node_loads_t2s(Interpolator * it, int nload, double** src_node_load, const double** des_node_load, bool fill_src_zeros_first/* = true*/)
+{
+    if (it)reinterpret_cast<IT*>(it)->interp_node_load_t2s(nload, src_node_load, des_node_load, fill_src_zeros_first);
+}
+extern "C" void it_interp_face_loads_t2s(Interpolator * it, int nload, double** src_node_load, const double** des_face_load, bool fill_src_zeros_first/* = true*/)
+{
+    if (it)reinterpret_cast<IT*>(it)->interp_face_load_t2s(nload, src_node_load, des_face_load, fill_src_zeros_first);
+}
+
 //--- Application
 
 using APP = EasyLib::Application;
@@ -645,19 +712,22 @@ extern "C" void app_register_field(Application * app, const char* name, int ncom
         (EasyLib::FieldIO)iotype,
         units);
 }
-extern "C" void app_start_coupling(Application * app, Communicator * inter_comm)
-{
-    if (app)reinterpret_cast<APP*>(app)->start_coupling(*reinterpret_cast<CM*>(inter_comm));
-}
-extern "C" void app_exchange_solu(Application* app, get_boundary_field_function getter, set_boundary_field_function setter, double time, void* user_data)
+extern "C" void app_set_field_func(Application* app, get_boundary_field_function getter, set_boundary_field_function setter)
 {
     if (app) {
         reinterpret_cast<APP*>(app)->set_field_function(
             (EasyLib::get_boundary_field_function)getter,
             (EasyLib::set_boundary_field_function)setter
         );
-        reinterpret_cast<APP*>(app)->exchange_solution(time, user_data);
     }
+}
+extern "C" void app_start_coupling(Application * app, Communicator * inter_comm)
+{
+    if (app)reinterpret_cast<APP*>(app)->start_coupling(*reinterpret_cast<CM*>(inter_comm));
+}
+extern "C" void app_exchange_solu(Application* app, double time, void* user_data)
+{
+    if (app)reinterpret_cast<APP*>(app)->exchange_solution(time, user_data);
 }
 extern "C" void app_stop_coupling(Application * app)
 {

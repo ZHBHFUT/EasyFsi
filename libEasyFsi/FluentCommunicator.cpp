@@ -20,6 +20,7 @@ namespace EasyLib {
         else if (_stricmp(name, "MPT_FLOAT"    ) == 0)mpt_float_type_     = value;
         else if (_stricmp(name, "MPT_DOUBLE"   ) == 0)mpt_double_type_    = value;
         else if (_stricmp(name, "MPT_LONG_LONG") == 0)mpt_long_long_type_ = value;
+        else if (_stricmp(name, "MPT_UNSIGNED_INT") == 0)mpt_uint_type_ = value;
         else {
             error("unsupported constant \"%s\", FILE = %s, FUNC = %s, LINE = %s.", name, __FILE__, __FUNCTION__, __LINE__);
         }

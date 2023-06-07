@@ -1,3 +1,6 @@
+#ifdef _DEBUG
+#define Py_DEBUG
+#endif
 #include <pybind11/pybind11.h>
 #include <pybind11/stl_bind.h>
 
@@ -274,7 +277,7 @@ void bind_vector(py::module m)
         .def("max", vec_max)
         .def("mean", &type::norm)
         .def("dot", &type::dot)
-        .def("__bool__", [](const type& a) { return !a.empty(); }, "Check whether the vector is nonempty")
+        .def("__bool__", [](const type& a) { return !a.empty(); }, "Check whether the vector is non-empty")
         .def("__len__", &type::size)
         .def("__getitem__", get_item)
         .def("__setitem__", set_item)
@@ -355,6 +358,7 @@ void bind_matrix(py::module m)
         .def(py::init([](int m, int n) {return type(m, n); }))
         .def(py::init([](int m, int n, double value) {return type(m, n, value); }))
         .def(py::init(from_buffer))
+        .def("to_buffer", to_buffer)
         .def("rank", &type::rank)
         .def("numel", &type::numel)
         .def("empty", &type::empty)
@@ -370,41 +374,215 @@ void bind_matrix(py::module m)
         .def("copy_elements", &type::copy_elements)
         .def("zero", &type::zero)
         .def("identity", &type::identity)
-        //.def("zero", &type::zero)
         .def("inverse", mat_inv)
         .def("apply", mat_dot_vec)
         .def("apply_add", mat_dot_add_vec)
         .def("apply", mat_dot_mat)
         .def("apply_add", mat_dot_add_mat)
-        .def("__bool__", [](const type& a) { return !a.empty(); }, "Check whether the array is nonempty")
+        .def("__bool__", [](const type& a) { return !a.empty(); }, "Check whether the array is non-empty")
         .def("__getitem__", get_item)
         .def("__setitem__", set_item)
         .def("__repr__", print, "Return the canonical string representation of this array.");
     ;
 }
 
-//class PyMPIComm : public EasyLib::MPICommunicator
-//{
-//public:
-//
-//private:
-//
-//};
-
-int __stdcall py_MPI_Send(const void* buffer, int count, int datatype, int dest, int tag, int comm)
+void bind_fieldinfo(py::module m)
 {
-    //
-    auto args = py::make_tuple(buffer, count, datatype, dest, tag, comm);
-    //TODO:
-    // pyfunc(*args)
+    using type = EasyLib::FieldInfo;
 
-    return 0;
+    py::class_<type>(m, "FieldInfo")
+        .def(py::init([](py::str name, py::str units, int ncomp, EasyLib::FieldLocation location, EasyLib::FieldIO iotype) { return new type{ (std::string)name, (std::string)units, ncomp, location, iotype }; }))
+        .def_readonly("name", &type::name)
+        .def_readonly("units", &type::units)
+        .def_readonly("ncomp", &type::ncomp)
+        .def_readonly("location", &type::location)
+        .def_readonly("iotype", &type::iotype)
+        ;
 }
-int __stdcall py_MPI_Recv(void* buffer, int count, int datatype, int source, int tag, int comm)
+void bind_field(py::module m)
 {
-    py::make_tuple(buffer, count, datatype, source, tag, comm);
-    //TODO:
-    return 0;
+    using type = EasyLib::Field;
+    using value_type = typename decltype(type::data)::value_type;
+    auto to_buffer = [](type& v) {
+        return py::buffer_info{
+            v.data.data(),                               // Pointer to buffer
+            sizeof(value_type),                          // Size of one scalar
+            py::format_descriptor<value_type>::format(), // Python struct-style format descriptor
+            2,                                           // Number of dimensions
+            {v.data.nrow(), v.data.ncol()},              // Buffer dimensions
+            {sizeof(value_type) * v.data.ncol(), sizeof(value_type)} // Strides (in bytes) for each index
+        };
+    };
+    auto get_item = [](const type& a, py::tuple idx) {
+        if (idx.size() != 2)throw py::index_error();
+        auto i = idx.begin()->cast<int>();
+        auto j = (idx.begin() + 1)->cast<int>();
+        if (i < 0 || i >= a.data.extent(0) || j < 0 || j >= a.data.extent(1))
+            throw py::index_error();
+        return a.data(i, j);
+    };
+    auto set_item = [](type& a, py::tuple idx, double value) {
+        if (idx.size() != 2)throw py::index_error();
+        auto i = idx.begin()->cast<int>();
+        auto j = (idx.begin() + 1)->cast<int>();
+        if (i < 0 || i >= a.data.extent(0) || j < 0 || j >= a.data.extent(1))
+            throw py::index_error();
+        a.set(i, j, value);
+    };
+    auto fill = [](type& a, double value) { a.data.fill(value); };
+    auto get_name = [](type& a) { return a.info ? a.info->name : std::string{}; };
+    auto get_units = [](type& a) { return a.info ? a.info->units : std::string{}; };
+    auto get_ncomp = [](type& a) { return a.info ? a.info->ncomp : 0; };
+    auto get_iotype = [](type& a) { return a.info ? a.info->iotype : EasyLib::OutgoingDofs; };
+    auto get_loc = [](type& a) { return a.info ? a.info->location : EasyLib::NodeCentered; };
+    auto from_buffer = [](type& a, py::buffer b) {
+        if (a.info && !a.info->is_outgoing())
+            throw std::runtime_error("Field is not outgoing!");
+
+        // Request a buffer descriptor from Python
+        auto info = b.request();
+
+        // Some basic validation checks ...
+        if (info.format != py::format_descriptor<value_type>::format())
+            throw std::runtime_error("Incompatible format: expected a double array!");
+        if (info.ndim != 2)
+            throw std::runtime_error("Incompatible buffer dimension!");
+        if (info.strides[1] != sizeof(double))
+            throw std::runtime_error("Incompatible stride!");
+        if (info.shape[0] != a.data.nrow() || info.shape[1] != a.data.ncol())
+            throw std::runtime_error("Incompatible shape!");
+
+        std::memcpy(a.data.data(), info.ptr, sizeof(value_type) * a.data.numel());
+    };
+
+    py::class_<type>(m, "Field", py::buffer_protocol())
+        .def_buffer(to_buffer)
+        .def(py::init<>())
+        .def("fill", fill)
+        .def("set_values", from_buffer, "Set outgoing field values from py::buffer")
+        .def("get_values", to_buffer, "Get field values as py::buffer_info")
+        .def("__getitem__", get_item)
+        .def("__setitem__", set_item)
+        .def_property_readonly("name", get_name)
+        .def_property_readonly("units", get_units)
+        .def_property_readonly("ncomp", get_ncomp)
+        .def_property_readonly("iotype", get_iotype)
+        .def_property_readonly("location", get_loc)
+        .def("__bool__", [](const type& a) { return !a.data.empty(); }, "Check whether the field is non-empty")
+        ;
+}
+
+class PyCommunicator : public EasyLib::Communicator
+{
+public:
+    using Communicator::Communicator; // Inherit constructors
+
+    //void init(int argc, const char** argv) override { PYBIND11_OVERRIDE_PURE(void, EasyLib::Communicator, init, argc, argv); }
+
+    void set_constant(const char* name, int   value  )override { PYBIND11_OVERRIDE_PURE(void, EasyLib::Communicator, set_constant, name, value); }
+    void set_constant(const char* name, void* pointer)override { PYBIND11_OVERRIDE_PURE(void, EasyLib::Communicator, set_constant, name, pointer); }
+    void set_function(const char* name, void* func   )override { PYBIND11_OVERRIDE_PURE(void, EasyLib::Communicator, set_constant, name, func); }
+
+    int rank()const noexcept override { PYBIND11_OVERRIDE_PURE(int, EasyLib::Communicator, rank); }
+
+    int size()const noexcept override { PYBIND11_OVERRIDE_PURE(int, EasyLib::Communicator, size); }
+
+    void send(const void* data, int count, EasyLib::DataType type, int dest_rank, int tag)override { PYBIND11_OVERRIDE_PURE(void, EasyLib::Communicator, send, data, count, type, dest_rank, tag); }
+
+    void recv(void* data, int count, EasyLib::DataType type, int src_rank, int tag)override { PYBIND11_OVERRIDE_PURE(void, EasyLib::Communicator, recv, data, count, type, src_rank, tag); }
+
+    void disconnect() override { PYBIND11_OVERRIDE_PURE(void, EasyLib::Communicator, disconnect); }
+};
+
+struct MatView
+{
+    int nrow{ 0 }, ncol{ 0 };
+    double* data{ nullptr };
+    bool readonly{ false };
+};
+
+void bind_matview(py::module m)
+{
+    using type = MatView;
+    auto to_buffer = [](type& mat) {
+        return py::buffer_info{
+            mat.data,                                     // Pointer to buffer
+            sizeof(double),                               // Size of one scalar
+            py::format_descriptor<double>::format(),      // Python struct-style format descriptor
+            2,                                            // Number of dimensions
+            { mat.nrow, mat.ncol },                       // Buffer dimensions
+            { sizeof(double) * mat.ncol, sizeof(double) }, // Strides (in bytes) for each index
+            mat.readonly
+        };
+    };
+    auto get_item = [](const type& a, py::tuple idx) {
+        if (idx.size() == 1) {
+            auto i = idx.begin()->cast<int>();
+            if (i < 0 || i >= a.nrow * a.ncol)throw py::index_error();
+            return a.data[i];
+        }
+        else if (idx.size() == 2) {
+            auto i = idx.begin()->cast<int>();
+            auto j = (idx.begin() + 1)->cast<int>();
+            if (i < 0 || i >= a.nrow || j < 0 || j >= a.ncol)
+                throw py::index_error();
+            return a.data[i * a.ncol + j];
+        }
+        throw py::index_error();
+    };
+    auto set_item = [](type& a, py::tuple idx, double value) {
+        if (a.readonly)throw std::runtime_error("matrix is read-only!");
+        if (idx.size() == 1) {
+            auto i = idx.begin()->cast<int>();
+            if(i<0 || i>=a.nrow*a.ncol)throw py::index_error();
+            a.data[i] = value;
+        }
+        else if (idx.size() == 2) {
+            auto i = idx.begin()->cast<int>();
+            auto j = (idx.begin() + 1)->cast<int>();
+            if (i < 0 || i >= a.nrow || j < 0 || j >= a.ncol)
+                throw py::index_error();
+            a.data[i * a.ncol + j] = value;
+        }
+        else
+            throw py::index_error();
+    };
+    py::class_<type>(m, "MatView", py::buffer_protocol())
+        .def_buffer(to_buffer)
+        .def(py::init<>())
+        .def("fill", [](type& m, double value) { std::fill(m.data, m.data + m.nrow * m.ncol, value); })
+        .def("__getitem__", get_item)
+        .def("__setitem__", set_item)
+        .def_readonly("nrow", &type::nrow)
+        .def_readonly("ncol", &type::ncol)
+        ;
+}
+
+static std::unordered_map<const EasyLib::Application*, py::function> py_get_funcs;
+static std::unordered_map<const EasyLib::Application*, py::function> py_set_funcs;
+void py_get_bound_field(const EasyLib::Application* app, const EasyLib::Boundary* bd, const char* name, int ncomp, EasyLib::FieldLocation loc, double* data, void* user_data)
+{
+    auto it = py_get_funcs.find(app);
+    if (it != py_get_funcs.end()) {
+        int nrow = loc == EasyLib::NodeCentered ? bd->node_num() : bd->face_num();
+        // def py_get_bound_field_func(app, bound, field_name, location, mat, user_data)
+        it->second(app, bd, name, loc, MatView{ nrow, ncomp, data, false }, (PyObject*)user_data);
+    }
+    else {
+        throw std::runtime_error("field getter function is missing!");
+    }
+}
+void py_set_bound_field(const EasyLib::Application* app, const EasyLib::Boundary* bd, const char* name, int ncomp, EasyLib::FieldLocation loc, const double* data, void* user_data)
+{
+    auto it = py_get_funcs.find(app);
+    if (it != py_get_funcs.end()) {
+        // def py_get_bound_field_func(app, bound, field_name, location, mat, user_data)
+        int nrow = loc == EasyLib::NodeCentered ? bd->node_num() : bd->face_num();
+        it->second(app, bd, name, ncomp, loc, MatView{ nrow, ncomp, const_cast<double*>(data), true }, (PyObject*)user_data);
+    }
+    else {
+        throw std::runtime_error("field setter function is missing!");
+    }
 }
 
 PYBIND11_MODULE(EasyFsi, m) {
@@ -414,6 +592,9 @@ PYBIND11_MODULE(EasyFsi, m) {
 
     //m.def("add", &add, "A function that adds two numbers");
 
+    //m.def("set_func",  [](py::function f) {g_func = f; });
+    //m.def("test_func", [](int i, int j) {return g_func(i, j); });
+
     //--- export constants
 
     py::enum_<EasyLib::FieldLocation>(m, "FieldLocation")
@@ -422,31 +603,38 @@ PYBIND11_MODULE(EasyFsi, m) {
         .value("CellCentered", EasyLib::FieldLocation::CellCentered, "field stored at cell")
         .export_values();
     py::enum_<EasyLib::FieldIO>(m, "FieldIO")
-        .value("IncomingDofs ", EasyLib::FieldIO::IncomingDofs,  "field is incoming DOF")
+        .value("IncomingDofs",  EasyLib::FieldIO::IncomingDofs,  "field is incoming DOF")
         .value("IncomingLoads", EasyLib::FieldIO::IncomingLoads, "field is incoming load")
-        .value("OutgoingDofs ", EasyLib::FieldIO::OutgoingDofs,  "field is outgoing DOF")
+        .value("OutgoingDofs",  EasyLib::FieldIO::OutgoingDofs,  "field is outgoing DOF")
         .value("OutgoingLoads", EasyLib::FieldIO::OutgoingLoads, "field is outgoing load")
         .export_values();
-    py::enum_<EasyLib::ElementShape>(m, "FaceTopo")
-        .value("BAR2 "  , EasyLib::ElementShape::BAR2   , "two-node line element")
-        .value("BAR3"   , EasyLib::ElementShape::BAR3   , "three-node line element")
-        .value("TRI3 "  , EasyLib::ElementShape::TRI3   , "three-node triangle element")
-        .value("TRI6"   , EasyLib::ElementShape::TRI6   , "six-node triangle element")
-        .value("QUAD4"  , EasyLib::ElementShape::QUAD4  , "four-node quadrilateral element")
-        .value("QUAD8"  , EasyLib::ElementShape::QUAD8  , "eight-node quadrilateral element")
-        .value("POLYGON", EasyLib::ElementShape::POLYGON, "general polygon element")
+    py::enum_<EasyLib::FaceTopo>(m, "FaceTopo")
+        .value("BAR2"   , EasyLib::FaceTopo::BAR2   , "two-node line element")
+        .value("BAR3"   , EasyLib::FaceTopo::BAR3   , "three-node line element")
+        .value("TRI3"   , EasyLib::FaceTopo::TRI3   , "three-node triangle element")
+        .value("TRI6"   , EasyLib::FaceTopo::TRI6   , "six-node triangle element")
+        .value("QUAD4"  , EasyLib::FaceTopo::QUAD4  , "four-node quadrilateral element")
+        .value("QUAD8"  , EasyLib::FaceTopo::QUAD8  , "eight-node quadrilateral element")
+        .value("POLYGON", EasyLib::FaceTopo::POLYGON, "general polygon element")
         .export_values();
     py::enum_<EasyLib::ZoneTopo>(m, "ZoneTopo")
-        .value("POINTS " , EasyLib::ZoneTopo::ZT_POINTS , "points cloud")
+        .value("POINTS"  , EasyLib::ZoneTopo::ZT_POINTS , "points cloud")
         .value("CURVE"   , EasyLib::ZoneTopo::ZT_CURVE  , "curve")
-        .value("SURFACE ", EasyLib::ZoneTopo::ZT_SURFACE, "surface")
+        .value("SURFACE" , EasyLib::ZoneTopo::ZT_SURFACE, "surface")
         .value("VOLUME"  , EasyLib::ZoneTopo::ZT_VOLUME , "3D volume")
         .export_values();
     py::enum_<EasyLib::ZoneShape>(m, "ZoneShape")
-        .value("POINT "   , EasyLib::ZoneShape::ZS_POINT   , "zone is a single point")
+        .value("POINT"    , EasyLib::ZoneShape::ZS_POINT   , "zone is a single point")
         .value("COLINEAR" , EasyLib::ZoneShape::ZS_COLINEAR, "zone is a straight line")
-        .value("COPLANER ", EasyLib::ZoneShape::ZS_COPLANER, "zone is a plane")
+        .value("COPLANER" , EasyLib::ZoneShape::ZS_COPLANER, "zone is a plane")
         .value("GENERAL"  , EasyLib::ZoneShape::ZS_GENERAL , "zone is a general 3d surface")
+        .export_values();
+    //InterpolationMethod
+    py::enum_<EasyLib::InterpolationMethod>(m, "InterpolationMethod")
+        .value("LocalXPS"  , EasyLib::InterpolationMethod::LocalXPS,   "using local spline method")
+        .value("Projection", EasyLib::InterpolationMethod::Projection, "using projection method, elements must exist for source boundary")
+        .value("Mapping"   , EasyLib::InterpolationMethod::Mapping,    "using geometric mapping method, elements must exist for all boundary")
+        .value("Automatic" , EasyLib::InterpolationMethod::Automatic,  "select interpolation method automatically")
         .export_values();
 
     // dynamic array
@@ -456,6 +644,9 @@ PYBIND11_MODULE(EasyFsi, m) {
     // vector and matrix
     bind_vector(m);
     bind_matrix(m);
+
+    // MatView
+    bind_matview(m);
 
     // TinyVector
     using vec3 = TinyVector<double, 3>;
@@ -490,6 +681,12 @@ PYBIND11_MODULE(EasyFsi, m) {
         .def("distance_sq", &vec3::distance_sq)
         .def("__repr__", print_vec3)
         ;
+
+    // Field
+    bind_field(m);
+
+    // FieldInfo
+    bind_fieldinfo(m);
 
     // IndexSet
     auto list2is = [](py::list list) {
@@ -588,30 +785,31 @@ PYBIND11_MODULE(EasyFsi, m) {
 
     // Boundary
     auto bd_add_node = [](Boundary& bd, double x, double y, double z, int_g unique_id) {return bd.add_node(x, y, z, unique_id); };
-    auto bd_add_face = [](Boundary& bd, ElementShape type, py::tuple nodes) {
+    auto bd_add_face = [](Boundary& bd, FaceTopo type, py::tuple nodes) {
         std::vector<int_l> list; list.reserve(nodes.size());
         for (auto x : nodes)list.push_back(x.cast<int_l>());
         return bd.add_face(type, (int)list.size(), list.data());
     };
+    auto bd_get_field = [](Boundary& bd, py::str name) { return &bd.field(name); };
     py::class_<Boundary>(m, "Boundary")
         .def(py::init<>())
         .def("clear", &Boundary::clear)
         .def("reserve", &Boundary::reserve)
         //.def("set_name", &Boundary::set_name)
-        .def_property("name", &Boundary::name,&Boundary::set_name)
-        .def_property("user_id",&Boundary::user_id, &Boundary::set_user_id)
+        .def_property("name", &Boundary::name, &Boundary::set_name)
+        .def_property("user_id", &Boundary::user_id, &Boundary::set_user_id)
         .def("add_node", bd_add_node)
         .def("add_face", bd_add_face)
         .def("set_face_cent", &Boundary::set_face_cent)
         .def("set_face_area", &Boundary::set_face_area)
         .def("compute_metics", &Boundary::compute_metics)
-        .def_property_readonly("kdtree", &Boundary::kdtree, py::return_value_policy::reference_internal)
+        .def_property_readonly("kdtree", &Boundary::kdtree, py::return_value_policy::reference)
         //.def("compute_global_xps_matrix", &Boundary::compute_global_xps_matrix)
         //.def("compute_global_xps_interp_coeff", &Boundary::compute_global_xps_interp_coeff)
         //.def("compute_local_xps_interp_coeff", &Boundary::compute_local_xps_interp_coeff)
         //.def("compute_project_interp_coeff", &Boundary::compute_project_interp_coeff)
-        .def("read_gmsh", &Boundary::read_gmsh)
-        .def("read_f3d_tec", &Boundary::read_f3d_tec)
+        .def("load", &Boundary::load)
+        .def("save", &Boundary::save)
         .def_property_readonly("topo", &Boundary::topo)
         .def_property_readonly("shape", &Boundary::shape)
         .def("contains_polygon", &Boundary::contains_polygon)
@@ -619,44 +817,153 @@ PYBIND11_MODULE(EasyFsi, m) {
         .def("all_high_order", &Boundary::all_high_order)
         .def_property_readonly("nnode", &Boundary::node_num)
         .def_property_readonly("nface", &Boundary::face_num)
+        .def("get_field", bd_get_field, py::return_value_policy::reference)
+        .def("node_coords",   [](Boundary& bound, int_l node) { return &bound.node_coords().at(node); }, py::return_value_policy::reference)
+        .def("face_centroid", [](Boundary& bound, int_l face) { return &bound.face_centroids().at(face); }, py::return_value_policy::reference)
+        .def("face_area",     [](Boundary& bound, int_l face) { return bound.face_areas().at(face); })
+        .def("face_normal",   [](Boundary& bound, int_l face) { return &bound.face_normals().at(face); }, py::return_value_policy::reference)
+        .def("face_type",     [](Boundary& bound, int_l face) { return bound.face_types().at(face); })
+        .def("register_field", &Boundary::register_field)
+        .def("remove_all_field", &Boundary::remove_all_field)
+        ;
+
+    auto comm_send_buffer = [](Communicator& comm, py::buffer b, int dest_rank, int tag) {
+        // Request a buffer descriptor from Python
+        auto info = b.request();
+
+        if (info.size > std::numeric_limits<int>::max())
+            throw std::overflow_error("Communicator::send(), length overflow!");
+
+        int count = static_cast<int>(info.size);
+
+        // send 
+        if      (info.format == py::format_descriptor<int8_t>::format())
+            comm.send(reinterpret_cast<const int8_t*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<int16_t>::format())
+            comm.send(reinterpret_cast<const int16_t*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<int32_t>::format())
+            comm.send(reinterpret_cast<const int32_t*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<int64_t>::format())
+            comm.send(reinterpret_cast<const int64_t*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<uint8_t>::format())
+            comm.send(reinterpret_cast<const uint8_t*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<uint16_t>::format())
+            comm.send(reinterpret_cast<const uint16_t*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<uint32_t>::format())
+            comm.send(reinterpret_cast<const uint32_t*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<uint64_t>::format())
+            comm.send(reinterpret_cast<const uint64_t*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<double>::format())
+            comm.send(reinterpret_cast<const double*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<float>::format())
+            comm.send(reinterpret_cast<const float*>(info.ptr), count, dest_rank, tag);
+        else if (info.format == py::format_descriptor<char>::format())
+            comm.send(reinterpret_cast<const char*>(info.ptr), count, dest_rank, tag);
+        else
+            throw std::runtime_error("Communicator::send(), unsupported data type!");
+    };
+    auto comm_recv_buffer = [](Communicator& comm, py::buffer b, int src_rank, int tag) {
+        // Request a buffer descriptor from Python
+        auto info = b.request();
+        if (info.readonly)throw std::runtime_error("Communicator::recv(), dest storage is read-only!");
+
+        if (info.size > std::numeric_limits<int>::max())
+            throw std::overflow_error("Communicator::send(), length overflow!");
+
+        int count = static_cast<int>(info.size);
+
+        // recv 
+        if      (info.format == py::format_descriptor<int8_t>::format())
+            comm.recv(reinterpret_cast<int8_t*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<int16_t>::format())
+            comm.recv(reinterpret_cast<int16_t*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<int32_t>::format())
+            comm.recv(reinterpret_cast<int32_t*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<int64_t>::format())
+            comm.recv(reinterpret_cast<int64_t*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<uint8_t>::format())
+            comm.recv(reinterpret_cast<uint8_t*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<uint16_t>::format())
+            comm.recv(reinterpret_cast<uint16_t*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<uint32_t>::format())
+            comm.recv(reinterpret_cast<uint32_t*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<uint64_t>::format())
+            comm.recv(reinterpret_cast<uint64_t*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<double>::format())
+            comm.recv(reinterpret_cast<double*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<float>::format())
+            comm.recv(reinterpret_cast<float*>(info.ptr), count, src_rank, tag);
+        else if (info.format == py::format_descriptor<char>::format())
+            comm.recv(reinterpret_cast<char*>(info.ptr), count, src_rank, tag);
+        else
+            throw std::runtime_error("Communicator::recv(), unsupported data type!");
+    };
+    py::class_<Communicator, PyCommunicator>(m, "Communicator")
+        .def(py::init<>())
+        .def("set_constant", [](Communicator& comm, const char* name, int   value) {comm.set_constant(name, value); })
+        .def("set_constant", [](Communicator& comm, const char* name, void* value) {comm.set_constant(name, value); })
+        .def("set_function", [](Communicator& comm, const char* name, void* value) {comm.set_function(name, value); })
+        .def("rank", &Communicator::rank)
+        .def("size", &Communicator::size)
+        .def("disconnect", &Communicator::disconnect)
+        .def("send", comm_send_buffer)
+        .def("recv", comm_recv_buffer)
+        .def("send", [](Communicator& comm, const IndexSet& v, int dest, int tag) {comm.send(v, dest, tag); })
+        .def("send", [](Communicator& comm, const DynamicVector& v, int dest, int tag) {comm.send(v, dest, tag); })
+        .def("send", [](Communicator& comm, const DynamicMatrix& v, int dest, int tag) {comm.send(v, dest, tag); })
+        .def("send", [](Communicator& comm, const MeshConnectivity& v, int dest, int tag) {comm.send(v, dest, tag); })
+        .def("send", [](Communicator& comm, const Boundary& v, int dest, int tag) {comm.send(v, dest, tag); })
+        .def("send", [](Communicator& comm, const std::string& v, int dest, int tag) {comm.send(v, dest, tag); })
+        .def("recv", [](Communicator& comm, IndexSet& v, int src, int tag) {comm.recv(v, src, tag); })
+        .def("recv", [](Communicator& comm, DynamicVector& v, int src, int tag) {comm.recv(v, src, tag); })
+        .def("recv", [](Communicator& comm, DynamicMatrix& v, int src, int tag) {comm.recv(v, src, tag); })
+        .def("recv", [](Communicator& comm, MeshConnectivity& v, int src, int tag) {comm.recv(v, src, tag); })
+        .def("recv", [](Communicator& comm, Boundary& v, int src, int tag) {comm.recv(v, src, tag); })
+        .def("recv", [](Communicator& comm, std::string& v, int src, int tag) {comm.recv(v, src, tag); })
         ;
 
     // MPI Communicator
     auto mm_set_const = [](MPICommunicator& comm, const char* name, int value) { comm.set_constant(name, value); };
-    py::class_<MPICommunicator>(m, "MPICommunicator")
+    py::class_<MPICommunicator, Communicator>(m, "MPICommunicator")
         .def(py::init<>())
         .def(py::init<int, int, int>())
-        .def_property("MPI_INT16_T",   [](const MPICommunicator& c) {return c.get_constant("MPI_INT16_T"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_INT16_T", value); })
-        .def_property("MPI_INT32_T",   [](const MPICommunicator& c) {return c.get_constant("MPI_INT32_T"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_INT32_T", value); })
-        .def_property("MPI_INT64_T",   [](const MPICommunicator& c) {return c.get_constant("MPI_INT64_T"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_INT64_T", value); })
+        .def_property("MPI_DATATYPE_NULL",   [](const MPICommunicator& c) {return c.get_constant("MPI_DATATYPE_NULL"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_DATATYPE_NULL", value); })
+        .def_property("MPI_INT16",     [](const MPICommunicator& c) {return c.get_constant("MPI_INT16_T"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_INT16_T", value); })
+        .def_property("MPI_INT32",     [](const MPICommunicator& c) {return c.get_constant("MPI_INT32_T"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_INT32_T", value); })
+        .def_property("MPI_INT64",     [](const MPICommunicator& c) {return c.get_constant("MPI_INT64_T"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_INT64_T", value); })
         .def_property("MPI_FLOAT",     [](const MPICommunicator& c) {return c.get_constant("MPI_FLOAT"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_FLOAT", value); })
         .def_property("MPI_DOUBLE",    [](const MPICommunicator& c) {return c.get_constant("MPI_DOUBLE"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_DOUBLE", value); })
         .def_property("MPI_CHAR",      [](const MPICommunicator& c) {return c.get_constant("MPI_CHAR"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_CHAR", value); })
-        .def_property("MPI_SUCCESS",   [](const MPICommunicator& c) {return c.get_constant("MPI_SUCCESS"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_SUCCESS", value); })
-        .def_property("MPI_COMM_WORLD",[](const MPICommunicator& c) {return c.get_constant("MPI_COMM_WORLD"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_COMM_WORLD", value); })
-        .def_property("MPI_COMM_SELF", [](const MPICommunicator& c) {return c.get_constant("MPI_COMM_SELF"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_COMM_SELF", value); })
-        .def_property("MPI_COMM_NULL", [](const MPICommunicator& c) {return c.get_constant("MPI_COMM_NULL"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_COMM_NULL", value); })
+        //.def_property("MPI_SUCCESS",   [](const MPICommunicator& c) {return c.get_constant("MPI_SUCCESS"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_SUCCESS", value); })
+        //.def_property("MPI_COMM_WORLD",[](const MPICommunicator& c) {return c.get_constant("MPI_COMM_WORLD"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_COMM_WORLD", value); })
+        //.def_property("MPI_COMM_SELF", [](const MPICommunicator& c) {return c.get_constant("MPI_COMM_SELF"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_COMM_SELF", value); })
+        //.def_property("MPI_COMM_NULL", [](const MPICommunicator& c) {return c.get_constant("MPI_COMM_NULL"); }, [](MPICommunicator& c, int value) { c.set_constant("MPI_COMM_NULL", value); })
         ;
 
     // SocketComm
-    py::class_<SocketCommunicator>(m, "SocketCommunicator")
+    py::class_<SocketCommunicator, Communicator>(m, "SocketCommunicator")
         .def(py::init<>())
-        .def("init", [](SocketCommunicator& sc, bool as_root, int np, const char* master_ip , unsigned short port, int timeout_sec) { sc.init(as_root, np, master_ip, port, timeout_sec); })
-        .def("disconnect", &SocketCommunicator::disconnect)
+        .def("init", [](SocketCommunicator& sc, bool as_root, int np, py::str master_ip, unsigned short port, int timeout_sec) { std::string s = master_ip; sc.init(as_root, np, s.c_str(), port, timeout_sec); })
         ;
 
     // Application
+    auto set_app_field_funcs = [](Application& app, py::function get_field, py::function set_field) {
+        py_get_funcs.emplace(&app, get_field);
+        py_set_funcs.emplace(&app, set_field);
+        app.set_field_function(&py_get_bound_field, &py_set_bound_field);
+    };
     py::class_<Application>(m, "Application")
         .def(py::init<>())
         .def(py::init<const char*>())
         .def(py::init<const char*, Communicator&, int>())
         .def("clear", &Application::clear)
-        .def("add_coupled_boundary", &Application::add_coupled_boundary, py::return_value_policy::reference_internal)
+        .def("add_coupled_boundary", &Application::add_coupled_boundary, py::return_value_policy::reference)
         .def("boundary_num", &Application::boundary_num)
-        .def("boundary", [](Application& app, int b) {return *app.boundary(b); }, py::return_value_policy::reference_internal)
+        .def("boundary", [](Application& app, int b) {return app.boundary(b); }, py::return_value_policy::reference)
+        .def("set_field_function", set_app_field_funcs)
         .def("register_field", &Application::register_field)
         .def("start_coupling", &Application::start_coupling)
-        .def("exchange_solution", &Application::exchange_solution)
+        .def("exchange_solution", [](Application& app, double time, py::object obj) {app.exchange_solution(time, obj.ptr()); })
         .def("stop_coupling", &Application::stop_coupling)
         .def("save_tecplot", &Application::save_tecplot)
         ;
@@ -669,6 +976,10 @@ PYBIND11_MODULE(EasyFsi, m) {
         .def("add_target_boundary", &Interpolator::add_target_boundary)
         .def("compute_interp_coeff", &Interpolator::compute_interp_coeff)
         .def("save_coefficients", &Interpolator::save_coefficients)
-        .def("read_coefficients", &Interpolator::read_coefficients)
+        .def("load_coefficients", &Interpolator::load_coefficients)
+        .def("interp_all_dofs_s2t", &Interpolator::interp_all_dofs_s2t)
+        .def("interp_all_load_t2s", &Interpolator::interp_all_load_t2s)
+        .def("interp_dofs_s2t", [](Interpolator& it, py::str name) {it.interp_dofs_s2t(std::string(name).c_str()); })
+        .def("interp_load_t2s", [](Interpolator& it, py::str name) {it.interp_load_t2s(std::string(name).c_str()); })
         ;
 }

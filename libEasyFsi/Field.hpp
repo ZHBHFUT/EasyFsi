@@ -2,6 +2,7 @@
 #include <string>
 
 #include "DynamicMatrix.hpp"
+#include "Logger.hpp"
 
 namespace EasyLib {
 
@@ -43,7 +44,18 @@ namespace EasyLib {
     {
         const FieldInfo* info{ nullptr };
         DynamicMatrix    data;
+
+        inline void set(int_l i, int_l j, double value)
+        {
+            if (info && !info->is_outgoing())
+                error("unable write field because it is not outgoing field!");
+            data.at(i, j) = value;
+        }
+        inline double get(int_l i, int_l j)const
+        {
+            return data.at(i, j);
+        }
     };
 
-    using Fields = DynamicArray<Field, 1>;
+    using Fields = std::vector<Field>;
 }

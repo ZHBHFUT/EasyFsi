@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <!-- DynamicArray<*> -->
+  <Type Name="DynamicArray&lt;*&gt;">
+    <Intrinsic Name="size" Expression="extent_" />
+    <Expand>
+      <ArrayItems>
+        <!-- row major layout -->
+        <Direction>Forward</Direction>
+        <Rank>$T2</Rank>
+        <Size>extent_._Elems[$i]</Size>
+        <ValuePointer>($T1*)data_._Mypair._Myval2._Myfirst</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  
+  <!-- DynamicArray<*,1> -->
+  <Type Name="Array1D&lt;*&gt;">
+    <!--Intrinsic Name="size" Expression="size_" /-->
+    <DisplayString>{{ size={data_._Mypair._Myval2._Mylast - data_._Mypair._Myval2._Myfirst} }}</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>data_._Mypair._Myval2._Mylast - data_._Mypair._Myval2._Myfirst</Size>
+        <ValuePointer>($T1*)data_._Mypair._Myval2._Myfirst</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>

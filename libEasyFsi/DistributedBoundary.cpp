@@ -108,7 +108,7 @@ namespace EasyLib {
                         auto g = pb->nodes().l2g(nodes[j]);
                         fnodes[j] = full_bound_.nodes().g2l(g);
                     }
-                    full_bound_.add_face((ElementShape)pb->face_types()[i], static_cast<int_l>(nodes.size()), fnodes.data(), fcents[i]);
+                    full_bound_.add_face((FaceTopo)pb->face_types()[i], static_cast<int_l>(nodes.size()), fnodes.data(), fcents[i]);
                 }
 
                 //TODO: check fields

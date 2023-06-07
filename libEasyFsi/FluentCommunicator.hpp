@@ -7,8 +7,8 @@ namespace EasyLib {
     class FluentCommunicator : public Communicator
     {
     public:
-        using func_MPT_csend = void(int mpid, void* data, unsigned int n, int data_type, int tag, const char* file, int line);
-        using func_MPT_crecv = int (int mpid, void* data, unsigned int n, int data_type, int tag, const char* file, int line);
+        using func_MPT_csend = void(int mpid, const void* data, unsigned int n, int data_type, int tag, const char* file, int line);
+        using func_MPT_crecv = int (int mpid,       void* data, unsigned int n, int data_type, int tag, const char* file, int line);
 
         using Communicator::send;
         using Communicator::recv;
@@ -31,87 +31,54 @@ namespace EasyLib {
         inline void set_MPT_csend(func_MPT_csend* func) { fsend_ = func; }
         inline void set_MPT_crecv(func_MPT_crecv* func) { frecv_ = func; }
 
-        inline void set_MPT_CHAR     (int mpt_char_type = 1) { mpt_char_type_ = mpt_char_type; }
-        inline void set_MPT_SHORT    (int mpt_short_type = 2) { mpt_short_type_ = mpt_short_type; }
-        inline void set_MPT_INT      (int mpt_int_type = 3) { mpt_int_type_ = mpt_int_type; }
-        inline void set_MPT_LONG     (int mpt_long_type = 4) { mpt_long_type_ = mpt_long_type; }
-        inline void set_MPT_FLOAT    (int mpt_float_type = 5) { mpt_float_type_ = mpt_float_type; }
-        inline void set_MPT_DOUBLE   (int mpt_double_type = 6) { mpt_double_type_ = mpt_double_type; }
+        inline void set_MPT_CHAR     (int mpt_char_type      = 1) { mpt_char_type_      = mpt_char_type; }
+        inline void set_MPT_SHORT    (int mpt_short_type     = 2) { mpt_short_type_     = mpt_short_type; }
+        inline void set_MPT_INT      (int mpt_int_type       = 3) { mpt_int_type_       = mpt_int_type; }
+        inline void set_MPT_LONG     (int mpt_long_type      = 4) { mpt_long_type_      = mpt_long_type; }
+        inline void set_MPT_FLOAT    (int mpt_float_type     = 5) { mpt_float_type_     = mpt_float_type; }
+        inline void set_MPT_DOUBLE   (int mpt_double_type    = 6) { mpt_double_type_    = mpt_double_type; }
         inline void set_MPT_LONG_LONG(int mpt_long_long_type = 8) { mpt_long_long_type_ = mpt_long_long_type; }
+        inline void set_MPT_UINT     (int mpt_uint_type      = 10) { mpt_uint_type_     = mpt_uint_type; }
 
-        void init(int /*argc*/, const char** /*argv*/)final {}
+        //void init(int /*argc*/, const char** /*argv*/)final {}
 
         void disconnect()final {}
 
         int rank()const noexcept final { return myid_; }
         int size()const noexcept final { return np_; }
 
-        bool send(const int16_t* data, int count, int dest_rank, int tag)final
+        void send(const void* data, int count, DataType type, int dest_rank, int tag)final
         {
-            static_assert(sizeof(int16_t) == sizeof(short), "data length not agree");
-            fsend_(dest_rank, const_cast<int16_t*>(data), count, mpt_short_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool send(const int32_t* data, int count, int dest_rank, int tag)final
-        {
-            static_assert(sizeof(int32_t) == sizeof(int), "data length not agree");
-            fsend_(dest_rank, const_cast<int32_t*>(data), count, mpt_int_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool send(const int64_t* data, int count, int dest_rank, int tag)final
-        {
-            static_assert(sizeof(int64_t) == sizeof(long long), "data length not agree");
-            fsend_(dest_rank, const_cast<int64_t*>(data), count, mpt_long_long_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool send(const double* data, int count, int dest_rank, int tag)final
-        {
-            fsend_(dest_rank, const_cast<double*>(data), count, mpt_double_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool send(const float* data, int count, int dest_rank, int tag)final
-        {
-            fsend_(dest_rank, const_cast<float*>(data), count, mpt_float_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool send(const char* data, int count, int dest_rank, int tag)final
-        {
-            fsend_(dest_rank, const_cast<char*>(data), count, mpt_char_type_, tag, __FILE__, __LINE__);
-            return true;
+            fsend_(dest_rank, reinterpret_cast<const int8_t*>(data), count, get_mpt_type(type), tag, __FILE__, __LINE__);
         }
 
-        bool recv(int16_t* data, int count, int src_rank, int tag)final
+        void recv(void* data, int count, DataType type, int src_rank, int tag)final
         {
+            frecv_(src_rank, data, count, get_mpt_type(type), tag, __FILE__, __LINE__);
+        }
+
+        inline int get_mpt_type(DataType type)const noexcept
+        {
+            static_assert(sizeof(int8_t ) == sizeof(char), "data length not agree");
             static_assert(sizeof(int16_t) == sizeof(short), "data length not agree");
-            frecv_(src_rank, data, count, mpt_short_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool recv(int32_t* data, int count, int src_rank, int tag)final
-        {
             static_assert(sizeof(int32_t) == sizeof(int), "data length not agree");
-            frecv_(src_rank, data, count, mpt_int_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool recv(int64_t* data, int count, int src_rank, int tag)final
-        {
             static_assert(sizeof(int64_t) == sizeof(long long), "data length not agree");
-            frecv_(src_rank, data, count, mpt_long_long_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool recv(double* data, int count, int src_rank, int tag)final
-        {
-            frecv_(src_rank, data, count, mpt_double_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool recv(float* data, int count, int src_rank, int tag)final
-        {
-            frecv_(src_rank, data, count, mpt_float_type_, tag, __FILE__, __LINE__);
-            return true;
-        }
-        bool recv(char* data, int count, int src_rank, int tag)final
-        {
-            frecv_(src_rank, data, count, mpt_char_type_, tag, __FILE__, __LINE__);
-            return true;
+
+            switch (type) {
+            case DataType::cint8:    return mpt_char_type_;
+            case DataType::cint16:   return mpt_short_type_;
+            case DataType::cint32:   return mpt_int_type_;
+            case DataType::cint64:   return mpt_long_long_type_;
+            case DataType::cuint8:   return mpt_char_type_;
+            case DataType::cuint16:  return mpt_short_type_;
+            case DataType::cuint32:  return mpt_uint_type_;
+            case DataType::cuint64:  return mpt_long_long_type_;
+            case DataType::cdouble:  return mpt_double_type_;
+            case DataType::cfloat:   return mpt_float_type_;
+            case DataType::cchar:    return mpt_char_type_;
+            default:
+                return mpt_null_type_;
+            }
         }
 
     private:
@@ -121,6 +88,7 @@ namespace EasyLib {
         func_MPT_csend* fsend_{ nullptr };
         func_MPT_crecv* frecv_{ nullptr };
 
+        int mpt_null_type_     { 0 }; // MPT_DATATYPE_NULL
         int mpt_char_type_     { 1 }; // type of int, see MPT_Datatype in mport.h
         int mpt_short_type_    { 2 }; // type of short, see MPT_Datatype in mport.h
         int mpt_int_type_      { 3 }; // type of int, see MPT_Datatype in mport.h
@@ -128,5 +96,6 @@ namespace EasyLib {
         int mpt_float_type_    { 5 }; // type of float, see MPT_Datatype in mport.h
         int mpt_double_type_   { 6 }; // type of double, see MPT_Datatype in mport.h
         int mpt_long_long_type_{ 8 }; // type of long long, see MPT_Datatype in mport.h
+        int mpt_uint_type_     { 10 }; // type of unsigned int, see MPT_Datatype in mport.h
     };
 }

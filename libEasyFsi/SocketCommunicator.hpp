@@ -47,7 +47,7 @@ namespace EasyLib {
         //! @param timeout_sec Timeout value in seconds for connecting to server, default is 60s.
         void init(bool as_root, int np, const char* master_ip = "127.0.0.1", unsigned short port = 50001, int timeout_sec = 60);
 
-        void init(int argc, const char** argv)final;
+        void init(int argc, const char** argv);
 
         //! @brief Get rank of current application, zero-based value.
         //! @return 
@@ -56,19 +56,8 @@ namespace EasyLib {
         //! @brief Get the number of applications that participate in communication.
         int size()const noexcept final { return size_; }
 
-        bool send(const int16_t* data, int count, int dest_rank, int tag)final;
-        bool send(const int32_t* data, int count, int dest_rank, int tag)final;
-        bool send(const int64_t* data, int count, int dest_rank, int tag)final;
-        bool send(const double*  data, int count, int dest_rank, int tag)final;
-        bool send(const float*   data, int count, int dest_rank, int tag)final;
-        bool send(const char*    data, int count, int dest_rank, int tag)final;
-
-        bool recv(int16_t* data, int count, int src_rank, int tag)final;
-        bool recv(int32_t* data, int count, int src_rank, int tag)final;
-        bool recv(int64_t* data, int count, int src_rank, int tag)final;
-        bool recv(double*  data, int count, int src_rank, int tag)final;
-        bool recv(float*   data, int count, int src_rank, int tag)final;
-        bool recv(char*    data, int count, int src_rank, int tag)final;
+        void send(const void* data, int count, DataType type, int dest_rank, int tag)final;
+        void recv(void* data, int count, DataType type, int src_rank, int tag)final;
 
         void disconnect() final;
 

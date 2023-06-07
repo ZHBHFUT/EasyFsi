@@ -11,6 +11,7 @@
 
 #include "Assert.hpp"
 #include "Logger.hpp"
+#include "ByteSwap.hpp"
 #include "SocketCommunicator.hpp"
 
 #ifdef _WIN32
@@ -368,90 +369,31 @@ namespace EasyLib {
         }
     }
 
-    bool SocketCommunicator::send(const int16_t* data, int count, int dest_rank, int tag)
+    void SocketCommunicator::send(const void* data, int count, DataType type, int dest_rank, int tag)
     {
-        return send_(sizeof(int16_t) * count, data, dest_rank, tag);
+        send_(nbyte_of_type(type) * count, data, dest_rank, tag);
     }
-    bool SocketCommunicator::send(const int32_t* data, int count, int dest_rank, int tag)
+    void SocketCommunicator::recv(void* data, int count, DataType type, int src_rank, int tag)
     {
-        return send_(sizeof(int32_t) * count, data, dest_rank, tag);
-    }
-    bool SocketCommunicator::send(const int64_t* data, int count, int dest_rank, int tag)
-    {
-        return send_(sizeof(int64_t) * count, data, dest_rank, tag);
-    }
-    bool SocketCommunicator::send(const double* data, int count, int dest_rank, int tag)
-    {
-        return send_(sizeof(double) * count, data, dest_rank, tag);
-    }
-    bool SocketCommunicator::send(const float* data, int count, int dest_rank, int tag)
-    {
-        return send_(sizeof(float) * count, data, dest_rank, tag);
-    }
-    bool SocketCommunicator::send(const char* data, int count, int dest_rank, int tag)
-    {
-        return send_(sizeof(char) * count, data, dest_rank, tag);
-    }
+        recv_(nbyte_of_type(type) * count, data, src_rank, tag);
 
-    bool SocketCommunicator::recv(int16_t* data, int count, int src_rank, int tag)
-    {
-        if (recv_(sizeof(int16_t) * count, data, src_rank, tag)) {
-            if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
-                for (int i = 0; i < count; ++i)data[i] = std::byteswap(data[i]);
+        // bit swap
+        if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
+            if      (nbyte_of_type(type) == 2) {
+                auto p = reinterpret_cast<uint16_t*>(data);
+                for (int i = 0; i < count; ++i)p[i] = byteswap(p[i]);
             }
-            return true;
-        }
-        return false;
-    }
-    bool SocketCommunicator::recv(int32_t* data, int count, int src_rank, int tag)
-    {
-        if (recv_(sizeof(int32_t) * count, data, src_rank, tag)) {
-            if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
-                for (int i = 0; i < count; ++i)data[i] = std::byteswap(data[i]);
+            else if (nbyte_of_type(type) == 4) {
+                auto p = reinterpret_cast<uint32_t*>(data);
+                for (int i = 0; i < count; ++i)p[i] = byteswap(p[i]);
             }
-            return true;
-        }
-        return false;
-    }
-    bool SocketCommunicator::recv(int64_t* data, int count, int src_rank, int tag)
-    {
-        if (recv_(sizeof(int64_t) * count, data, src_rank, tag)) {
-            if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
-                for (int i = 0; i < count; ++i)data[i] = std::byteswap(data[i]);
+            else if (nbyte_of_type(type) == 8) {
+                auto p = reinterpret_cast<uint64_t*>(data);
+                for (int i = 0; i < count; ++i)p[i] = byteswap(p[i]);
             }
-            return true;
         }
-        return false;
     }
-    bool SocketCommunicator::recv(double* data, int count, int src_rank, int tag)
-    {
-        if (recv_(sizeof(double) * count, data, src_rank, tag)) {
-            if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
-                static_assert(sizeof(double) == sizeof(int64_t), "type length agree!");
-                auto ptr = reinterpret_cast<int64_t*>(data);
-                for (int i = 0; i < count; ++i)ptr[i] = std::byteswap(ptr[i]);
-            }
-            return true;
-        }
-        return false;
-    }
-    bool SocketCommunicator::recv(float* data, int count, int src_rank, int tag)
-    {
-        if (recv_(sizeof(float) * count, data, src_rank, tag)) {
-            if (connections_.at(src_rank).remote_is_big_endian != is_big_endian) {
-                static_assert(sizeof(float) == sizeof(int32_t), "type length agree!");
-                auto ptr = reinterpret_cast<int32_t*>(data);
-                for (int i = 0; i < count; ++i)ptr[i] = std::byteswap(ptr[i]);
-            }
-            return true;
-        }
-        return false;
-    }
-    bool SocketCommunicator::recv(char* data, int count, int src_rank, int tag)
-    {
-        return recv_(sizeof(char) * count, data, src_rank, tag);
-    }
-
+    
     void SocketCommunicator::disconnect()
     {
         if (!is_connected_)return;
@@ -580,7 +522,7 @@ namespace EasyLib {
                 error("failed receive data. ERROR CODE = %d", ierr);
                 return false;
             }
-            if (big_endian != is_big_endian)len = std::byteswap(len); //? byte swap
+            if (big_endian != is_big_endian)len = byteswap(len); //? byte swap
             str.resize(len, '\0');
             if (len != ReceiveData(c.socket, (char*)str.data(), len)) {
                 int ierr = GetLastSocketError();
@@ -681,8 +623,8 @@ namespace EasyLib {
             return false;
         }
         if (big_endian != big) {
-            buf[0] = std::byteswap(buf[0]);//? byte swap
-            buf[0] = std::byteswap(buf[0]);
+            buf[0] = byteswap(buf[0]);//? byte swap
+            buf[0] = byteswap(buf[0]);
         }
         size_ = buf[0];
         rank_ = buf[1];
@@ -699,7 +641,7 @@ namespace EasyLib {
             error("failed receive server IP length. ERROR CODE = %d", ierr);
             return false;
         }
-        if (big_endian != big)len = std::byteswap(len); //? byte swap
+        if (big_endian != big)len = byteswap(len); //? byte swap
         c0.remote_host_ip.resize(len);
         if (len != ReceiveData(sock, c0.remote_host_ip.data(), len)) {
             int ierr = GetLastSocketError();
@@ -715,7 +657,7 @@ namespace EasyLib {
             error("failed receive server name length. ERROR CODE = %d", ierr);
             return false;
         }
-        if (big_endian != big)len = std::byteswap(len); //? byte swap
+        if (big_endian != big)len = byteswap(len); //? byte swap
         c0.remote_host_name.resize(len);
         if (len != ReceiveData(sock, c0.remote_host_name.data(), len)) {
             int ierr = GetLastSocketError();
@@ -746,7 +688,7 @@ namespace EasyLib {
             ;
         auto s = os_participators.str();
         len = static_cast<int>(s.length());
-        if (big_endian != is_big_endian)len = std::byteswap(len);
+        if (big_endian != is_big_endian)len = byteswap(len);
         ::send(sock, (const char*)&len, sizeof(len), 0);
         ::send(sock, s.c_str(), len, 0);
 
@@ -757,7 +699,7 @@ namespace EasyLib {
             error("failed receive participator info length. ERROR CODE = %d", ierr);
             return false;
         }
-        if (big_endian != big)len = std::byteswap(len); //? byte swap
+        if (big_endian != big)len = byteswap(len); //? byte swap
         std::string str(len, '\0');
         if (len != ReceiveData(sock, str.data(), len)) {
             int ierr = GetLastSocketError();
@@ -982,8 +924,8 @@ namespace EasyLib {
             return false;
         }
         if (c.remote_is_big_endian != is_big_endian) {
-            head.tag = std::byteswap(head.tag);
-            head.len = std::byteswap(head.len);
+            head.tag = byteswap(head.tag);
+            head.len = byteswap(head.len);
         }
         //debug("  Head = %d %d\n", head.tag, head.len);
         if (head.tag != tag) {

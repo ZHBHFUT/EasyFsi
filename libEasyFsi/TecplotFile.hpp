@@ -69,6 +69,7 @@ namespace EasyLib {
 
         void read_ascii(const char* file);
 
+
     private:
         std::string              title_;
         FileType                 type_{ FULL };

@@ -155,10 +155,18 @@
     <ClInclude Include="Inline.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ByteSwap.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="libEasyFsi.def">
       <Filter>Source Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="DynamicArray.natvis">
+      <Filter>Source Files</Filter>
+    </Natvis>
   </ItemGroup>
 </Project>
