@@ -23,13 +23,13 @@ enum, bind(c)
 end enum
 
 enum, bind(c)
-    enumerator :: FT_BAR2 = 0
-    enumerator :: FT_BAR3 = 1
-    enumerator :: FT_TRI3 = 2
-    enumerator :: FT_TRI6 = 3
-    enumerator :: FT_QUAD4 = 4
-    enumerator :: FT_QUAD8 = 5
-    enumerator :: FT_POLYGON = 6
+    enumerator :: BAR2    = 0
+    enumerator :: BAR3    = 1
+    enumerator :: TRI3    = 2
+    enumerator :: TRI6    = 3
+    enumerator :: QUAD4   = 4
+    enumerator :: QUAD8   = 5
+    enumerator :: POLYGON = 6
 end enum
 
 !-----------------------------------------------------
@@ -66,34 +66,6 @@ end enum
 
 interface
 
-function mpi_initialized_t(flag) bind(c)
-    import :: c_int
-    integer(c_int), intent(out) :: flag
-    integer(c_int) :: mpi_initialized_t
-end function mpi_initialized_t
-function mpi_init_t(argc,argv) bind(c)
-    import :: c_int,c_ptr
-    integer(c_int), intent(in) :: argc
-    type(c_ptr), intent(in), value :: argv
-    integer(c_int) :: mpi_init_t
-end function mpi_init_t
-function mpi_comm_disconnect_t(comm) bind(c)
-    import :: c_int
-    integer(c_int), intent(inout) :: comm
-    integer(c_int) :: mpi_comm_disconnect_t
-end function mpi_comm_disconnect_t
-function mpi_comm_rank_t(comm,rank) bind(c)
-    import :: c_int
-    integer(c_int), intent(in), value :: comm
-    integer(c_int), intent(out) :: rank
-    integer(c_int) :: mpi_comm_rank_t
-end function mpi_comm_rank_t
-function mpi_comm_size_t(comm,size) bind(c)
-    import :: c_int
-    integer(c_int), intent(in), value :: comm
-    integer(c_int), intent(out) :: size
-    integer(c_int) :: mpi_comm_size_t
-end function mpi_comm_size_t
 function mpi_send_t(buffer,count,datatype,dest,tag,comm) bind(c)
     import :: c_int,c_ptr
     type(c_ptr), intent(in), value :: buffer
@@ -115,14 +87,15 @@ function mpi_recv_t(buffer,count,datatype,source,tag,comm,status) bind(c)
     type(c_ptr), intent(in), value :: status
     integer(c_int) :: mpi_recv_t
 end function mpi_recv_t
-subroutine get_boundary_field_t(bd,fieldname,ncomp,location,data,user_data) bind(c)
+subroutine get_boundary_field_t(app,bd,fieldname,ncomp,location,data,user_data) bind(c)
     import :: c_ptr,c_int,c_char,c_double
+    type(c_ptr),                   intent(in), value :: app
     type(c_ptr),                   intent(in), value :: bd
     character(kind=c_char), dimension(*), intent(in) :: fieldname
     integer(kind=c_int),           intent(in), value :: ncomp
     integer(kind(NodeCentered)),   intent(in), value :: location
     real(kind=c_double),   dimension(*), intent(out) :: data
-    type(c_ptr),                   intent(in), value :: user_data
+    type(c_ptr),                    intent(in), value :: user_data
 end subroutine get_boundary_field_t
 subroutine set_boundary_field_t(bd,fieldname,ncomp,location,fielddata,user_data) bind(c)
     import :: c_ptr,c_char,c_double,c_int
@@ -141,9 +114,9 @@ end subroutine set_boundary_field_t
 function app_new(appname,intra_comm,root) bind(c,name="app_new")
     import :: c_ptr,c_int,c_char
     character(kind=c_char), dimension(*), intent(in) :: appname
-    type(c_ptr), intent(in), value :: intra_comm
+    type(c_ptr),    intent(in), value :: intra_comm
     integer(c_int), intent(in), value :: root
-    type(c_ptr) :: app_new
+    type(c_ptr)                        :: app_new
 end function app_new
 
 subroutine app_delete(app) bind(c,name="app_delete")
@@ -156,18 +129,10 @@ subroutine app_clear(app) bind(c,name="app_clear")
     type(c_ptr), intent(in), value :: app
 end subroutine app_clear
 
-subroutine app_create(app, appname, intra_comm, root) bind(c,name="app_create")
-    import :: c_ptr,c_int,c_char
-    type(c_ptr), intent(in), value :: app
-    character(kind=c_char), dimension(*), intent(in) :: appname
-    type(c_ptr), intent(in), value :: intra_comm
-    integer(c_int), intent(in), value :: root
-end subroutine app_create
-
 function app_add_boundary(app) bind(c,name="app_add_boundary")
     import :: c_ptr
     type(c_ptr), intent(in), value :: app
-    type(c_ptr) :: app_add_boundary
+    type(c_ptr)                     :: app_add_boundary
 end function app_add_boundary
 
 subroutine app_register_field(app,fieldname,ncomp,location,iotype,units) bind(c,name="app_register_field")
@@ -180,15 +145,20 @@ subroutine app_register_field(app,fieldname,ncomp,location,iotype,units) bind(c,
     character(kind=c_char), dimension(*), intent(in) :: units
 end subroutine app_register_field
 
+subroutine app_set_field_func(app, getter, setter) bind(c,name="app_set_field_func")
+    import :: c_ptr,c_funptr
+    type(c_ptr), intent(in), value :: app
+    type(c_funptr), intent(in), value :: getter,setter
+end subroutine app_set_field_func
+
 subroutine app_start_coupling(app, inter_comm) bind(c,name="app_start_coupling")
     import :: c_ptr
     type(c_ptr), intent(in), value :: app, inter_comm
 end subroutine app_start_coupling
 
-subroutine app_exchange_solu(app, getter, setter, time, user_data) bind(c,name="app_exchange_solu")
+subroutine app_exchange_solu(app, time, user_data) bind(c,name="app_exchange_solu")
     import :: c_ptr,c_funptr,c_double
     type(c_ptr),    intent(in), value :: app
-    type(c_funptr), intent(in), value :: getter,setter
     real(c_double), intent(in), value :: time
     type(c_ptr),    intent(in), value :: user_data
 end subroutine app_exchange_solu
@@ -210,9 +180,9 @@ function cm_socket_new(as_mastrer,np,master_ip,master_port) bind(c,name="cm_sock
     type(c_ptr) :: cm_socket_new
 end function cm_socket_new
 
-function cm_mpi_new(mpi_comm)  bind(c,name="cm_mpi_new")
+function cm_mpi_new(mpi_comm,rank,size)  bind(c,name="cm_mpi_new")
     import :: c_ptr,c_int
-    integer(c_int), intent(in), value :: mpi_comm
+    integer(c_int), intent(in), value :: mpi_comm,rank,size
     type(c_ptr) :: cm_mpi_new
 end function cm_mpi_new
 
@@ -302,7 +272,7 @@ end function bd_add_node
 function bd_add_face(bd,ftype,nnodes,fnodes) bind(c,name="bd_add_node")
     import :: c_ptr,c_int,c_long_long
     type(c_ptr), intent(in), value :: bd
-    integer(kind(FT_BAR2)), intent(in), value :: ftype
+    integer(kind(BAR2)), intent(in), value :: ftype
     integer(c_int), intent(in), value :: nnodes
     integer(c_int), dimension(*), intent(in) :: fnodes
     integer(c_int) :: bd_add_face
@@ -374,6 +344,20 @@ function bd_node_coords(bd,node) bind(c,name="bd_node_coords")
     integer(c_int), intent(in), value :: node
     type(c_ptr) :: bd_node_coords
 end function bd_node_coords
+
+function bd_node_l2g(bd,node_l) bind(c,name="bd_node_l2g")
+    import :: c_ptr
+    type(c_ptr), intent(in), value :: bd
+    integer(c_int), intent(in), value: node_l
+    integer(c_long_long) :: bd_node_l2g
+end function bd_node_l2g
+
+function bd_node_g2l(bd,node_g) bind(c,name="bd_node_g2l")
+    import :: c_ptr
+    type(c_ptr), intent(in), value :: bd
+    integer(c_long_long), intent(in), value: node_g
+    integer(c_int) :: bd_node_g2l
+end function bd_node_g2l
 
 ! get IndexSet object of boundary nodes.
 function bd_nodes(bd) bind(c,name="bd_nodes")
@@ -550,36 +534,6 @@ end interface
 
 contains
 
-subroutine cm_set_function_mpi_initialized(cm,func)
-    use iso_c_binding
-    type(c_ptr), intent(in), value :: cm
-    procedure(mpi_initialized_t), intent(in), pointer :: func
-    call cm_set_function(cm,'MPI_Initialized'//char(0),c_funloc(func))
-end subroutine cm_set_function_mpi_initialized
-subroutine cm_set_function_mpi_init(cm,func)
-    use iso_c_binding
-    type(c_ptr), intent(in), value :: cm
-    procedure(mpi_init_t), intent(in), pointer :: func
-    call cm_set_function(cm,'MPI_Init'//char(0),c_funloc(func))
-end subroutine cm_set_function_mpi_init
-subroutine cm_set_function_mpi_comm_disconnect(cm,func)
-    use iso_c_binding
-    type(c_ptr), intent(in), value :: cm
-    procedure(mpi_comm_disconnect_t), intent(in), pointer :: func
-    call cm_set_function(cm,'MPI_Comm_disconnect'//char(0),c_funloc(func))
-end subroutine cm_set_function_mpi_comm_disconnect
-subroutine cm_set_function_mpi_comm_rank(cm,func)
-    use iso_c_binding
-    type(c_ptr), intent(in), value :: cm
-    procedure(mpi_comm_rank_t), intent(in), pointer :: func
-    call cm_set_function(cm,'MPI_Comm_rank'//char(0),c_funloc(func))
-end subroutine cm_set_function_mpi_comm_rank
-subroutine cm_set_function_mpi_comm_size(cm,func)
-    use iso_c_binding
-    type(c_ptr), intent(in), value :: cm
-    procedure(mpi_comm_size_t), intent(in), pointer :: func
-    call cm_set_function(cm,'MPI_Comm_size'//char(0),c_funloc(func))
-end subroutine cm_set_function_mpi_comm_size
 subroutine cm_set_function_mpi_send(cm,func)
     use iso_c_binding
     type(c_ptr), intent(in), value :: cm
@@ -592,15 +546,15 @@ subroutine cm_set_function_mpi_recv(cm,func)
     procedure(mpi_recv_t), intent(in), pointer :: func
     call cm_set_function(cm,'MPI_Recv'//char(0),c_funloc(func))
 end subroutine cm_set_function_mpi_recv
-subroutine app_exchange_solu_wapper(app, getter, setter, time, user_data)
+
+subroutine app_set_field_func_wapper(app, getter, setter)
     use iso_c_binding
-    type(c_ptr),    intent(in), value :: app
+    type(c_ptr), intent(in), value :: app
     procedure(get_boundary_field_t), intent(in), pointer :: getter
     procedure(set_boundary_field_t), intent(in), pointer :: setter
-    real(c_double), intent(in), value :: time
-    type(c_ptr),    intent(in), value :: user_data
-    call app_exchange_solu(app,c_funloc(getter),c_funloc(setter),time,user_data)
-end subroutine app_exchange_solu_wapper
+    call app_set_field_func(app,c_funloc(getter),c_funloc(setter))
+end subroutine app_set_field_func_wapper
+
 !#endif
 
 end module easyfsi

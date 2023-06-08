@@ -1,8 +1,5 @@
 LIBRARY
 EXPORTS
-set_allocator
-allocate
-deallocate
 
 dv_new
 dv_delete

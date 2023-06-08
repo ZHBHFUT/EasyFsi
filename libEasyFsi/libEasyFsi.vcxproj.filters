@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="IndexSet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -52,9 +49,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="EasyFsi.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TecplotFile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FluentCommunicator.cpp">
@@ -137,19 +131,10 @@
     <ClInclude Include="EasyFsi.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="TecplotFile.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="dll.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="DynamicArray.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Memory.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RandomAccessIterator.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Inline.hpp">

@@ -1,4 +1,33 @@
 #pragma once
+/*-------------------------------------------------------------------------
+This software is provided 'as-is', without any express or implied warranty.
+In no event will the authors be held liable for any damages arising from
+the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+2. Altered source versions must be plainly marked as such, and must not
+   be misrepresented as being the original software.
+
+3. This notice may not be removed or altered from any source distribution.
+-------------------------------------------------------------------------*/
+
+//!-------------------------------------------------------------
+//! @file       KDTree.hpp
+//!             The definition KDTree class.
+//! @author     ZHANG Bing, zhangbing@hfut.edu.cn
+//! @version    1.0
+//! @copyright  2023, all rights reserved.
+//! @data       2023-06-08
+//!-------------------------------------------------------------
+
 #include <algorithm>
 #include <numeric>
 #include <array>
@@ -6,11 +35,10 @@
 #include <omp.h>
 
 #include "Assert.hpp"
-#include "DynamicArray.hpp"
 
 namespace EasyLib {
 
-    //! @brief A fast k-dimension tree class for nearest neighbor searching. Algorithm is derived from ANN kd-tree.
+    //! @brief A fast k-dimension tree for nearest neighbor searching based on ANN kd-tree.
     //! @tparam CoordType  The coordinate type, default is double.
     //! @tparam NDIM       The dimension of data, default is 3.
     //! @tparam SizeType   Data type used for indexing, default is size_t.
@@ -29,26 +57,26 @@ namespace EasyLib {
         static constexpr coord_type ERR = 0.001;
         static constexpr coord_type INF = std::numeric_limits<coord_type>::max();
 
-        //! @brief 默认构造函数，产生一个空的 KDTree
+        //! @brief default constructor
         KDTree() = default;
 
-        //! @brief 拷贝构造函数
+        //! @brief copy constructor
         KDTree(const KDTree& tree)
         {
             copy_from_(tree);
         }
 
-        //! @brief 移动构造函数
+        //! @brief move constructor
         KDTree(KDTree&& tree)noexcept
         {
             move_(std::move(tree));
         }
 
-        //! @brief 构造函数
-        //! @param coords 点坐标，存储顺序为：[x0,y0,..., x1,y1,..., ..., xn,yn,...]
-        //! @param npts   点个数
-        //! @param persistent 坐标数组是否是持久存储，默认为真，如果不是则在内部创建拷贝
-        //! @note 不允许存在坐标重合的两个或多个点.
+        //! @brief Constructor
+        //! @param coords Point coordinates array：[x0,y0,..., x1,y1,..., ..., xn,yn,...]
+        //! @param npts   Point number
+        //! @param persistent Is the coordinates array persistent storage? A copy will be maked if is false.
+        //! @note Coincide points are not allowed!
         KDTree(const coord_type* coords, size_type npts, bool persistent = true)
             :KDTree()
         {
@@ -68,10 +96,10 @@ namespace EasyLib {
             return *this;
         }
 
-        //! @brief 析构函数
+        //! @brief Destructor
         ~KDTree() = default;
 
-        //! @brief 删除所有数据
+        //! @brief Clear all data.
         void clear()
         {
             points_ = nullptr;
@@ -83,11 +111,11 @@ namespace EasyLib {
             points_stg_.clear();
         }
 
-        //! @brief 创建KDTree
-        //! @param coords     点坐标数组，存储顺序为: [x0,y0,..., x1,y1,..., ..., xn,yn,...]
-        //! @param npts       点个数
-        //! @param persistent 坐标数组是否是持久存储，默认为真，如果不是则在内部创建拷贝
-        //! @note 不允许存在坐标重合的两个或多个点
+        //! @brief Create the KDTree
+        //! @param coords     Point coordinates array: [x0,y0,..., x1,y1,..., ..., xn,yn,...]
+        //! @param npts       Point number
+        //! @param persistent Is the coordinates array persistent storage? A copy will be maked if is false.
+        //! @note Coincide points are not allowed!
         void create(const coord_type* coords, size_type npts, bool persistent = true)
         {
             // initialize
@@ -104,22 +132,23 @@ namespace EasyLib {
             root_ = build_(pidx_.data(), npts, bnd_box_lo, bnd_box_hi);
         }
 
-        //! @brief 搜索单个点指定个数的最临近点
-        //! @param q       待搜索点坐标
-        //! @param n_query 期望的最邻近点个数，不能超过当前KDTree中的点个数
-        //! @param idx     最临近点编号数组，长度至少为 n
-        //! @param dist_sq 与最邻近点距离的平方数组，长度至少为 n
-        //! @param eps     最近距离的相对容差，默认为0，也即精确最近
-        //! @return 最邻近点个数，应该为 n，除非树中的点数量少于搜索个数
-        size_type search(const coord_type* q, size_type n_query, size_type* idx, coord_type* dist_sq, coord_type eps = 0)const
+        //! @brief Finding nearest neighbors for one point
+        //! @param [in]  q       Coordinates of query point.
+        //! @param [in]  n_neigh Number of nearest neighbors
+        //! @param [out] idx     Nearest neighbor list
+        //! @param [out] dist_sq Nearest distance square
+        //! @param [in]  eps     Tolerance for nearest neighbor searching. Default is ZERO, which means precision nearest.
+        //! @return Number of actual nearest neighbor.
+        size_type search(const coord_type* q, size_type n_neigh, size_type* idx, coord_type* dist_sq, coord_type eps = 0)const
         {
-            ASSERT(n_query <= static_cast<size_type>(pidx_.size()));
-            if (n_query <= 0)return 0;
+            ASSERT(n_neigh <= static_cast<size_type>(pidx_.size()));
+            n_neigh = std::min(n_neigh, static_cast<size_type>(pidx_.size()));
+            if (n_neigh <= 0)return 0;
 
             // query data structure
             KDQuery Q{
                 q,                         // q
-                n_query,                   // n_query
+                n_neigh,                   // n_neigh
                 0,                         // n_found
                 dist_sq,                   // key
                 idx,                       // info
@@ -144,21 +173,22 @@ namespace EasyLib {
             return Q.n_found;
         }
 
-        //! @brief 搜索多个点指定个数的最临近点
-        //! @param n_pnts  待搜索点个数
-        //! @param pnts    待搜索点坐标数组，存储顺序为: [x0,y0,..., x1,y1,..., ..., xn,yn,...]
-        //! @param n_query 期望的最邻近点个数，不能超过当前KDTree中的点个数
-        //! @param idx     最临近点编号数组，存储顺序为: [n0_0,n0_1,..., n1_0,n1_1,..., ..., nn_0,nn_1,...]
-        //! @param dist_sq 与最邻近点距离的平方数组，存储顺序为: [d0_0,d0_1,..., d1_0,d1_1,..., ..., dn_0,dn_1,...]
-        //! @param eps     最近距离的相对容差，默认为0，也即精确最近
-        void search(size_type n_pnts, const coord_type* pnts, size_type n_query, size_type* idxs, coord_type* dist_sq, coord_type eps = 0)const
+        //! @brief Finding nearest neighbors for given points.
+        //! @param [in]  n_pnts  Number of query points
+        //! @param [in]  pnts    Coordinate array of query points: [x0,y0,..., x1,y1,..., ..., xn,yn,...]
+        //! @param [in]  n_neigh Number of nearest neighbors of each query point
+        //! @param [out] idx     Nearest neighbor list: [n0_0,n0_1,..., n1_0,n1_1,..., ..., nn_0,nn_1,...]
+        //! @param [out] dist_sq Nearest distance square: [d0_0,d0_1,..., d1_0,d1_1,..., ..., dn_0,dn_1,...]
+        //! @param [in]  eps     Tolerance for nearest neighbor searching. Default is ZERO, which means precision nearest.
+        void search(size_type n_pnts, const coord_type* pnts, size_type n_neigh, size_type* idxs, coord_type* dist_sq, coord_type eps = 0)const
         {
-            ASSERT(n_query <= static_cast<size_type>(pidx_.size()));
-            if (n_pnts <= 0 || n_query < 0)return;
+            ASSERT(n_neigh <= static_cast<size_type>(pidx_.size()));
+            n_neigh = std::min(n_neigh, static_cast<size_type>(pidx_.size()));
+            if (n_pnts <= 0 || n_neigh < 0)return;
 
             KDQuery Q{
                     pnts,                        // q
-                    n_query,                     // n_query
+                    n_neigh,                     // n_neigh
                     0,                           // n_found
                     dist_sq,                     // key
                     idxs,                        // info
@@ -186,43 +216,44 @@ namespace EasyLib {
                 search_(root_, Q, box_dist);
 
                 // fill other
-                for (size_type j = Q.n_found; j < Q.n_query; ++j) {
+                for (size_type j = Q.n_found; j < Q.n_neigh; ++j) {
                     Q.key[j] = INF;
                     Q.info[j] = -1;
                 }
 
                 Q.q += ND;
                 Q.n_found = 0;
-                Q.key += n_query;
-                Q.info += n_query;
+                Q.key += n_neigh;
+                Q.info += n_neigh;
                 Q.n_visited = 0;
             }
         }
 
-        //! @brief 使用 OpenMP 加速搜索多个点指定个数的最临近点
-        //! @param n_pnts  待搜索点个数
-        //! @param pnts    待搜索点坐标数组，存储顺序为: [x0,y0,..., x1,y1,..., ..., xn,yn,...]
-        //! @param n_query 期望的最邻近点个数，不能超过当前KDTree中的点个数
-        //! @param idx     最临近点编号数组，存储顺序为: [n0_0,n0_1,..., n1_0,n1_1,..., ..., nn_0,nn_1,...]
-        //! @param dist_sq 与最邻近点距离的平方数组，存储顺序为: [d0_0,d0_1,..., d1_0,d1_1,..., ..., dn_0,dn_1,...]
-        //! @param eps     最近距离的相对容差，默认为0，也即精确最近
-        void search_omp(size_type n_pnts, const coord_type* pnts, size_type n_query, size_type* idxs, coord_type* dist_sq, coord_type eps = 0)const
+        //! @brief Using OpenMP to finding nearest neighbors.
+        //! @param [in]  n_pnts  Number of query points
+        //! @param [in]  pnts    Coordinate array of query points: [x0,y0,..., x1,y1,..., ..., xn,yn,...]
+        //! @param [in]  n_neigh Number of nearest neighbors of each query point
+        //! @param [out] idx     Nearest neighbor list: [n0_0,n0_1,..., n1_0,n1_1,..., ..., nn_0,nn_1,...]
+        //! @param [out] dist_sq Nearest distance square: [d0_0,d0_1,..., d1_0,d1_1,..., ..., dn_0,dn_1,...]
+        //! @param [in]  eps     Tolerance for nearest neighbor searching. Default is ZERO, which means precision nearest.
+        void search_omp(size_type n_pnts, const coord_type* pnts, size_type n_neigh, size_type* idxs, coord_type* dist_sq, coord_type eps = 0)const
         {
-            ASSERT(n_query <= static_cast<size_type>(pidx_.size()));
-            if (n_pnts <= 0 || n_query < 0)return;
+            ASSERT(n_neigh <= static_cast<size_type>(pidx_.size()));
+            n_neigh = std::min(n_neigh, static_cast<size_type>(pidx_.size()));
+            if (n_pnts <= 0 || n_neigh < 0)return;
 
 #pragma omp parallel
             {
-                int nt = omp_get_num_threads(); // 线程总数
-                int it = omp_get_thread_num();  // 当前线程编号
-                int dt = (n_pnts + (size_type)nt - 1) / nt; // 每个线程的任务数量
+                int nt = omp_get_num_threads(); // number of threads
+                int it = omp_get_thread_num();  // id of current thread
+                int dt = (n_pnts + (size_type)nt - 1) / nt; // task number of each thread
 
                 KDQuery Q{
                     pnts + ND * it * dt,         // q
-                    n_query,                     // n_query
+                    n_neigh,                     // n_neigh
                     0,                           // n_found
-                    dist_sq + it * dt * n_query, // key
-                    idxs + it * dt * n_query,    // info
+                    dist_sq + it * dt * n_neigh, // key
+                    idxs + it * dt * n_neigh,    // info
                     (1.0 + eps) * (1.0 + eps),   // max_err
                     0                            // n_visited
                 };
@@ -247,40 +278,40 @@ namespace EasyLib {
                     search_(root_, Q, box_dist);
 
                     // fill other
-                    for (size_type j = Q.n_found; j < Q.n_query; ++j) {
+                    for (size_type j = Q.n_found; j < Q.n_neigh; ++j) {
                         Q.key[j] = INF;
                         Q.info[j] = -1;
                     }
 
                     Q.q += ND;
                     Q.n_found = 0;
-                    Q.key += n_query;
-                    Q.info += n_query;
+                    Q.key += n_neigh;
+                    Q.info += n_neigh;
                     Q.n_visited = 0;
                 }
             }
         }
 
-        //! @brief KDTree是否为空
+        //! @brief Is this KDTree empty?
         bool empty()const noexcept { return pidx_.empty(); }
 
-        //! @brief 获取 KDTree 中的数据点数量
+        //! @brief get number of points
         //! @return 
         size_type size()const noexcept { return static_cast<size_type>(pidx_.size()); }
 
-        //! @brief 获取 KDTree 数据点坐标数据指针
+        //! @brief get address of the coordinates array
         const coord_type* data()const { return reinterpret_cast<const coord_type*>(points_); }
 
-        //! @brief 获取 KDTree 包围盒（坐标范围）下限
+        //! @brief get lower of the bounding box
         const point_type& bbox_lo()const noexcept { return bnd_box_lo_; }
 
-        //! @brief 获取 KDTree 包围盒（坐标范围）上限
+        //! @brief get upper of the bounding box
         const point_type& bbox_hi()const noexcept { return bnd_box_hi_; }
 
-        //! @brief 获取 KDTree 指定编号点坐标
+        //! @brief get point coordinates
         const point_type& point(size_type i)const { ASSERT(i >= 0 && i < pidx_.size()); return points_[i]; }
 
-        //! @brief 获取 KDTree 几何维度
+        //! @brief get dimension of the KDTree
         constexpr size_t ndim()const noexcept { return NDIM; }
 
     private:
@@ -297,7 +328,7 @@ namespace EasyLib {
         struct KDQuery
         {
             const coord_type* q;
-            size_type         n_query;
+            size_type         n_neigh;
             size_type         n_found;
             coord_type* key;
             size_type* info;
@@ -505,7 +536,7 @@ namespace EasyLib {
                 ++Q.n_visited;
 
                 // k-th smallest distance so far
-                coord_type min_dist = Q.n_found == Q.n_query ? Q.key[Q.n_query - 1] : INF; //min_dist = ANNkdPointMK->max_key();
+                coord_type min_dist = Q.n_found == Q.n_neigh ? Q.key[Q.n_neigh - 1] : INF; //min_dist = ANNkdPointMK->max_key();
 
                 // check points in bucket
                 auto pp = node->point->data();// first coord of next data point
@@ -525,18 +556,18 @@ namespace EasyLib {
                     size_type i = Q.n_found;
                     for (; i > 0; --i) {
                         if (Q.key[i - 1] > dist) {
-                            if (i < Q.n_query) {
+                            if (i < Q.n_neigh) {
                                 Q.key[i] = Q.key[i - 1];
                                 Q.info[i] = Q.info[i - 1];
                             }
                         }
                         else break;
                     }
-                    if (i < Q.n_query) {
+                    if (i < Q.n_neigh) {
                         Q.key[i] = dist;
                         Q.info[i] = static_cast<size_type>(node->point - points_);
                     }
-                    if (Q.n_found < Q.n_query)++Q.n_found;
+                    if (Q.n_found < Q.n_neigh)++Q.n_found;
 
                     min_dist = Q.key[Q.n_found - 1];
                 }
@@ -562,7 +593,7 @@ namespace EasyLib {
                     box_dist += cut_diff * cut_diff - box_diff * box_diff;
 
                     // visit further child if close enough
-                    if (box_dist * Q.max_err < (Q.n_found == Q.n_query ? Q.key[Q.n_query - 1] : INF)) {
+                    if (box_dist * Q.max_err < (Q.n_found == Q.n_neigh ? Q.key[Q.n_neigh - 1] : INF)) {
                         search_(node->child[HI], Q, box_dist);
                     }
                 }
@@ -578,7 +609,7 @@ namespace EasyLib {
                     box_dist += cut_diff * cut_diff - box_diff * box_diff;
 
                     // visit further child if close enough
-                    if (box_dist * Q.max_err < (Q.n_found == Q.n_query ? Q.key[Q.n_query - 1] : INF)) {
+                    if (box_dist * Q.max_err < (Q.n_found == Q.n_neigh ? Q.key[Q.n_neigh - 1] : INF)) {
                         search_(node->child[LO], Q, box_dist);
                     }
                 }
@@ -636,10 +667,10 @@ namespace EasyLib {
     private:
         const point_type* points_{ nullptr };
         KDNode* root_{ nullptr };
-        point_type                  bnd_box_lo_{ 0 };
-        point_type                  bnd_box_hi_{ 0 };
-        DynamicArray<size_type, 1>  pidx_;
-        DynamicArray<KDNode, 1>     nodes_;
-        DynamicArray<point_type, 1> points_stg_;
+        point_type              bnd_box_lo_{ 0 };
+        point_type              bnd_box_hi_{ 0 };
+        std::vector<size_type>  pidx_;
+        std::vector<KDNode>     nodes_;
+        std::vector<point_type> points_stg_;
     };
 }

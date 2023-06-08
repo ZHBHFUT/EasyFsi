@@ -114,7 +114,7 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
@@ -135,7 +135,7 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4819;4251;4267</DisableSpecificWarnings>
@@ -157,7 +157,7 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4819;4251;4267</DisableSpecificWarnings>
@@ -182,17 +182,10 @@
     <ClCompile Include="Interpolator.cpp" />
     <ClCompile Include="LinAlgs.c" />
     <ClCompile Include="Logger.cpp" />
-    <ClCompile Include="main.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugDll|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseDll|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="Memory.cpp" />
     <ClCompile Include="MeshConnectivity.cpp" />
     <ClCompile Include="MPICommunicator.cpp" />
     <ClCompile Include="SocketCommunicator.cpp" />
-    <ClCompile Include="TecplotFile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp" />
@@ -202,7 +195,6 @@
     <ClInclude Include="Communicator.hpp" />
     <ClInclude Include="CoupledRegion.hpp" />
     <ClInclude Include="DistributedBoundary.hpp" />
-    <ClInclude Include="dll.h" />
     <ClInclude Include="DynamicArray.hpp" />
     <ClInclude Include="DynamicMatrix.hpp" />
     <ClInclude Include="DynamicVector.hpp" />
@@ -220,9 +212,7 @@
     <ClInclude Include="MeshConnectivity.hpp" />
     <ClInclude Include="MPICommunicator.hpp" />
     <ClInclude Include="ProjectToElement.hpp" />
-    <ClInclude Include="RandomAccessIterator.hpp" />
     <ClInclude Include="SocketCommunicator.hpp" />
-    <ClInclude Include="TecplotFile.hpp" />
     <ClInclude Include="TinyMatrix.hpp" />
     <ClInclude Include="TinyVector.hpp" />
   </ItemGroup>
