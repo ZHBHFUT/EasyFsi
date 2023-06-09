@@ -5,12 +5,8 @@
 
 <!-- PROJECT SHIELDS -->
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
+
 
 <!-- PROJECT LOGO -->
 <br />
@@ -70,7 +66,8 @@ TBD
 
 ### Built With
 
-* [![visualstudio][visualstudio-img]][visualstudio-url]
+* [![Visual Studio][visualstudio-img]][visualstudio-url]
+* [![pybind11][pybind11-img]][pybind11-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -96,8 +93,8 @@ _Below is an example of how you can instruct your audience on installing and set
    git clone https://github.com/ZHBHFUT/EasyFsi.git
    ```
 3. Open `EasyFsi.sln` and build all projects.
-4. Include `EasyFsi.h` to your C/C++ project, see `example.cpp` to use it.
-5. Or use it in your python script, see `example.py`.
+4. Include `EasyFsi.h` to your C/C++ project, see `example.cpp`.
+5. Use `import EasyFsi` in your python script, see `example.py`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -111,9 +108,10 @@ See `example.cpp` and `example.py` to find out how to use this library.
 <!-- ROADMAP -->
 ## Roadmap
 
-- [x] Add Changelog
-- [x] Implement the `CoupledRegion` class
-- [ ] Add Additional Templates w/ Examples
+- [ ] Add Changelog
+- [ ] Add MATLAB binding
+- [ ] Implement the `CoupledRegion` class
+- [ ] Add additional interpolation method
 - [ ] Add document
 
 See the [open issues](https://github.com/ZHBHFUT/EasyFsi/issues) for a full list of proposed features (and known issues).
@@ -161,17 +159,9 @@ TBD
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/othneildrew/Best-README-Template.svg?style=for-the-badge
-[contributors-url]: https://github.com/othneildrew/Best-README-Template/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/othneildrew/Best-README-Template.svg?style=for-the-badge
-[forks-url]: https://github.com/othneildrew/Best-README-Template/network/members
-[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=for-the-badge
-[stars-url]: https://github.com/othneildrew/Best-README-Template/stargazers
-[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=for-the-badge
-[issues-url]: https://github.com/othneildrew/Best-README-Template/issues
-[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
-[license-url]: https://github.com/othneildrew/Best-README-Template/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/othneildrew
+[license-shield]: https://github.com/ZHBHFUT/EasyFsi/images/LICENSE-MIT.svg?style=for-the-badge
+[license-url]: https://mit-license.org/
 [visualstudio-img]: https://visualstudio.microsoft.com/wp-content/uploads/2021/10/Product-Icon.svg
 [visualstudio-url]: https://visualstudio.microsoft.com
+[pybind11-img]:https://github.com/pybind/pybind11/raw/master/docs/pybind11-logo.png
+[pybind11-url]:https://github.com/pybind/pybind11
