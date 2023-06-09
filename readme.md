@@ -69,7 +69,6 @@ Why use this library?
 ### Built With
 
 * [Visual Studio][visualstudio-url]
-* [pybind11][pybind11-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -162,7 +161,7 @@ TBD
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[license-shield]: https://github.com/ZHBHFUT/EasyFsi/images/LICENSE-MIT.svg?style=for-the-badge
+[license-shield]: https://github.com/ZHBHFUT/EasyFsi/blob/master/images/LICENSE-MIT.svg?style=for-the-badge
 [license-url]: https://mit-license.org/
 [visualstudio-img]: https://visualstudio.microsoft.com/wp-content/uploads/2021/10/Product-Icon.svg
 [visualstudio-url]: https://visualstudio.microsoft.com
