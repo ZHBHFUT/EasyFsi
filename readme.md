@@ -5,14 +5,11 @@
 
 <!-- PROJECT SHIELDS -->
 
-[![MIT License][license-shield]][license-url]
-
-
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
   <a href="https://github.com/ZHBHFUT/EasyFsi">
-    <img src="images/logo.png" alt="Logo" width="311" height="288">
+    <img src="images/logo.png" alt="Logo" width="155" height="144">
   </a>
 
   <h3 align="center">EasyFsi Library</h3>
@@ -66,8 +63,8 @@ TBD
 
 ### Built With
 
-* [![Visual Studio][visualstudio-img]][visualstudio-url]
-* [![pybind11][pybind11-img]][pybind11-url]
+* [![Visual Studio]][visualstudio-url]
+* [![pybind11]][pybind11-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -88,13 +85,14 @@ This is an example of how to list things you need to use the software and how to
 _Below is an example of how you can instruct your audience on installing and setting up your app. This template doesn't rely on any external dependencies or services._
 
 1. Install Visual Studio with C++20
-2. Clone the repo
+2. Install pybind11 if you need python binding
+3. Clone the repo
    ```sh
    git clone https://github.com/ZHBHFUT/EasyFsi.git
    ```
-3. Open `EasyFsi.sln` and build all projects.
-4. Include `EasyFsi.h` to your C/C++ project, see `example.cpp`.
-5. Use `import EasyFsi` in your python script, see `example.py`.
+4. Open `EasyFsi.sln` and build all projects.
+5. Include `EasyFsi.h` to your C/C++ project, see `example.cpp`.
+6. Use `import EasyFsi` in your python script, see `example.py`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
