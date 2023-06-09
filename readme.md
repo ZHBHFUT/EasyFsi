@@ -17,10 +17,10 @@
   <p align="center">
     An flexable toolkit for solving FSI or multi-physics coupling problem!
     <br />
-    <a href="https://github.com/ZHBHFUT/EasyFsi/EasyFsi.md"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/ZHBHFUT/EasyFsi/blob/master/EasyFsi.md"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/ZHBHFUT/EasyFsi/demo.cpp">View Demo</a>
+    <a href="https://github.com/ZHBHFUT/EasyFsi/blob/master/demo.cpp">View Demo</a>
     <a href="https://github.com/ZHBHFUT/EasyFsi/issues">Report Bug</a>
     <a href="https://github.com/ZHBHFUT/EasyFsi/issues">Request Feature</a>
   </p>
@@ -102,9 +102,9 @@ _Below is an example of how you can instruct your audience on installing and set
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-See [`demo.cpp`](https://github.com/ZHBHFUT/EasyFsi/demo.cpp) and [`demo.py`](https://github.com/ZHBHFUT/EasyFsi/demo.cpp) to find out how to use this library.
+See [`demo.cpp`](https://github.com/ZHBHFUT/EasyFsi/blob/master/demo.cpp) and [`demo.py`](https://github.com/ZHBHFUT/EasyFsi/blob/master/demo.cpp) to find out how to use this library.
 
-More documents please see [`EasyFsi.md`](https://github.com/ZHBHFUT/EasyFsi/EasyFsi.md).
+More documents please see [`EasyFsi.md`](https://github.com/ZHBHFUT/EasyFsi/blob/master/EasyFsi.md).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
