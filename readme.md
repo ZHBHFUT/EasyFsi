@@ -55,7 +55,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-This library provides a flexible toolkit for integrating different solvers to solve fluid-structure interaction and other multiphysics coupling problems. It can be used to solve aeroelasticity, thermoaeroelasticity, etc.
+This library provides a flexible toolkit for integrating different solvers to solve fluid-structure interaction and other multiphysics coupling problems. It can be used to solve aeroelastic, aerothermoelastic, etc.
 
 Why use this library?
 + Suitable for MPI parallel computing, which automatically assembles distributed boundary
