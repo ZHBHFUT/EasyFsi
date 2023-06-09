@@ -1,9 +1,4 @@
 module easyfsi
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-!#ifdef HAVE_EASYFSI
 
 use iso_c_binding,only: c_int,c_float,c_double,c_long_long,c_char,c_ptr,c_funptr
 
@@ -31,38 +26,6 @@ enum, bind(c)
     enumerator :: QUAD8   = 5
     enumerator :: POLYGON = 6
 end enum
-
-!-----------------------------------------------------
-! function prototype of get_boundary_field
-!-----------------------------------------------------
-!
-! subroutine get_boundary_field(bd,name,ncomp,location,data,user_data)
-! !DEC$ ATTRIBUTES STDCALL
-!     use iso_c_binding, only: c_ptr,c_char
-!     type(c_ptr), intent(in), value :: bd
-!     character(kind=c_char), dimension(*), intent(in) :: name
-!     integer(kind=c_int), intent(in), value :: ncomp
-!     integer(kind(NodeCentered)), intent(in), value :: location
-!     real(kind=c_double), dimension(*), intent(out) :: data
-!     type(c_ptr), intent(in), value :: user_data
-! end subroutine
-!
-
-!-----------------------------------------------------
-! function prototype of set_boundary_field
-!-----------------------------------------------------
-!
-! subroutine set_boundary_field(bd,name,ncomp,location,data,user_data)
-! !DEC$ ATTRIBUTES STDCALL
-!     use iso_c_binding, only: c_ptr,c_char
-!     type(c_ptr), intent(in), value :: bd
-!     character(kind=c_char), dimension(*), intent(in) :: name
-!     integer(kind=c_int), intent(in), value :: ncomp
-!     integer(kind(NodeCentered)), intent(in), value :: location
-!     real(kind=c_double), dimension(*), intent(in) :: data
-!     type(c_ptr), intent(in), value :: user_data
-! end subroutine
-!
 
 interface
 
@@ -518,17 +481,17 @@ end function is_glist
 !-----------------------------------------
 ! interfaces for KdTree
 !-----------------------------------------
-
+!TBD
 
 !-----------------------------------------
 ! interfaces for DynamicMatrix
 !-----------------------------------------
-
+!TBD
 
 !-----------------------------------------
 ! interfaces for DynamicVector
 !-----------------------------------------
-
+!TBD
 
 end interface
 
@@ -554,7 +517,5 @@ subroutine app_set_field_func_wapper(app, getter, setter)
     procedure(set_boundary_field_t), intent(in), pointer :: setter
     call app_set_field_func(app,c_funloc(getter),c_funloc(setter))
 end subroutine app_set_field_func_wapper
-
-!#endif
 
 end module easyfsi

@@ -15,15 +15,13 @@
   <h3 align="center">EasyFsi Library</h3>
 
   <p align="center">
-    An awesome toolkit for solving FSI or multi-physics coupling problem!
+    An flexable toolkit for solving FSI or multi-physics coupling problem!
     <br />
-    <a href="https://github.com/ZHBHFUT/EasyFsi"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/ZHBHFUT/EasyFsi/EasyFsi.md"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/ZHBHFUT/EasyFsi">View Demo</a>
-    ·
+    <a href="https://github.com/ZHBHFUT/EasyFsi/demo.cpp">View Demo</a>
     <a href="https://github.com/ZHBHFUT/EasyFsi/issues">Report Bug</a>
-    ·
     <a href="https://github.com/ZHBHFUT/EasyFsi/issues">Request Feature</a>
   </p>
 </div>
@@ -57,14 +55,21 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-TBD
+This library provides a flexible toolkit for integrating different solvers to solve fluid-structure interaction and other multiphysics coupling problems. It can be used to solve aeroelasticity, thermoaeroelasticity, etc.
+
+Why use this library?
++ Suitable for MPI parallel computing, which automatically assembles distributed boundary
++ Implement many interpolation methods such as spline interpolation, ISO-parameteric inversion, geometric mapping, etc.
++ Communication between different solvers based on socket
++ No dependencies except pybind11
++ Easily integrated into C/C++, Fortran, Python, MATLAB solvers.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
 
-* [![Visual Studio]][visualstudio-url]
-* [![pybind11]][pybind11-url]
+* [Visual Studio][visualstudio-url]
+* [pybind11][pybind11-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -77,29 +82,29 @@ To get a local copy up and running follow these simple example steps.
 
 ### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
-* We need nothing
+* Visual Studio, make sure C++20 is supported
+* pybind11, if you need python binding
 
 ### Installation
 
 _Below is an example of how you can instruct your audience on installing and setting up your app. This template doesn't rely on any external dependencies or services._
 
-1. Install Visual Studio, make sure C++20 is supported
-2. Install pybind11 if you need python binding
-3. Clone the repo
+1. Clone the repo
    ```sh
    git clone https://github.com/ZHBHFUT/EasyFsi.git
    ```
-4. Open `EasyFsi.sln` and build all projects.
-5. Include `EasyFsi.h` to your C/C++ project, see `demo.cpp`.
-6. Use `import EasyFsi` in your python script, see `demo.py`.
+2. Open `EasyFsi.sln` and build all projects.
+3. Include `EasyFsi.h` to your C/C++ project, see `demo.cpp` for usage.
+4. Use `import EasyFsi` in your python script, see `demo.py` for usage.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-See `demo.cpp` and `demo.py` to find out how to use this library.
+See [`demo.cpp`](https://github.com/ZHBHFUT/EasyFsi/demo.cpp) and [`demo.py`](https://github.com/ZHBHFUT/EasyFsi/demo.cpp) to find out how to use this library.
+
+More documents please see [`EasyFsi.md`](https://github.com/ZHBHFUT/EasyFsi/EasyFsi.md).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
