@@ -14,7 +14,7 @@ void get_boundary_field(const Application* app, const Boundary* bd, const char* 
 {
     if (loc == NodeCentered){
         int nnode = bd_nnode(bd);
-        double p = data;
+        double* p = data;
         for(int node=0;node<nnode;++node,p+=ncomp){
             // TODO: read nodal field from solver and update output data
             p[0]=???;
@@ -25,7 +25,7 @@ void get_boundary_field(const Application* app, const Boundary* bd, const char* 
     }
     else{
         int nface = bd_nface(bd);
-        double p = data;
+        double* p = data;
         for(int face=0;face<nface;++face,p+=ncomp){
             // TODO: read face field from solver and update output data
             p[0]=???;
@@ -41,7 +41,7 @@ void set_boundary_field(const Application* app, const Boundary* bd, const char* 
 {
     if (loc == NodeCentered){
         int nnode = bd_nnode(bd);
-        double p = data;
+        double* p = data;
         for(int node=0;node<nnode;++node,p+=ncomp){
             // TODO: update nodal field by input data
             //... = p[0];
@@ -52,7 +52,7 @@ void set_boundary_field(const Application* app, const Boundary* bd, const char* 
     }
     else{
         int nface = bd_nface(bd);
-        double p = data;
+        double* p = data;
         for(int face=0;face<nface;++face,p+=ncomp){
             // TODO: update face field by input data
             //... = p[0];

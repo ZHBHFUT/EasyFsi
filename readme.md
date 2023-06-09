@@ -84,22 +84,22 @@ This is an example of how to list things you need to use the software and how to
 
 _Below is an example of how you can instruct your audience on installing and setting up your app. This template doesn't rely on any external dependencies or services._
 
-1. Install Visual Studio with C++20
+1. Install Visual Studio, make sure C++20 is supported
 2. Install pybind11 if you need python binding
 3. Clone the repo
    ```sh
    git clone https://github.com/ZHBHFUT/EasyFsi.git
    ```
 4. Open `EasyFsi.sln` and build all projects.
-5. Include `EasyFsi.h` to your C/C++ project, see `example.cpp`.
-6. Use `import EasyFsi` in your python script, see `example.py`.
+5. Include `EasyFsi.h` to your C/C++ project, see `demo.cpp`.
+6. Use `import EasyFsi` in your python script, see `demo.py`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-See `example.cpp` and `example.py` to find out how to use this library.
+See `demo.cpp` and `demo.py` to find out how to use this library.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
