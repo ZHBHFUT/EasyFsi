@@ -29,10 +29,10 @@ freely, subject to the following restrictions:
 //!-------------------------------------------------------------
 
 #include <array>
-#include <span>
 #include <vector>
 
 #include "Index.hpp"
+#include "Span.hpp"
 
 namespace EasyLib {
 
@@ -53,19 +53,19 @@ namespace EasyLib {
 
         void reserve(value_type max_nrow, value_type max_ndata);
 
-        std::span<value_type> push_back(value_type n, const value_type* data = nullptr);
-        std::span<value_type> push_back(std::span<const value_type> data);
-        std::span<value_type> push_back(const std::initializer_list<value_type>& list);
+        Span<value_type> push_back(value_type n, const value_type* data = nullptr);
+        Span<value_type> push_back(Span<const value_type> data);
+        Span<value_type> push_back(const std::initializer_list<value_type>& list);
 
         template<size_t N>
-        std::span<value_type> push_back(const value_type(&list)[N])
+        Span<value_type> push_back(const value_type(&list)[N])
         {
             static_assert(N > 0, "invalid array length");
             return this->push_back(N, list);
         }
 
         template<size_t N>
-        std::span<value_type> push_back(const std::array<value_type, N>& list)
+        Span<value_type> push_back(const std::array<value_type, N>& list)
         {
             static_assert(N > 0, "invalid array length");
             return this->push_back(N, list.data());
@@ -80,16 +80,16 @@ namespace EasyLib {
         inline const ivec& ia()const noexcept { return ia_; }
         inline const ivec& ja()const noexcept { return ja_; }
 
-        inline std::span<value_type> operator[](int row)
+        inline Span<value_type> operator[](int row)
         {
-            return std::span<value_type>{
+            return Span<value_type>{
                 ja_.data() + ia_.at(row),
                     static_cast<size_t>(ia_[row + 1] - ia_[row])
             };
         };
-        inline std::span<const value_type> operator[](int row)const
+        inline Span<const value_type> operator[](int row)const
         {
-            return std::span<const value_type>{
+            return Span<const value_type>{
                 ja_.data() + ia_.at(row),
                     static_cast<size_t>(ia_[row + 1] - ia_[row])
             };

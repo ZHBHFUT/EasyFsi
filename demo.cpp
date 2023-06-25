@@ -9,7 +9,7 @@ static Boundary*        bd0        = nullptr;
 // define helper functions for field reading and writing
 //-------------------------------------------------------
 
-//! @brief function used to reading outgoing field，invoked by Application
+//! @brief function used to reading outgoing fields invoked by Application
 void get_boundary_field(const Application* app, const Boundary* bd, const char* name, int ncomp, FieldLocation loc, double* data, void* user_data)
 {
     if (loc == NodeCentered){
@@ -36,7 +36,7 @@ void get_boundary_field(const Application* app, const Boundary* bd, const char* 
     }
 }
 
-//! @brief function used to writing incoming field，invoked by Application
+//! @brief function used to writing incoming fields invoked by Application
 void set_boundary_field(const Application* app, const Boundary* bd, const char* name, int ncomp, FieldLocation loc, const double* data, void* user_data)
 {
     if (loc == NodeCentered){
@@ -83,17 +83,13 @@ void init()
     
     // define coupled boundary
     bd0 = app_add_boundary(app);
-    // create boundary manually:
+    // 1) create boundary manually:
     // bd_add_node(bd0,x1,y1,z1,id1);
-    // bd_add_node(bd0,x2,y2,z2,id2);
     // ...
-    // bd_add_node(bd0,xN,yN,zN,idN);
     // bd_add_face(bd,ft1,nn1,nodes1);
-    // bd_add_face(bd,ft2,nn2,nodes2);
     // ...
-    // bd_add_face(bd,ftM,nnM,nodesM);
     //
-    // create boundary from Gmsh file:
+    // 2) create boundary from Gmsh file:
     // bd_read_gmsh(bd, "???.msh");
     
     bd_compute_metrics(bd0, 5.0);

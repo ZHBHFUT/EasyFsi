@@ -32,10 +32,10 @@ freely, subject to the following restrictions:
 #include <stdexcept>
 #include <array>
 #include <vector>
-#include <span>
 
 #include "Assert.hpp"
 #include "LinAlgs.h"
+#include "Span.hpp"
 #include "DynamicVector.hpp"
 
 namespace EasyLib {

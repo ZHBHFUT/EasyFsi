@@ -31,6 +31,7 @@ freely, subject to the following restrictions:
 #include <algorithm>
 
 #include "Assert.hpp"
+#include "Span.hpp"
 #include "MeshConnectivity.hpp"
 
 namespace EasyLib {
@@ -59,7 +60,7 @@ namespace EasyLib {
         ja_.reserve(max_ndata);
     }
 
-    std::span<int_l> MeshConnectivity::push_back(value_type n, const value_type* data/* = nullptr*/)
+    Span<int_l> MeshConnectivity::push_back(value_type n, const value_type* data/* = nullptr*/)
     {
         if (n < 0)n = 0;
 
@@ -68,22 +69,22 @@ namespace EasyLib {
         ja_.resize(ia_.back());
         if (n > 0 && data)std::copy(data, data + n, ja_.begin() + pos);
         return n > 0
-            ? std::span<int>(ja_.data() + pos, n)
-            : std::span<int>{};
+            ? Span<int>(ja_.data() + pos, n)
+            : Span<int>{};
     }
-    std::span<int_l> MeshConnectivity::push_back(std::span<const value_type> data)
+    Span<int_l> MeshConnectivity::push_back(Span<const value_type> data)
     {
         return push_back(static_cast<int_l>(data.size()), data.data());
     }
-    std::span<int_l> MeshConnectivity::push_back(const std::initializer_list<value_type>& list)
+    Span<int_l> MeshConnectivity::push_back(const std::initializer_list<value_type>& list)
     {
         auto pos = ia_.back();
         ia_.push_back(pos + static_cast<int_l>(list.size()));
         ja_.resize(ia_.back());
         if (list.size() > 0)std::copy(list.begin(), list.end(), ja_.begin() + pos);
         return list.size() > 0
-            ? std::span<int>(ja_.data() + pos, list.size())
-            : std::span<int>{};
+            ? Span<int>(ja_.data() + pos, list.size())
+            : Span<int>{};
     }
     void MeshConnectivity::flip(const MeshConnectivity& a2b, value_type nb, MeshConnectivity& b2a)
     {

@@ -31,7 +31,6 @@ freely, subject to the following restrictions:
 #include <cmath>
 #include <algorithm>
 #include <stdexcept>
-#include <span>
 
 #include "Index.hpp"
 #include "DynamicArray.hpp"

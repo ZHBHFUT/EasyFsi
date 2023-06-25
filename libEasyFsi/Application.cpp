@@ -310,15 +310,15 @@ namespace EasyLib {
                 // interpolate DOFs from remote
                 if (ip->source_app_id() == remote_app.rank && this_fd.iotype == IncomingDofs) {
                     ip->interp_dofs_s2t(
-                        std::span<Field* const>(remote_fields_.data(), remote_fields_.size()),
-                        std::span<Field*>(this_fields_.data(), this_fields_.size())
+                        make_span(remote_fields_.data(), remote_fields_.size()),
+                        make_span(this_fields_.data(), this_fields_.size())
                     );
                 }
                 // interpolate LOADs for this
                 else if (this_fd.iotype == IncomingLoads) {
                     ip->interp_load_t2s(
-                        std::span<Field* const>(remote_fields_.data(), remote_fields_.size()),
-                        std::span<Field*>(this_fields_.data(), this_fields_.size())
+                        make_span(remote_fields_.data(), remote_fields_.size()),
+                        make_span(this_fields_.data(), this_fields_.size())
                     );
                 }
                 else {

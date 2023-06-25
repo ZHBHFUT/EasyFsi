@@ -210,9 +210,12 @@
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Memory.hpp" />
     <ClInclude Include="MeshConnectivity.hpp" />
+    <ClInclude Include="ModelInterface.hpp" />
     <ClInclude Include="MPICommunicator.hpp" />
     <ClInclude Include="ProjectToElement.hpp" />
+    <ClInclude Include="RandomAccessIterator.hpp" />
     <ClInclude Include="SocketCommunicator.hpp" />
+    <ClInclude Include="Span.hpp" />
     <ClInclude Include="TinyMatrix.hpp" />
     <ClInclude Include="TinyVector.hpp" />
   </ItemGroup>

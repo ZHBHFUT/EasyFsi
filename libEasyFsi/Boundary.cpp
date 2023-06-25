@@ -31,7 +31,6 @@ freely, subject to the following restrictions:
 #include <numbers>  // std::numeric_limits<double>::max();
 #include <iomanip>
 #include <fstream>  // see Boundary::read_gmsh
-#include <span>
 #include <set>      // see Boundary::create_edges_
 
 #include "Logger.hpp"
@@ -289,7 +288,7 @@ namespace EasyLib {
 
         if (np <= 1) { return ZS_POINT; }
 
-        std::span<const vec3> pnts(reinterpret_cast<const vec3*>(xyz), np);
+        Span<const vec3> pnts(reinterpret_cast<const vec3*>(xyz), np);
 
         auto& axis_x = vec3::view(mt4x4_g2l, 0); // x轴
         auto& axis_y = vec3::view(mt4x4_g2l, 4); // y轴
@@ -1087,7 +1086,7 @@ namespace EasyLib {
         xps_computed_ = true;
     }
 
-    void Boundary::compute_global_xps_interp_coeff(const vec3& p, std::span<double> coeff)
+    void Boundary::compute_global_xps_interp_coeff(const vec3& p, Span<double> coeff)
     {
         if (node_num() == 0)return;
         if (!xps_computed_)compute_global_xps_matrix();
@@ -1128,7 +1127,7 @@ namespace EasyLib {
         }
     }
 
-    void Boundary::compute_local_xps_interp_coeff(const vec3& p, int max_donor, std::span<int_l> ids, std::span<double> coeff, int& count, double min_dist_sq/* = 1E-20*/)
+    void Boundary::compute_local_xps_interp_coeff(const vec3& p, int max_donor, Span<int_l> ids,Span<double> coeff, int& count, double min_dist_sq/* = 1E-20*/)
     {
         constexpr const int stride = 3;
         constexpr const int np_des = 1;

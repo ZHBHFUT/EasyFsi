@@ -31,7 +31,6 @@ freely, subject to the following restrictions:
 #include <type_traits>
 #include <algorithm>
 #include <numeric>
-#include <span>
 #include <array>
 #include <stdexcept>
 #include <vector>
@@ -39,6 +38,7 @@ freely, subject to the following restrictions:
 #include "Assert.hpp"
 #include "Index.hpp"
 #include "Inline.hpp"
+#include "Span.hpp"
 
 namespace EasyLib {
 
@@ -404,8 +404,8 @@ namespace EasyLib {
 
         reference       operator()(size_type i)      noexcept { ASSERT(i >= 0 && i < extent_[0] * extent_[1]); return data_[i]; }
         const_reference operator()(size_type i)const noexcept { ASSERT(i >= 0 && i < extent_[0] * extent_[1]); return data_[i]; }
-        auto operator[](size_type i)      noexcept { ASSERT(i >= 0 && i < extent_[0] * extent_[1]); return std::span<    element_type>(data() + i * extent_[1], extent_[1]); }
-        auto operator[](size_type i)const noexcept { ASSERT(i >= 0 && i < extent_[0] * extent_[1]); return std::span<const value_type>(data() + i * extent_[1], extent_[1]); }
+        auto operator[](size_type i)      noexcept { ASSERT(i >= 0 && i < extent_[0] * extent_[1]); return make_span(data() + i * extent_[1], extent_[1]); }
+        auto operator[](size_type i)const noexcept { ASSERT(i >= 0 && i < extent_[0] * extent_[1]); return make_span(data() + i * extent_[1], extent_[1]); }
         reference       operator()(size_type i, size_type j)      noexcept { ASSERT(i >= 0 && i < extent_[0] && j >= 0 && j < extent_[1]); return data_[i * extent_[1] + j]; }
         const_reference operator()(size_type i, size_type j)const noexcept { ASSERT(i >= 0 && i < extent_[0] && j >= 0 && j < extent_[1]); return data_[i * extent_[1] + j]; }
         //reference       operator[](size_type i, size_type j)      noexcept { ASSERT(i >= 0 && i < extent_[0] && j >= 0 && j < extent_[1]); return data_[i * extent_[1] + j]; }

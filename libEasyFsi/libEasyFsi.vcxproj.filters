@@ -143,6 +143,15 @@
     <ClInclude Include="ByteSwap.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ModelInterface.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Span.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RandomAccessIterator.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="libEasyFsi.def">

@@ -189,7 +189,7 @@ namespace EasyLib {
         //! @brief Compute global IPS/TPS/SPLINE interpolation coefficients for one point.
         //! @param [in]  p      Coordinates of the target point.
         //! @param [out] coeff  Coefficients used to do interpolating.
-        void compute_global_xps_interp_coeff(const vec3& p, std::span<double> coeff);
+        void compute_global_xps_interp_coeff(const vec3& p, Span<double> coeff);
 
         //! @brief Compute local IPS/TPS/SPLINE interpolation coefficients for one point.
         //! @param [in]  p           Coordinates of the target point.
@@ -198,7 +198,7 @@ namespace EasyLib {
         //! @param [out] coeff       Coefficients used to do interpolating.
         //! @param [out] n_donor     Actual number of donor points.
         //! @param [in]  min_dist_sq The minimum squared-distance to determine whether two points coincide.
-        void compute_local_xps_interp_coeff(const vec3& p, int max_donor, std::span<int_l> ids, std::span<double> coeff, int& n_donor, double min_dist_sq = 1E-20);
+        void compute_local_xps_interp_coeff(const vec3& p, int max_donor, Span<int_l> ids, Span<double> coeff, int& n_donor, double min_dist_sq = 1E-20);
 
         //! @brief Compute interpolation coefficients for one point using element projection method.
         //! @param [in]  p           Coordinates of the target point.

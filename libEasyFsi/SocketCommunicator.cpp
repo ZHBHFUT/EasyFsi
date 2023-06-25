@@ -352,13 +352,13 @@ namespace EasyLib {
             for (int j = i + 1; j < size_; ++j) {
                 auto& q = connections_[j];
                 if (p.remote_host_name == q.remote_host_name) {
-                    q.remote_host_ip = p.remote_host_ip;
+                    q.remote_host_ip   = p.remote_host_ip;
                     q.remote_host_port = p.remote_host_port + static_cast<unsigned short>(j - i);
                 }
             }
         }
         host_name_ = connections_[rank_].remote_host_name;
-        host_ip_ = connections_[rank_].remote_host_ip;
+        host_ip_   = connections_[rank_].remote_host_ip;
         host_port_ = connections_[rank_].remote_host_port;
 
         // init server 
@@ -422,7 +422,7 @@ namespace EasyLib {
             }
         }
     }
-    
+
     void SocketCommunicator::disconnect()
     {
         if (!is_connected_)return;

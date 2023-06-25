@@ -87,7 +87,7 @@ namespace EasyLib {
         //! @param sources Field of source boundaries. size = source bounds number.
         //! @param targets Field of target boundaries. size = target bounds number.
         //! @note each of \sources field must be node-centered.
-        void interp_dofs_s2t(std::span<Field* const> sources, std::span<Field*> targets)const;
+        void interp_dofs_s2t(Span<Field* const> sources, Span<Field*> targets)const;
 
         //! @brief Compute incoming LOADs from target bounds to source bounds. 
         //! @param targets Field of target boundaries. size = target bounds number.
@@ -95,7 +95,7 @@ namespace EasyLib {
         //! @param fill_src_zeros_first  Whether or not to fill the source fields with zeros before computing.
         //! @note
         //!  + each of \sources field must be node-centered.
-        void interp_load_t2s(std::span<Field* const> targets, std::span<Field*> sources/*, bool fill_src_zeros_first = true*/)const;
+        void interp_load_t2s(Span<Field* const> targets, Span<Field*> sources/*, bool fill_src_zeros_first = true*/)const;
 
         //! @brief Compute nodal DOFs of target boundaries by source boundaries.
         //! @param [in]  ndof           DOF number

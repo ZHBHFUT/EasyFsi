@@ -301,8 +301,8 @@ namespace EasyLib {
                         bd_s->compute_local_xps_interp_coeff(
                             p,
                             max_donor_for_xps,
-                            std::span<int_l >(c.donor_nodes, max_donor_for_xps),
-                            std::span<double>(c.donor_weights, max_donor_for_xps),
+                            make_span(c.donor_nodes, max_donor_for_xps),
+                            make_span(c.donor_weights, max_donor_for_xps),
                             c.ndonor
                         );
 
@@ -319,8 +319,8 @@ namespace EasyLib {
                         bd_s->compute_local_xps_interp_coeff(
                             p,
                             max_donor_for_xps,
-                            std::span<int_l >(c.donor_nodes, max_donor_for_xps),
-                            std::span<double>(c.donor_weights, max_donor_for_xps),
+                            make_span(c.donor_nodes, max_donor_for_xps),
+                            make_span(c.donor_weights, max_donor_for_xps),
                             c.ndonor
                         );
 
@@ -333,7 +333,7 @@ namespace EasyLib {
         computed_ = true;
     }
 
-    void Interpolator::interp_dofs_s2t(std::span<Field* const> sources, std::span<Field*> targets)const
+    void Interpolator::interp_dofs_s2t(Span<Field* const> sources, Span<Field*> targets)const
     {
         if (source_bounds_.empty() || target_bounds_.empty())return;
         if (!computed_)error("coefficients are not computed!");
@@ -395,7 +395,7 @@ namespace EasyLib {
         }
     }
 
-    void Interpolator::interp_load_t2s(std::span<Field* const> targets, std::span<Field*> sources/*, bool fill_src_zeros_first = true*/)const
+    void Interpolator::interp_load_t2s(Span<Field* const> targets, Span<Field*> sources/*, bool fill_src_zeros_first = true*/)const
     {
         if (source_bounds_.empty() || target_bounds_.empty())return;
         if (!computed_)error("coefficients are not computed!");
