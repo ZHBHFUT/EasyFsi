@@ -41,6 +41,7 @@ freely, subject to the following restrictions:
 #include "KDTree.hpp"
 #include "DynamicMatrix.hpp"
 #include "Field.hpp"
+#include "ModelInterface.hpp"
 
 namespace EasyLib {
 
@@ -59,10 +60,10 @@ namespace EasyLib {
     //! @brief Node number of specific face topology.
     extern const int npf[POLYGON + 1];
 
-    //! @brief Maximum number of face.
+    //! @brief Maximum node number per face.
     inline constexpr int npf_max = 8;
 
-    //! @brief The order of face, 1=Linear，2=Quadratic
+    //! @brief The order of face, 1=Linear, 2=Quadratic
     extern const int face_order[POLYGON + 1];
 
     //! @brief Topology of coupled zone.
@@ -84,7 +85,7 @@ namespace EasyLib {
     }ZoneShape;
 
     //! @brief Coupled boundary class.
-    class Boundary
+    class Boundary : public ModelInterface
     {
     public:
         using dvec = DynamicVector;
@@ -112,7 +113,8 @@ namespace EasyLib {
         Boundary& operator = (const Boundary&) = default;
         Boundary(Boundary&& bd)noexcept;
         Boundary& operator = (Boundary&& bd)noexcept;
-        
+        virtual ~Boundary() = default;
+
         //! @brief Clear all boundary data.
         void clear();
 
@@ -122,34 +124,28 @@ namespace EasyLib {
         //! @param max_fnodes Maximum face-nodes number
         void reserve(int_l max_node, int_l max_face, int_l max_fnodes);
 
-        void set_name(std::string sname);
-
-        void set_user_id(int id);
-
-        inline int user_id()const noexcept { return user_id_; }
-
         //! @brief Add a node to boundary, and return it's local index.
         //! @param x Coordinate-x of the node
         //! @param y Coordinate-y of the node
         //! @param z Coordinate-z of the node
         //! @param global_id Global unique index of the node, used to distinguish node.
         //! @note Return old id if node with same global index already exists.
-        int add_node(double x, double y, double z, int_g global_id = -1);
+        int_l add_node(double x, double y, double z, int_g global_id = -1);
 
         //! @brief Add a node to boundary, and return it's local index.
         //! @param coord      Coordinates of the node
         //! @param global_id  Global unique index of the node, used to distinguish node.
         //! @note Return old id if node with same global index already exists.
-        int add_node(const vec3& coord, int_g global_id = -1);
+        int_l add_node(const vec3& coord, int_g global_id = -1);
 
         //! @brief Add a face to boundary, and return it's local index.
         //! @param type    Face shape.
         //! @param count   Node number of face, should be \npf[\type].
         //! @param fnodes  Local indices of face nodes.
         //! @return Return face index.
-        int add_face(FaceTopo type, int count, const int_l* fnodes);
-        int add_face(FaceTopo type, int count, const int_l* fnodes, double cx, double cy, double cz);
-        int add_face(FaceTopo type, int count, const int_l* fnodes, const vec3& fcent);
+        int_l add_face(FaceTopo type, int count, const int_l* fnodes);
+        int_l add_face(FaceTopo type, int count, const int_l* fnodes, double cx, double cy, double cz);
+        int_l add_face(FaceTopo type, int count, const int_l* fnodes, const vec3& fcent);
 
         //! @brief Modify node coordinates.
         //! @param id  Index of the node
@@ -209,15 +205,8 @@ namespace EasyLib {
         //! @param [in]  min_dist_sq The minimum squared-distance to determine whether two points coincide.
         void compute_project_interp_coeff(const vec3& p, int_l(&ids)[npf_max], double(&coeff)[npf_max], int& n_donor, double& dist_sq, double min_dist_sq = 1E-20);
 
-        //int find_nearest_points(const vec3& p, int n_query, int* nodes, double* dist_sq)const;
-
-        //void save(const char* file, const double* node_disp = nullptr)const;
-        void load(const char* file);
-        void save(const char* file)const;
-
-        //void read(const char* file);
-
-        //void read_init_coord(const char* file);
+        void load(const char* file)override;
+        void save(const char* file)const override;
 
         //! @brief Create boundary from GMSH file, just for testing.
         //! @param file GMSH file
@@ -234,8 +223,16 @@ namespace EasyLib {
         void make_tec_var_names(std::vector<std::string>& var_names)const;
         void write_tec_zone(std::ostream& os, int nvar, const char* var_names[])const;
 
-        //! @brief Get name of the boundary.
-        inline auto& name()const noexcept { return name_; }
+        //! @brief Get node number.
+        inline int_l nnode()const final { return nodes_.size(); }
+
+        inline int_l nelem()const final { return face_nodes_.nrow(); }
+
+        //! @brief Get face number.
+        inline int_l nface()const { return face_nodes_.nrow(); }
+
+        inline const IndexSet& nodes()const noexcept { return nodes_; }
+        inline const MeshConnectivity& face_nodes()const noexcept { return face_nodes_; }
 
         //! @brief Get topology of the boundary.
         inline auto topo()const { ASSERT(!mesh_changed_); return topo_; }
@@ -250,7 +247,7 @@ namespace EasyLib {
         inline bool contains_high_order_face()const noexcept { return face_count_[BAR3] || face_count_[TRI6] || face_count_[QUAD8]; }
 
         //! @brief Whether or not all faces are high-order element.
-        inline bool all_high_order()const { return face_num() > 0 && (face_count_[BAR3] + face_count_[TRI6] + face_count_[QUAD8] == face_num()); }
+        inline bool all_high_order()const { return nface() > 0 && (face_count_[BAR3] + face_count_[TRI6] + face_count_[QUAD8] == nface()); }
 
         //! @brief Get edges for surface boundary.
         inline auto& edges_for_surface()const noexcept { return edges_; }
@@ -260,15 +257,6 @@ namespace EasyLib {
 
         //! @brief Get maximum value of the node coordinate.
         inline const vec3& coords_max()const noexcept { ASSERT(!mesh_changed_); return coord_max_; }
-
-        //! @brief Get node number.
-        inline int_l node_num()const { return nodes_.size(); }
-
-        //! @brief Get face number.
-        inline int_l face_num()const { return face_nodes_.nrow(); }
-
-        inline const IndexSet& nodes()const noexcept { return nodes_; }
-        inline const MeshConnectivity& face_nodes()const noexcept { return face_nodes_; }
 
         inline const auto& node_coords   ()const noexcept { return node_coords_; }
         inline const auto& face_centroids()const noexcept { ASSERT(!mesh_changed_); return face_centroids_; }
@@ -281,18 +269,6 @@ namespace EasyLib {
 
         //! @brief Get face number of specified type.
         inline auto  face_type_num(FaceTopo ft)const noexcept { return face_count_[ft]; }
-
-        inline auto& fields()const noexcept { return fields_; }
-
-        Field&       field(const char* field_name);
-        const Field& field(const char* field_name)const;
-        Field&       field(const std::string& field_name);
-        const Field& field(const std::string& field_name)const;
-
-        std::pair<bool,       Field*> find_field(const char* field_name);
-        std::pair<bool, const Field*> find_field(const char* field_name)const;
-        std::pair<bool,       Field*> find_field(const std::string& field_name);
-        std::pair<bool, const Field*> find_field(const std::string& field_name)const;
 
         friend std::istream& operator >>(std::istream& is, Boundary& bd);
         friend std::ostream& operator <<(std::ostream& os, const Boundary& bd);
@@ -312,9 +288,6 @@ namespace EasyLib {
         void register_field(const FieldInfo& fd);
     
     private:
-        std::string      name_; //! The name of this boundary.
-        int              user_id_{ 0 };
-
         IndexSet         nodes_;//! The global index set of nodes.
         MeshConnectivity face_nodes_, node_faces_; //! The face-node connectivities.
         vvec             node_coords_;    //! The node coordinates array.

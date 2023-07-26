@@ -592,7 +592,7 @@ void py_get_bound_field(const EasyLib::Application* app, const EasyLib::Boundary
 {
     auto it = py_get_funcs.find(app);
     if (it != py_get_funcs.end()) {
-        int nrow = loc == EasyLib::NodeCentered ? bd->node_num() : bd->face_num();
+        int nrow = loc == EasyLib::NodeCentered ? bd->nnode() : bd->nface();
         // def py_get_bound_field_func(app, bound, field_name, location, mat, user_data)
         it->second(app, bd, name, loc, MatView{ nrow, ncomp, data, false }, (PyObject*)user_data);
     }
@@ -605,7 +605,7 @@ void py_set_bound_field(const EasyLib::Application* app, const EasyLib::Boundary
     auto it = py_get_funcs.find(app);
     if (it != py_get_funcs.end()) {
         // def py_get_bound_field_func(app, bound, field_name, location, mat, user_data)
-        int nrow = loc == EasyLib::NodeCentered ? bd->node_num() : bd->face_num();
+        int nrow = loc == EasyLib::NodeCentered ? bd->nnode() : bd->nface();
         it->second(app, bd, name, ncomp, loc, MatView{ nrow, ncomp, const_cast<double*>(data), true }, (PyObject*)user_data);
     }
     else {
@@ -627,7 +627,6 @@ PYBIND11_MODULE(EasyFsi, m) {
 
     py::enum_<EasyLib::FieldLocation>(m, "FieldLocation")
         .value("NodeCentered", EasyLib::FieldLocation::NodeCentered, "field stored at node")
-        .value("FaceCentered", EasyLib::FieldLocation::FaceCentered, "field stored at face")
         .value("CellCentered", EasyLib::FieldLocation::CellCentered, "field stored at cell")
         .export_values();
     py::enum_<EasyLib::FieldIO>(m, "FieldIO")
@@ -843,8 +842,9 @@ PYBIND11_MODULE(EasyFsi, m) {
         .def("contains_polygon", &Boundary::contains_polygon)
         .def("contains_high_order_face", &Boundary::contains_high_order_face)
         .def("all_high_order", &Boundary::all_high_order)
-        .def_property_readonly("nnode", &Boundary::node_num)
-        .def_property_readonly("nface", &Boundary::face_num)
+        .def_property_readonly("nnode", &Boundary::nnode)
+        .def_property_readonly("nface", &Boundary::nface)
+        .def_property_readonly("nelem", &Boundary::nelem)
         .def("get_field", bd_get_field, py::return_value_policy::reference)
         .def("node_coords",   [](Boundary& bound, int_l node) { return &bound.node_coords().at(node); }, py::return_value_policy::reference)
         .def("face_centroid", [](Boundary& bound, int_l face) { return &bound.face_centroids().at(face); }, py::return_value_policy::reference)
@@ -1003,11 +1003,14 @@ PYBIND11_MODULE(EasyFsi, m) {
         .def("add_source_boundary", &Interpolator::add_source_boundary)
         .def("add_target_boundary", &Interpolator::add_target_boundary)
         .def("compute_interp_coeff", &Interpolator::compute_interp_coeff)
+        .def("compute_interp_coeff", [](Interpolator& it, InterpolationMethod method) { it.compute_interp_coeff(method); })
+        .def("compute_interp_coeff", [](Interpolator& it) { it.compute_interp_coeff(); })
         .def("save_coefficients", &Interpolator::save_coefficients)
         .def("load_coefficients", &Interpolator::load_coefficients)
         .def("interp_all_dofs_s2t", &Interpolator::interp_all_dofs_s2t)
         .def("interp_all_load_t2s", &Interpolator::interp_all_load_t2s)
         .def("interp_dofs_s2t", [](Interpolator& it, py::str name) {it.interp_dofs_s2t(std::string(name).c_str()); })
         .def("interp_load_t2s", [](Interpolator& it, py::str name) {it.interp_load_t2s(std::string(name).c_str()); })
+        .def("interp_modal_results", [](Interpolator& it, py::str ifile, py::str ofile) {it.interp_modal_results(std::string(ifile).c_str(), std::string(ofile).c_str()); })
         ;
 }

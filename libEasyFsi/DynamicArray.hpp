@@ -88,16 +88,15 @@ namespace EasyLib {
         template<typename ... SizeTypes>
         DynamicArray(size_type m, size_type n, SizeTypes ... other_sizes)
             :
-            data_(m * (n *...* other_sizes)),
+            data_(m* (n *...* other_sizes)),
             extent_{ m,n,other_sizes... }
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
-    
+
             // update size info
-            stride_[RANK - 1] = 1;
-            for (size_type i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
-            }
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
+        }
     
         inline constexpr int           rank  ()const noexcept { return RANK; }
         inline constexpr size_type     extent(int rank_id)const  { return extent_[rank_id]; }
@@ -134,9 +133,8 @@ namespace EasyLib {
     
             // update size info
             extent_ = { m,n,other_sizes... };
-            stride_[RANK - 1] = 1;
-            for (int i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
         }
     
         void resize(const std::array<size_type, RANK>& size)
@@ -146,9 +144,8 @@ namespace EasyLib {
             
             // update size info
             extent_ = size;
-            stride_[RANK - 1] = 1;
-            for (int i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
         }
     
         template<typename ... Args>
@@ -159,9 +156,8 @@ namespace EasyLib {
             if (nelem != data_.size())throw std::invalid_argument("DynamicArray::reshape(), size not agree!");
     
             extent_ = { m,n,other_sizes... };
-            stride_[RANK - 1] = 1;
-            for (int i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
         }
     
         void reshape(const std::array<size_type, RANK>& size)
@@ -170,9 +166,8 @@ namespace EasyLib {
             if (nelem != data_.size())throw std::invalid_argument("DynamicArray::reshape(), size not agree!");
     
             extent_ = size;
-            stride_[RANK - 1] = 1;
-            for (int i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
         }
     
         void fill(const value_type& value)noexcept
@@ -250,11 +245,17 @@ namespace EasyLib {
             constexpr size_type idim = RANK - 1 - sizeof...(args);
             ASSERT(i0 >= 0 && i0 < std::get<idim>(extent_));
             if constexpr (sizeof...(Args) > 0)
-                return i0 * std::get<idim>(stride_) * map_1d_imp_(args...);
+                return i0 * std::get<idim>(stride_) + map_1d_imp_(args...);
             else
                 return i0 * stride_.back();
         }
-
+        void update_stride_()noexcept
+        {
+            stride_.back() = 1;
+            for (int idim = 1; idim < RANK; ++idim) {
+                stride_[RANK - idim - 1] = extent_[RANK - idim] * stride_[RANK - idim];
+            }
+        }
     private:
         std::vector<T>              data_;
         std::array<size_type, RANK> extent_  { 0 };

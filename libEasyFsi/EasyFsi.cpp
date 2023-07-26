@@ -400,11 +400,11 @@ extern "C" void  bd_set_node_coords(Boundary * bd, int_l node, double x, double 
 }
 extern "C" int_l bd_face_num(const Boundary * bd)
 {
-    return bd ? reinterpret_cast<const BD*>(bd)->face_num() : 0;
+    return bd ? reinterpret_cast<const BD*>(bd)->nface() : 0;
 }
 extern "C" int_l bd_node_num(const Boundary * bd)
 {
-    return bd ? reinterpret_cast<const BD*>(bd)->node_num() : 0;
+    return bd ? reinterpret_cast<const BD*>(bd)->nnode() : 0;
 }
 extern "C" void  bd_compute_metrics(Boundary * bd, double basied_angle_deg/* = 5.0*/)
 {
@@ -459,6 +459,10 @@ extern "C" const KdTree * bd_kdtree(const Boundary * bd)
 extern "C" void  bd_read_gmsh(Boundary * bd, const char* file)
 {
     if (bd)reinterpret_cast<BD*>(bd)->load_gmsh(file);
+}
+extern "C" void  bd_load(Boundary* bd, const char* file)
+{
+    if (bd)reinterpret_cast<BD*>(bd)->load(file);
 }
 
 //--- Communicator
@@ -700,6 +704,10 @@ extern "C" void it_interp_node_loads_t2s(Interpolator * it, int nload, double** 
 extern "C" void it_interp_face_loads_t2s(Interpolator * it, int nload, double** src_node_load, const double** des_face_load, bool fill_src_zeros_first/* = true*/)
 {
     if (it)reinterpret_cast<IT*>(it)->interp_face_load_t2s(nload, src_node_load, des_face_load, fill_src_zeros_first);
+}
+extern "C" void it_interp_modal_results(Interpolator* it, const char* file, const char* output_file)
+{
+    if (it)reinterpret_cast<IT*>(it)->interp_modal_results(file, output_file);
 }
 
 //--- Application

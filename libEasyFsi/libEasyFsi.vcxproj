@@ -184,6 +184,8 @@
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="Memory.cpp" />
     <ClCompile Include="MeshConnectivity.cpp" />
+    <ClCompile Include="ModalResults.cpp" />
+    <ClCompile Include="ModelInterface.cpp" />
     <ClCompile Include="MPICommunicator.cpp" />
     <ClCompile Include="SocketCommunicator.cpp" />
   </ItemGroup>
@@ -210,6 +212,7 @@
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Memory.hpp" />
     <ClInclude Include="MeshConnectivity.hpp" />
+    <ClInclude Include="ModalResults.hpp" />
     <ClInclude Include="ModelInterface.hpp" />
     <ClInclude Include="MPICommunicator.hpp" />
     <ClInclude Include="ProjectToElement.hpp" />

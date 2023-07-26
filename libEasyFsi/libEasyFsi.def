@@ -94,6 +94,7 @@ bd_nodes
 bd_face_nodes
 bd_kdtree
 bd_read_gmsh
+bd_load
 
 cm_socket_new
 cm_mpi_new
@@ -144,6 +145,7 @@ it_interp_node_dofs_s2t
 it_interp_face_dofs_s2t
 it_interp_node_loads_t2s
 it_interp_face_loads_t2s
+it_interp_modal_results
 
 app_new
 app_delete

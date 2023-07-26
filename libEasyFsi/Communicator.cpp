@@ -122,6 +122,7 @@ namespace EasyLib {
         ASSERT(bound.mesh_changed_);
 
         send(bound.name(), dest_rank, tag);
+        send(&bound.user_id_, 1, dest_rank, ++tag);
         send(bound.nodes(), dest_rank, ++tag);
         send(bound.face_nodes(), dest_rank, ++tag);
 
@@ -130,11 +131,11 @@ namespace EasyLib {
         const auto nd = Boundary::vec3().size();
 
         // send node data
-        if (bound.node_num() > 0)
+        if (bound.nnode() > 0)
             send(bound.node_coords().data()->data(), nd * nn, dest_rank, ++tag);
 
         // send face data
-        if (bound.face_num() > 0) {
+        if (bound.nface() > 0) {
             send(bound.face_centroids().data()->data(), nd * nf, dest_rank, ++tag);
             send(bound.face_areas().data(), nf, dest_rank, ++tag);
             send(bound.face_normals().data()->data(), nd * nf, dest_rank, ++tag);
@@ -147,6 +148,7 @@ namespace EasyLib {
         bound.clear();
 
         recv(bound.name_, src_rank, tag);
+        recv(&bound.user_id_, 1, src_rank, ++tag);
         recv(bound.nodes_, src_rank, ++tag);
         recv(bound.face_nodes_, src_rank, ++tag);
         

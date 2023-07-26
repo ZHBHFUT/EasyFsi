@@ -134,6 +134,8 @@ namespace EasyLib {
         void save_coefficients(const char* file)const;
         void load_coefficients(const char* file);
 
+        void interp_modal_results(const char* file, const char* output_file)const;
+
     private:
         int source_app_{ -1 };
         int target_app_{ -1 };

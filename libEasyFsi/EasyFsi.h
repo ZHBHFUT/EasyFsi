@@ -226,6 +226,7 @@ extern "C" {
     const MeshConnectivity* bd_face_nodes(const Boundary* bd);
     const KdTree* bd_kdtree(const Boundary* bd);
     void  bd_read_gmsh(Boundary* bd, const char* file);
+    void  bd_load(Boundary* bd, const char* file);
 
     //--------------------------------------------------------
     // interface of Communicator
@@ -288,6 +289,7 @@ extern "C" {
     void it_interp_face_dofs_s2t(Interpolator* it, int ndof, const double** src_node_dofs, double** des_face_dofs);
     void it_interp_node_loads_t2s(Interpolator* it, int nload, double** src_node_load, const double** des_node_load, bool fill_src_zeros_first = true);
     void it_interp_face_loads_t2s(Interpolator* it, int nload, double** src_node_load, const double** des_face_load, bool fill_src_zeros_first = true);
+    void it_interp_modal_results(Interpolator* it, const char* file, const char* output_file);
 
     //--------------------------------------------------------
     // interfaces of Application

@@ -729,7 +729,8 @@ namespace EasyLib {
 
     void Boundary::clear()
     {
-        name_.clear();
+        ModelInterface::remove_all_field();
+
         nodes_.clear();
         face_nodes_.clear();
         node_coords_.clear();
@@ -776,19 +777,7 @@ namespace EasyLib {
         face_normal_.reserve(max_face);
     }
 
-    void Boundary::set_name(std::string sname)
-    {
-        name_ = sname;
-        name_.erase(0, name_.find_first_not_of("\r\t\n ")); // trim left
-        name_.erase(name_.find_last_not_of("\r\t\n ") + 1); // trim right
-    }
-
-    void Boundary::set_user_id(int id)
-    {
-        user_id_ = id;
-    }
-
-    int Boundary::add_node(double x, double y, double z, int_g global_id/* = -1*/)
+    int_l Boundary::add_node(double x, double y, double z, int_g global_id/* = -1*/)
     {
         if (global_id < 0)global_id = (int_g)nodes_.size();
 
@@ -807,12 +796,12 @@ namespace EasyLib {
 
         return id;
     }
-    int Boundary::add_node(const vec3& coord, int_g global_id/* = -1*/)
+    int_l Boundary::add_node(const vec3& coord, int_g global_id/* = -1*/)
     {
         return add_node(coord.x, coord.y, coord.z, global_id);
     }
 
-    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes, double cx, double cy, double cz)
+    int_l Boundary::add_face(FaceTopo type, int count, const int_l* fnodes, double cx, double cy, double cz)
     {
         if (type != POLYGON && npf[type] != count) {
             error("Boundary::add_face(), node number not agree.");
@@ -825,7 +814,7 @@ namespace EasyLib {
 
         // check
         for (int i = 0; i < count; ++i) {
-            if (fnodes[i] < 0 || fnodes[i] >= node_num()) {
+            if (fnodes[i] < 0 || fnodes[i] >= nnode()) {
                 error("Boundary::add_face(), node number out of range.");
                 return -1;
             }
@@ -836,7 +825,7 @@ namespace EasyLib {
                 }
             }
         }
-        if (face_num() == 0)topo_ = ft2zt[type];
+        if (nface() == 0)topo_ = ft2zt[type];
         if (ft2zt[type] != topo_) {
             error("Boundary::add_face(), mixed dimension element is not allowed.");
             return -1;
@@ -857,11 +846,11 @@ namespace EasyLib {
 
         return id;
     }
-    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes, const vec3& fcent)
+    int_l Boundary::add_face(FaceTopo type, int count, const int_l* fnodes, const vec3& fcent)
     {
         return add_face(type, count, fnodes, fcent.x, fcent.y, fcent.z);
     }
-    int Boundary::add_face(FaceTopo type, int count, const int_l* fnodes)
+    int_l Boundary::add_face(FaceTopo type, int count, const int_l* fnodes)
     {
         return add_face(type, count, fnodes, 0, 0, 0);
     }
@@ -909,7 +898,7 @@ namespace EasyLib {
         };
 
         std::set<Edge> edges;
-        for (int_l i = 0; i < face_num(); ++i) {
+        for (int_l i = 0; i < nface(); ++i) {
             auto ft = face_types_.at(i);
             auto fnodes = face_nodes_[i];
             switch (ft) {
@@ -983,7 +972,7 @@ namespace EasyLib {
         // coordinate range
         coord_min_.fill(0);
         coord_max_.fill(0);
-        if (node_num() > 0) {
+        if (nnode() > 0) {
             coord_min_ = coord_max_ = node_coords_.front();
             for (auto& c : node_coords_) {
                 coord_min_.x = std::min(coord_min_.x, c.x);
@@ -997,20 +986,20 @@ namespace EasyLib {
 
         // compute face centroid, normal and area.
         if (!face_nodes_.empty()) {
-            compute_fc   (face_num(), node_coords_.data(), (const FaceTopo*)face_types_.data(), face_nodes_, face_centroids_.data());
-            compute_farea(face_num(), node_coords_.data(), (const FaceTopo*)face_types_.data(), face_nodes_, face_normal_.data());
+            compute_fc   (nface(), node_coords_.data(), (const FaceTopo*)face_types_.data(), face_nodes_, face_centroids_.data());
+            compute_farea(nface(), node_coords_.data(), (const FaceTopo*)face_types_.data(), face_nodes_, face_normal_.data());
             // normalize
-            for (int i = 0; i < face_num(); ++i)face_area_[i] = face_normal_[i].normalize();
+            for (int i = 0; i < nface(); ++i)face_area_[i] = face_normal_[i].normalize();
 
             // create node-faces
-            MeshConnectivity::flip(face_nodes_, node_num(), node_faces_);
+            MeshConnectivity::flip(face_nodes_, nnode(), node_faces_);
         }
 
         // shape of boundary
-        shape_ = compute_topo_3d(node_num(), node_coords_.data()->data(), xps_tm_.data(), biased_angle_deg);
+        shape_ = compute_topo_3d(nnode(), node_coords_.data()->data(), xps_tm_.data(), biased_angle_deg);
 
         // create kdtree
-        kdtree_.create(node_coords_.data()->data(), node_num(), true);
+        kdtree_.create(node_coords_.data()->data(), nnode(), true);
 
         // create edges
         if (/*face_count_[FT_POLYGON] &&*/ edges_.empty())create_edges();
@@ -1022,14 +1011,14 @@ namespace EasyLib {
     {
         if (xps_computed_)return;
 
-        if (node_num() == 0)return;
+        if (nnode() == 0)return;
 
         if (mesh_changed_)compute_metics();
 
         xps_coords_.clear();
         xps_ts_inv_.clear();
 
-        const int_l np = node_num();
+        const int_l np = nnode();
 
         if      (shape_ == ZS_POINT) {
             // do nothing
@@ -1048,7 +1037,7 @@ namespace EasyLib {
             dbuffer_.resize(rank);
 
             int singular = 0;
-            compute_xps_ts_inv_(node_num(), ndim, xps_coords_.data(), xps_ts_inv_.data(), ibuffer_.data(), &singular);
+            compute_xps_ts_inv_(nnode(), ndim, xps_coords_.data(), xps_ts_inv_.data(), ibuffer_.data(), &singular);
             if (singular)error("XPS matrix singular, this maybe caused by coincide points!");
         }
         else if (shape_ == ZS_COPLANER) {
@@ -1067,7 +1056,7 @@ namespace EasyLib {
             dbuffer_.resize(rank);
 
             int singular = 0;
-            compute_xps_ts_inv_(node_num(), 1, xps_coords_.data(), xps_ts_inv_.data(), ibuffer_.data(), &singular);
+            compute_xps_ts_inv_(nnode(), 1, xps_coords_.data(), xps_ts_inv_.data(), ibuffer_.data(), &singular);
             if (singular)error("XPS matrix singular, this maybe caused by coincide points!");
         }
         else if (shape_ == ZS_GENERAL) {
@@ -1079,7 +1068,7 @@ namespace EasyLib {
             dbuffer_.resize(rank);
 
             int singular = 0;
-            compute_xps_ts_inv_(node_num(), 1, node_coords_.data()->data(), xps_ts_inv_.data(), ibuffer_.data(), &singular);
+            compute_xps_ts_inv_(nnode(), 1, node_coords_.data()->data(), xps_ts_inv_.data(), ibuffer_.data(), &singular);
             if (singular)error("XPS matrix singular, this maybe caused by coincide points!");
         }
 
@@ -1088,22 +1077,22 @@ namespace EasyLib {
 
     void Boundary::compute_global_xps_interp_coeff(const vec3& p, Span<double> coeff)
     {
-        if (node_num() == 0)return;
+        if (nnode() == 0)return;
         if (!xps_computed_)compute_global_xps_matrix();
-        if (coeff.size() < node_num())
+        if (coeff.size() < nnode())
             error("invalid length of coefficient array!");
 
         double q[2]{ 0 };
-        const int np_src = static_cast<int>(node_num());
+        const int np_src = static_cast<int>(nnode());
         const int np_des = 1;
 
         if      (shape_ == ZS_POINT) {
             warn("all boundary points are coincide, the coefficients will be set as 1/n!");
-            std::fill(coeff.begin(), coeff.begin() + node_num(), 1.0 / node_num());
+            std::fill(coeff.begin(), coeff.begin() + nnode(), 1.0 / nnode());
         }
         else if (shape_ == ZS_COLINEAR) {
             const int ndim = 1;
-            const int_l rank = node_num() + ndim + 1;
+            const int_l rank = nnode() + ndim + 1;
             if (dbuffer_.size() < rank)dbuffer_.resize(rank);
 
             q[0] = xps_tm_(0, 0) * p.x + xps_tm_(0, 1) * p.y + xps_tm_(0, 2) * p.z + xps_tm_(0, 3);
@@ -1111,7 +1100,7 @@ namespace EasyLib {
         }
         else if (shape_ == ZS_COPLANER) {
             const int ndim = 2;
-            const int_l rank = node_num() + ndim + 1;
+            const int_l rank = nnode() + ndim + 1;
             if (dbuffer_.size() < rank)dbuffer_.resize(rank);
 
             q[0] = xps_tm_(0, 0) * p.x + xps_tm_(0, 1) * p.y + xps_tm_(0, 2) * p.z + xps_tm_(0, 3);
@@ -1120,7 +1109,7 @@ namespace EasyLib {
         }
         else if (shape_ == ZS_GENERAL) {
             const int ndim = 3;
-            const int_l rank = node_num() + ndim + 1;
+            const int_l rank = nnode() + ndim + 1;
             if (dbuffer_.size() < rank)dbuffer_.resize(rank);
 
             compute_xps_interp_matrix_(np_src, np_des, ndim, node_coords_.data()->data(), p.data(), xps_ts_inv_.data(), coeff.data(), dbuffer_.data());
@@ -1132,11 +1121,11 @@ namespace EasyLib {
         constexpr const int stride = 3;
         constexpr const int np_des = 1;
 
-        if (node_num() == 0)return;
+        if (nnode() == 0)return;
         if (!mesh_changed_)compute_metics();
 
         if (max_donor <= 0)error("maximum number of donors is non-positive!");
-        max_donor = std::min(max_donor, (int)node_num());
+        max_donor = std::min(max_donor, (int)nnode());
         if (ids.size() < max_donor || coeff.size() < max_donor)error("invalid length of ids and coefficients!");
 
         // search nearest points
@@ -1320,43 +1309,6 @@ namespace EasyLib {
         }
     }
     
-    //int Boundary::find_nearest_points(const vec3& p, int n_query, int* nodes, double* dist_sq)const
-    //{
-    //    if (nodes_.empty())return 0;
-    //
-    //    // not enough nodes
-    //    if (nodes_.size() <= n_query) {
-    //        n_query = nodes_.size();
-    //        for (int_l i = 0; i < n_query; ++i) {
-    //            nodes[i] = i;
-    //            dist_sq[i] = distance_sq(p, node_coords_[i]);
-    //        }
-    //        // sort
-    //        for (int_l i = 0; i < n_query; ++i) {
-    //            for (int_l j = i + 1; j < n_query; ++j) {
-    //                if (dist_sq[j] < dist_sq[i]) {
-    //                    std::swap(nodes[j], nodes[i]);
-    //                    std::swap(dist_sq[j], dist_sq[i]);
-    //                }
-    //                else if (dist_sq[j] < dist_sq[j - 1]) {
-    //                    std::swap(nodes[j - 1], nodes[j]);
-    //                    std::swap(dist_sq[j - 1], dist_sq[j]);
-    //                }
-    //            }
-    //        }
-    //        return n_query;
-    //    }
-    //
-    //    // face not exists: search with kdtree
-    //    if (face_nodes_.empty()) {
-    //        return kdtree_.search(p.data(), n_query, nodes, dist_sq);
-    //    }
-    //    // face exists: use 
-    //    else {
-    //
-    //    }
-    //}
-
     void Boundary::remove_all_field()
     {
         fields_.clear();
@@ -1366,70 +1318,13 @@ namespace EasyLib {
         for (auto& f : fields_)if (f.info == &fd)return;
         auto & f = fields_.emplace_back(Field{});
         f.info = &fd;
-        f.data.resize(fd.location == NodeCentered ? node_num() : face_num(), fd.ncomp, 0);
-    }
-
-    Field& Boundary::field(const char* field_name)
-    {
-        for (auto& f : fields_)
-            if (f.info->name == field_name)return f;
-        error("field \"%s\" is not found!", field_name);
-        return *(Field*)nullptr;
-    }
-    const Field& Boundary::field(const char* field_name)const
-    {
-        for (auto& f : fields_)
-            if (f.info->name == field_name)return f;
-        error("field \"%s\" is not found!", field_name);
-        return *(const Field*)nullptr;
-    }
-    Field& Boundary::field(const std::string& field_name)
-    {
-        for (auto& f : fields_)
-            if (f.info->name == field_name)return f;
-        error("field \"%s\" is not found!", field_name.c_str());
-        return *(Field*)nullptr;
-    }
-    const Field& Boundary::field(const std::string& field_name)const
-    {
-        for (auto& f : fields_)
-            if (f.info->name == field_name)return f;
-        error("field \"%s\" is not found!", field_name.c_str());
-        return *(Field*)nullptr;
-    }
-    std::pair<bool, Field*> Boundary::find_field(const char* field_name)
-    {
-        for (auto& f : fields_)
-            if (f.info->name == field_name)
-                return std::pair<bool, Field*>{true, &f};
-        return std::pair<bool, Field*>{false, nullptr};
-    }
-    std::pair<bool, const Field*> Boundary::find_field(const char* field_name)const
-    {
-        for (auto& f : fields_)
-            if (f.info->name == field_name)
-                return std::pair<bool, const Field*>{true, & f};
-        return std::pair<bool, const Field*>{false, nullptr};
-    }
-    std::pair<bool, Field*> Boundary::find_field(const std::string& field_name)
-    {
-        for (auto& f : fields_)
-            if (f.info->name == field_name)
-                return std::pair<bool, Field*>{true, & f};
-        return std::pair<bool, Field*>{false, nullptr};
-    }
-    std::pair<bool, const Field*> Boundary::find_field(const std::string& field_name)const
-    {
-        for (auto& f : fields_)
-            if (f.info->name == field_name)
-                return std::pair<bool, const Field*>{true, & f};
-        return std::pair<bool, const Field*>{false, nullptr};
+        f.data.resize(fd.location == NodeCentered ? nnode() : nface(), fd.ncomp, 0);
     }
 
     void Boundary::load(const char* file)
     {
         std::string sname(file);
-        if (sname.empty())sname = name_ + ".bound";
+        if (sname.empty())sname = name() + ".bound";
 
         auto it = sname.find_last_of('.');
         auto ext = it != std::string::npos ? sname.substr(it) : "";
@@ -1449,7 +1344,7 @@ namespace EasyLib {
     void Boundary::save(const char* file)const
     {
         std::string sname(file);
-        if (sname.empty())sname = name_ + ".bound";
+        if (sname.empty())sname = name() + ".bound";
 
         auto it = sname.find_last_of('.');
         auto ext = it != std::string::npos ? sname.substr(it) : "";
@@ -1768,72 +1663,72 @@ namespace EasyLib {
         if     (topo_ == ZT_POINTS) {
             // zone header: ZONE T=Title ZONETYPE=type I=nnode DATAPACKING=BLOCK
             os
-                << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                << "ZONE T=" << (name().empty() ? "unnamed" : name())
                 << " ZONETYPE=ORDERED"
-                << " I=" << node_num()
+                << " I=" << nnode()
                 << " DATAPACKING=BLOCK\n";
             // x,y,z
-            write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
-            write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
-            write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+            write_var(os, nnode(), node_coords_.data()->data() + 0, 3);
+            write_var(os, nnode(), node_coords_.data()->data() + 1, 3);
+            write_var(os, nnode(), node_coords_.data()->data() + 2, 3);
             
             // fields
             for (auto& var : vars)
-                write_var(os, node_num(), var.ptr, var.stride);
+                write_var(os, nnode(), var.ptr, var.stride);
         }
         // curve zone
         else if(topo_ == ZT_CURVE){
             // zone header: ZONE T=Title ZONETYPE=FELINESEG NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
             os
-                << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                << "ZONE T=" << (name().empty() ? "unnamed" : name())
                 << " ZONETYPE=FELINESEG"
-                << " NODES=" << node_num()
-                << " ELEMENTS=" << face_num()
+                << " NODES=" << nnode()
+                << " ELEMENTS=" << nface()
                 << " DATAPACKING=BLOCK"
                 << sloc << '\n';
             // x,y,z
-            write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
-            write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
-            write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+            write_var(os, nnode(), node_coords_.data()->data() + 0, 3);
+            write_var(os, nnode(), node_coords_.data()->data() + 1, 3);
+            write_var(os, nnode(), node_coords_.data()->data() + 2, 3);
 
             // fields
             for (auto& var : vars) {
                 if (var.location == NodeCentered)
-                    write_var(os, node_num(), var.ptr, var.stride);
+                    write_var(os, nnode(), var.ptr, var.stride);
                 else
-                    write_var(os, face_num(), var.ptr, var.stride);
+                    write_var(os, nface(), var.ptr, var.stride);
             }
 
             // elements
-            for (int_l face = 0; face < face_num(); ++face) {
+            for (int_l face = 0; face < nface(); ++face) {
                 auto enodes = face_nodes_[face];
                 os << (enodes[0] + 1) << ' ' << (enodes[1] + 1) << '\n';
             }
         }
         // surface zone
         else /*if (topo_ == ZT_SURFACE)*/ {
-            if      (face_count_[TRI3 ] == face_num()) {
+            if      (face_count_[TRI3 ] == nface()) {
                 // zone header: ZONE T=Title ZONETYPE=FETRIANGLE NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
                 os
-                    << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                    << "ZONE T=" << (name().empty() ? "unnamed" : name())
                     << " ZONETYPE=FETRIANGLE"
-                    << " NODES=" << node_num()
-                    << " ELEMENTS=" << face_num()
+                    << " NODES=" << nnode()
+                    << " ELEMENTS=" << nface()
                     << " DATAPACKING=BLOCK"
                     << sloc << '\n';
                 // x,y,z
-                write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
-                write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
-                write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 0, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 1, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 2, 3);
                 // fields
                 for (auto& var : vars) {
                     if (var.location == NodeCentered)
-                        write_var(os, node_num(), var.ptr, var.stride);
+                        write_var(os, nnode(), var.ptr, var.stride);
                     else
-                        write_var(os, face_num(), var.ptr, var.stride);
+                        write_var(os, nface(), var.ptr, var.stride);
                 }
                 // elements
-                for (int_l face = 0; face < face_num(); ++face) {
+                for (int_l face = 0; face < nface(); ++face) {
                     auto enodes = face_nodes_[face];
                     os
                         << (enodes[0] + 1) << ' '
@@ -1841,28 +1736,28 @@ namespace EasyLib {
                         << (enodes[2] + 1) << '\n';
                 }
             }
-            else if (face_count_[QUAD4] == face_num()) {
+            else if (face_count_[QUAD4] == nface()) {
                 // zone header: ZONE T=Title ZONETYPE=FEQUADRILATERAL NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
                 os
-                    << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                    << "ZONE T=" << (name().empty() ? "unnamed" : name())
                     << " ZONETYPE=FEQUADRILATERAL"
-                    << " NODES=" << node_num()
-                    << " ELEMENTS=" << face_num()
+                    << " NODES=" << nnode()
+                    << " ELEMENTS=" << nface()
                     << " DATAPACKING=BLOCK"
                     << sloc << '\n';
                 // x,y,z
-                write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
-                write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
-                write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 0, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 1, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 2, 3);
                 // fields
                 for (auto& var : vars) {
                     if (var.location == NodeCentered)
-                        write_var(os, node_num(), var.ptr, var.stride);
+                        write_var(os, nnode(), var.ptr, var.stride);
                     else
-                        write_var(os, face_num(), var.ptr, var.stride);
+                        write_var(os, nface(), var.ptr, var.stride);
                 }
                 // elements
-                for (int_l face = 0; face < face_num(); ++face) {
+                for (int_l face = 0; face < nface(); ++face) {
                     auto enodes = face_nodes_[face];
                     os
                         << (enodes[0] + 1) << ' '
@@ -1875,25 +1770,25 @@ namespace EasyLib {
             else if (face_count_[POLYGON] == 0) {
                 // zone header: ZONE T=Title ZONETYPE=FEQUADRILATERAL NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
                 os
-                    << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                    << "ZONE T=" << (name().empty() ? "unnamed" : name())
                     << " ZONETYPE=FEQUADRILATERAL"
-                    << " NODES=" << node_num()
-                    << " ELEMENTS=" << face_num()
+                    << " NODES=" << nnode()
+                    << " ELEMENTS=" << nface()
                     << " DATAPACKING=BLOCK"
                     << sloc << '\n';
                 // x,y,z
-                write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
-                write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
-                write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 0, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 1, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 2, 3);
                 // fields
                 for (auto& var : vars) {
                     if (var.location == NodeCentered)
-                        write_var(os, node_num(), var.ptr, var.stride);
+                        write_var(os, nnode(), var.ptr, var.stride);
                     else
-                        write_var(os, face_num(), var.ptr, var.stride);
+                        write_var(os, nface(), var.ptr, var.stride);
                 }
                 // elements
-                for (int_l face = 0; face < face_num(); ++face) {
+                for (int_l face = 0; face < nface(); ++face) {
                     auto enodes = face_nodes_[face];
                     os
                         << (enodes[0] + 1) << ' '
@@ -1906,23 +1801,23 @@ namespace EasyLib {
             else {
                 // zone header: ZONE T=Title ZONETYPE=FEPOLYGON NODES=nnode ELEMENTS=nface DATAPACKING=BLOCK
                 os
-                    << "ZONE T=" << (name_.empty() ? "unnamed" : name_)
+                    << "ZONE T=" << (name().empty() ? "unnamed" : name())
                     << " ZONETYPE=FEPOLYGON"
-                    << " NODES=" << node_num()
+                    << " NODES=" << nnode()
                     << " FACES=" << edges_.size()
-                    << " ELEMENTS=" << face_num()
+                    << " ELEMENTS=" << nface()
                     << " DATAPACKING=BLOCK"
                     << sloc << '\n';
                 // x,y,z
-                write_var(os, node_num(), node_coords_.data()->data() + 0, 3);
-                write_var(os, node_num(), node_coords_.data()->data() + 1, 3);
-                write_var(os, node_num(), node_coords_.data()->data() + 2, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 0, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 1, 3);
+                write_var(os, nnode(), node_coords_.data()->data() + 2, 3);
                 // fields
                 for (auto& var : vars) {
                     if (var.location == NodeCentered)
-                        write_var(os, node_num(), var.ptr, var.stride);
+                        write_var(os, nnode(), var.ptr, var.stride);
                     else
-                        write_var(os, face_num(), var.ptr, var.stride);
+                        write_var(os, nface(), var.ptr, var.stride);
                 }
                 // face nodes
                 for (auto& e : edges_) {
@@ -2010,10 +1905,10 @@ namespace EasyLib {
         constexpr int prec = std::numeric_limits<double>::digits10 + 1;
 
         // nn nf
-        os << bd.node_num() << ' ' << bd.face_num() << '\n';
+        os << bd.nnode() << ' ' << bd.nface() << '\n';
 
         // nodes
-        for (int_l i = 0; i < bd.node_num(); ++i) {
+        for (int_l i = 0; i < bd.nnode(); ++i) {
             auto& c = bd.node_coords().at(i);
             os << bd.nodes().l2g(i) << ' '
                 << std::setprecision(prec) << std::scientific << c.x << ' '
@@ -2022,7 +1917,7 @@ namespace EasyLib {
         }
 
         // faces
-        for (int_l i = 0; i < bd.face_num(); ++i) {
+        for (int_l i = 0; i < bd.nface(); ++i) {
             auto nodes = bd.face_nodes()[i];
             switch (bd.face_types().at(i)) {
             case BAR2 : os << "L2"; break;

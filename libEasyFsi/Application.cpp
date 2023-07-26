@@ -766,21 +766,21 @@ namespace EasyLib {
                 << "T = \"" << bd->name() << "\"\n";
 
             // 
-            bool all_tri  = bd->face_type_num(TRI3) + bd->face_type_num(TRI6) == bd->face_num();
-            //bool all_quad = bd->face_count(FT_QUAD4) + bd->face_count(FT_QUAD8) == bd->face_num();
+            bool all_tri  = bd->face_type_num(TRI3) + bd->face_type_num(TRI6) == bd->nface();
+            //bool all_quad = bd->face_count(FT_QUAD4) + bd->face_count(FT_QUAD8) == bd->nface();
 
             // Polygon not exists: write finite element grid (ignore middle node)
             if (!bd->contains_polygon()) {
                 switch (bd->topo()) {
-                case ZT_POINTS:  ofs << "ZONETYPE = ORDERED\n"         << "I = "     << bd->node_num() << '\n'; break;
-                case ZT_CURVE:   ofs << "ZONETYPE = FELINESEG\n"       << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n'; break;
+                case ZT_POINTS:  ofs << "ZONETYPE = ORDERED\n"         << "I = "     << bd->nnode() << '\n'; break;
+                case ZT_CURVE:   ofs << "ZONETYPE = FELINESEG\n"       << "NODES = " << bd->nnode() << " ELEMENTS = " << bd->nface() << '\n'; break;
                 case ZT_SURFACE:
                     if (all_tri )
-                        ofs << "ZONETYPE = FETRIANGLE\n" << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n';
+                        ofs << "ZONETYPE = FETRIANGLE\n" << "NODES = " << bd->nnode() << " ELEMENTS = " << bd->nface() << '\n';
                     else
-                        ofs << "ZONETYPE = FEQUADRILATERAL\n" << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n';
+                        ofs << "ZONETYPE = FEQUADRILATERAL\n" << "NODES = " << bd->nnode() << " ELEMENTS = " << bd->nface() << '\n';
                     break;
-                //case ZT_VOLUME:  ofs << "ZONETYPE = FEBRICK\n"         << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n'; break;
+                //case ZT_VOLUME:  ofs << "ZONETYPE = FEBRICK\n"         << "NODES = " << bd->nnode() << " ELEMENTS = " << bd->nface() << '\n'; break;
                 }
             }
             // Polygon exists: write face-based grid
@@ -788,9 +788,9 @@ namespace EasyLib {
                 bd->create_edges(); // create edges
 
                 ofs << "ZONETYPE = FELINESEG\n"
-                    << "NODES = " << bd->node_num()
+                    << "NODES = " << bd->nnode()
                     << " FACES = " << bd->edges_for_surface().size()
-                    << " ELEMENTS = " << bd->face_num() << '\n';
+                    << " ELEMENTS = " << bd->nface() << '\n';
             }
 
             // DATATYPE
@@ -800,9 +800,9 @@ namespace EasyLib {
             if (!var_loc.empty())ofs << "VARLOCATION = " << var_loc << '\n';
 
             // DATA
-            write_field(ofs, bd->node_coords().data()->data() + 0, bd->node_num(), 3);
-            write_field(ofs, bd->node_coords().data()->data() + 1, bd->node_num(), 3);
-            write_field(ofs, bd->node_coords().data()->data() + 2, bd->node_num(), 3);
+            write_field(ofs, bd->node_coords().data()->data() + 0, bd->nnode(), 3);
+            write_field(ofs, bd->node_coords().data()->data() + 1, bd->nnode(), 3);
+            write_field(ofs, bd->node_coords().data()->data() + 2, bd->nnode(), 3);
 
             // fields
             for (auto& fd : data_.field_defs) {
@@ -820,7 +820,7 @@ namespace EasyLib {
             // face-nodes connections
             // FELINESEG zone
             if (bd->topo() == ZT_CURVE) {
-                for (int_l i = 0; i < bd->face_num(); ++i) {
+                for (int_l i = 0; i < bd->nface(); ++i) {
                     auto nodes = bd->face_nodes()[i];
                     ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << '\n'; //? convert to one-based index, ignore middle node for FT_BAR3
                 }
@@ -828,13 +828,13 @@ namespace EasyLib {
             // triangle or quadrilateral
             else if (!bd->contains_polygon()) {
                 if (all_tri) {
-                    for (int_l i = 0; i < bd->face_num(); ++i) {
+                    for (int_l i = 0; i < bd->nface(); ++i) {
                         auto nodes = bd->face_nodes()[i];
                         ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; //? convert to one-based index, ignore middle node for FT_TRI6
                     }
                 }
                 else {
-                    for (int_l i = 0; i < bd->face_num(); ++i) {
+                    for (int_l i = 0; i < bd->nface(); ++i) {
                         auto nodes = bd->face_nodes()[i];
                         switch (bd->face_types().at(i)) {
                         case TRI3: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;

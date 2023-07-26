@@ -55,10 +55,10 @@ namespace EasyLib {
 
         if (comm_->size() <= 1) {
             full_bound_ = local_bound;
-            part_nodes_ia_g_.push_back(local_bound.node_num());
-            part_faces_ia_g_.push_back(local_bound.face_num());
-            part_nodes_ja_g_.resize(local_bound.node_num());
-            for (int_l i = 0; i < local_bound.node_num(); ++i)
+            part_nodes_ia_g_.push_back(local_bound.nnode());
+            part_faces_ia_g_.push_back(local_bound.nface());
+            part_nodes_ja_g_.resize(local_bound.nnode());
+            for (int_l i = 0; i < local_bound.nnode(); ++i)
                 part_nodes_ja_g_[i] = i;
             //info("\nassemble boundary: do nothing for serial running.\n");
             return;
@@ -96,8 +96,8 @@ namespace EasyLib {
                     comm_->recv(buf, 3, part, TAG_BD_SIZE);
                 }
                 else {
-                    buf[0] = local_bound.node_num();
-                    buf[1] = local_bound.face_num();
+                    buf[0] = local_bound.nnode();
+                    buf[1] = local_bound.nface();
                     buf[2] = local_bound.face_nodes().ndata();
                 }
                 max_nnode_g += buf[0];
@@ -124,13 +124,13 @@ namespace EasyLib {
 
                 // add nodes to set
                 const auto* coords = reinterpret_cast<const vec3*>(pb->node_coords().data());
-                for (int_l i = 0; i < pb->node_num(); ++i) {
+                for (int_l i = 0; i < pb->nnode(); ++i) {
                     part_nodes_ja_g_[part_nodes_ia_g_[part] + i] = full_bound_.add_node(coords[i], pb->nodes().l2g(i));
                 }
 
                 // add faces
                 const auto* fcents = reinterpret_cast<const vec3*>(pb->face_centroids().data());
-                for (int_l i = 0; i < pb->face_num(); ++i) {
+                for (int_l i = 0; i < pb->nface(); ++i) {
                     auto nodes = pb->face_nodes()[i];
                     fnodes.resize(nodes.size());
                     for (size_t j = 0; j < nodes.size(); ++j) {
@@ -146,16 +146,16 @@ namespace EasyLib {
             info(
                 "    Total Node = %d\n"
                 "    Total Face = %d\n",
-                full_bound_.node_num(),
-                full_bound_.face_num()
+                full_bound_.nnode(),
+                full_bound_.nface()
             );
 
             // allocate fields
             //for (auto& f : full_bound_.get_fields()) {
             //    if (f.location == NodeCentered)
-            //        f.data.resize(full_bound_.node_num(), f.ncomp);
+            //        f.data.resize(full_bound_.nnode(), f.ncomp);
             //    else
-            //        f.data.resize(full_bound_.face_num(), f.ncomp);
+            //        f.data.resize(full_bound_.nface(), f.ncomp);
             //}
 
             // compute metrics
@@ -163,8 +163,8 @@ namespace EasyLib {
         }
         else {
             // send size info
-            buf[0] = local_bound.node_num();
-            buf[1] = local_bound.face_num();
+            buf[0] = local_bound.nnode();
+            buf[1] = local_bound.nface();
             buf[2] = local_bound.face_nodes().ndata();
             comm_->send(buf, 3, root_, TAG_BD_SIZE);
             comm_->send(local_bound, root_, TAG_BD_DATA);
@@ -175,7 +175,7 @@ namespace EasyLib {
     {
         //--- serial running
 
-        const int_l count = local_bound_ ? local_bound_->node_num() : 0;
+        const int_l count = local_bound_ ? local_bound_->nnode() : 0;
         if (!comm_ || comm_->size() <= 1) {
             if (local_bound_)
                 std::memcpy(global_fields, local_fields, sizeof(double) * nfields * count);
@@ -185,7 +185,7 @@ namespace EasyLib {
         //--- parallel running
 
         if (comm_->rank() == root_) {
-            buffer_g_.resize(nfields * full_bound_.node_num());
+            buffer_g_.resize(nfields * full_bound_.nnode());
             auto& ia = part_nodes_ia_g_;
             auto& ja = part_nodes_ja_g_;
 
@@ -217,7 +217,7 @@ namespace EasyLib {
     {
         //--- serial running
 
-        const int_l count = local_bound_ ? local_bound_->face_num() : 0;
+        const int_l count = local_bound_ ? local_bound_->nface() : 0;
         if (!comm_ || comm_->size() <= 1) {
             std::memcpy(global_fields, local_fields, sizeof(double) * nfields * count);
             return;
@@ -250,7 +250,7 @@ namespace EasyLib {
     {
         //--- serial running
 
-        const int_l count = local_bound_ ? local_bound_->node_num() : 0;
+        const int_l count = local_bound_ ? local_bound_->nnode() : 0;
         if (!comm_ || comm_->size() <= 1) {
             std::memcpy(global_fields, local_fields, sizeof(double) * nfields * count);
             return;
@@ -259,7 +259,7 @@ namespace EasyLib {
         //--- parallel running
 
         if (comm_->rank() == root_) {
-            buffer_g_.resize(nfields * full_bound_.node_num());
+            buffer_g_.resize(nfields * full_bound_.nnode());
             auto& ia = part_nodes_ia_g_;
             auto& ja = part_nodes_ja_g_;
 
@@ -291,7 +291,7 @@ namespace EasyLib {
     {
         //--- serial running
 
-        const int_l count = local_bound_ ? local_bound_->face_num() : 0;
+        const int_l count = local_bound_ ? local_bound_->nface() : 0;
         if (!comm_ || comm_->size() <= 1) {
             for (int i = 0; i < count; ++i) {
                 for (int j = 0; j < nfields; ++j) {
@@ -304,7 +304,7 @@ namespace EasyLib {
         //--- parallel running
 
         if (comm_->rank() == root_) {
-            buffer_g_.resize(nfields * full_bound_.face_num());
+            buffer_g_.resize(nfields * full_bound_.nface());
             auto& ia = part_faces_ia_g_;
             for (int ip = 0; ip < comm_->size(); ++ip) {
                 auto offset = ia[ip];
@@ -332,7 +332,7 @@ namespace EasyLib {
     {
         //--- serial running
 
-        const int_l count = local_bound_ ? local_bound_->node_num() : 0;
+        const int_l count = local_bound_ ? local_bound_->nnode() : 0;
         if (!comm_ || comm_->size() <= 1) {
             std::memcpy(local_fields, global_fields, sizeof(double) * nfields * count);
             return;
@@ -341,7 +341,7 @@ namespace EasyLib {
         //--- parallel running
 
         if (comm_->rank() == root_) {
-            buffer_g_.resize(nfields * full_bound_.node_num());
+            buffer_g_.resize(nfields * full_bound_.nnode());
             auto& ia = part_nodes_ia_g_;
             auto& ja = part_nodes_ja_g_;
 
@@ -373,7 +373,7 @@ namespace EasyLib {
     {
         //--- serial running
 
-        const int_l count = local_bound_ ? local_bound_->face_num() : 0;
+        const int_l count = local_bound_ ? local_bound_->nface() : 0;
         if (!comm_ || comm_->size() <= 1) {
             std::memcpy(local_fields, global_fields, sizeof(double) * nfields * count);
             return;
