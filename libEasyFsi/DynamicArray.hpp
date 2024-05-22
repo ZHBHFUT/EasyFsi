@@ -42,6 +42,15 @@ freely, subject to the following restrictions:
 
 namespace EasyLib {
 
+#if __cplusplus < 201703L
+    namespace detail {
+        int_l product() { return 1; }
+        template<typename ... Args>
+        int_l product(int_l x0, Args ... args) { return x0 * product(args...); }
+
+    }
+#endif
+
     template<typename T, int RANK> class DynamicArray;
 
     template<typename T, int RANK>
@@ -61,7 +70,7 @@ namespace EasyLib {
         using reverse_iterator       = std::reverse_iterator<iterator>;
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     
-        inline static constexpr int Rank = RANK;
+        static_const int Rank = RANK;
     
         DynamicArray() = default;
     
@@ -88,7 +97,11 @@ namespace EasyLib {
         template<typename ... SizeTypes>
         DynamicArray(size_type m, size_type n, SizeTypes ... other_sizes)
             :
+#if __cplusplus < 201703L
+            data_(detail::product(m, n, other_sizes...)),
+#else
             data_(m* (n *...* other_sizes)),
+#endif
             extent_{ m,n,other_sizes... }
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
@@ -121,7 +134,13 @@ namespace EasyLib {
         void reserve(size_type m, size_type n, SizeTypes ... other_sizes)
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
-            data_.reserve(m * (n * ... * other_sizes));
+            data_.reserve(
+#if __cplusplus < 201703L
+                detail::product(m, n, other_sizes...)
+#else
+                m * (n * ... * other_sizes)
+#endif
+            );
         }
 
         template<typename ... SizeTypes>
@@ -129,7 +148,13 @@ namespace EasyLib {
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
 
-            data_.resize(m * (n * ... * other_sizes));
+            data_.resize(
+#if __cplusplus < 201703L
+                detail::product(m, n, other_sizes...)
+#else
+                m * (n * ... * other_sizes)
+#endif
+            );
     
             // update size info
             extent_ = { m,n,other_sizes... };
@@ -152,7 +177,13 @@ namespace EasyLib {
         void reshape(size_type m, size_type n, Args ... other_sizes)
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
-            auto nelem = m * (n *...* other_sizes);
+            auto nelem = 
+#if __cplusplus < 201703L
+                detail::product(m, n, other_sizes...)
+#else
+                m * (n *...* other_sizes)
+#endif
+                ;
             if (nelem != data_.size())throw std::invalid_argument("DynamicArray::reshape(), size not agree!");
     
             extent_ = { m,n,other_sizes... };
@@ -242,12 +273,16 @@ namespace EasyLib {
         template<typename ... Args>
         _force_inline_ size_type map_1d_imp_(size_type i0, Args ... args)const noexcept
         {
+            static_assert(sizeof...(args) > 0, "");
             constexpr size_type idim = RANK - 1 - sizeof...(args);
             ASSERT(i0 >= 0 && i0 < std::get<idim>(extent_));
-            if constexpr (sizeof...(Args) > 0)
-                return i0 * std::get<idim>(stride_) + map_1d_imp_(args...);
-            else
-                return i0 * stride_.back();
+            return i0 * std::get<idim>(stride_) + map_1d_imp_(args...);
+        }
+        _force_inline_ size_type map_1d_imp_(size_type i0)const noexcept
+        {
+            constexpr size_type idim = RANK - 1;
+            ASSERT(i0 >= 0 && i0 < std::get<idim>(extent_));
+            return i0 * stride_.back();
         }
         void update_stride_()noexcept
         {
@@ -275,7 +310,7 @@ namespace EasyLib {
         using const_pointer   = const value_type*;
         using const_reference = const value_type&;
 
-        inline static constexpr int Rank = 1;
+        static_const int Rank = 1;
         
         using storage::storage;
         using storage::operator=;
@@ -332,7 +367,7 @@ namespace EasyLib {
         using reverse_iterator = std::reverse_iterator<iterator>;
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-        inline static constexpr int Rank = 2;
+        static_const int Rank = 2;
 
         DynamicArray() = default;
         DynamicArray(const DynamicArray&) = default;

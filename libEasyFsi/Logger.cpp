@@ -64,7 +64,7 @@ namespace EasyLib {
         auto offset = output.length();
         output.resize(offset + (size_t)msg_len);// string[string.size()] is guaranteed to be '\0'
         //vsprintf(output.data(), fmt, arg_ptr);//C4996
-        vsprintf_s(output.data() + offset, msg_len + 1, format, args);
+        vsprintf_s(&output[offset], msg_len + 1, format, args);
 #else
         //use vsnprintf, vsprintf
         auto msg_len = vsnprintf(NULL, 0, format, args);// not counting the terminating null character.
@@ -72,7 +72,7 @@ namespace EasyLib {
 
         auto offset = output.length();
         output.resize(offset + (size_t)msg_len);// string[string.size()] is guaranteed to be '\0'
-        vsprintf(output.data() + offset, format, args);
+        vsprintf(&output[offset], format, args);
 #endif
         if (postfix && *postfix)output.append(postfix);
         return output;

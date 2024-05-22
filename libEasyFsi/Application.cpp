@@ -94,7 +94,12 @@ namespace EasyLib {
                 warn("unable add boundary during solving!");
             return *(Boundary*)nullptr;
         }
+#if __cplusplus >= 201703L
         return local_bounds_.emplace_back(Boundary{});
+#else
+        local_bounds_.push_back(Boundary{});
+        return local_bounds_.back();
+#endif
     }
 
     void Application::set_field_function(get_boundary_field_function getter, set_boundary_field_function setter)
@@ -134,7 +139,12 @@ namespace EasyLib {
             }
         }
 
+#if __cplusplus >= 201703L
         auto& f = data_.field_defs.emplace_back(FieldInfo{});
+#else
+        data_.field_defs.push_back(FieldInfo{});
+        auto& f = data_.field_defs.back();
+#endif
         f.name = field_name;
         f.ncomp = ncomp;
         f.location = location;
@@ -432,20 +442,19 @@ namespace EasyLib {
 
         // reset all fields as orphan and out of date
         for (auto& app : remote_apps_) {
-            for (int i = 0; auto & fd : app.field_defs) {
+            for (auto & fd : app.field_defs) {
                 fd.is_orphan       = true;
                 fd.is_out_of_date  = true;
                 fd.remote_app_rank = -1;
-                fd.id              = i;
-                ++i;
+                fd.id              = static_cast<int>(&fd - app.field_defs.data());
             }
         }
         // find source and target fields for this application
-        for (int i = 0; auto & f : data_.field_defs) {
+        for (auto & f : data_.field_defs) {
             f.is_orphan       = true;
             f.is_out_of_date  = true;
             f.remote_app_rank = -1;
-            f.id              = i;
+            f.id              = static_cast<int>(&f - data_.field_defs.data());
             for (auto& app : remote_apps_) {
                 for (auto & rf : app.field_defs) {
                     if (f.name != rf.name)continue;
@@ -470,7 +479,6 @@ namespace EasyLib {
             if (f.is_orphan && (f.iotype == OutgoingDofs || f.iotype == OutgoingLoads)) {
                 info("\n***WARNING*** target for outgoing filed \"%s\" is not found!\n", f.name.c_str());
             }
-            ++i;
         }
 
         // sync error for all applications
@@ -567,7 +575,12 @@ namespace EasyLib {
                 }
                 if (field_interps_.at(fd.id))continue;
 
+#if __cplusplus >= 201703L
                 auto& ip = interps_.emplace_back(Interpolator{});
+#else
+                interps_.push_back(Interpolator{});
+                auto& ip = interps_.back();
+#endif
                 ip.set_app_id(src, des);
 
                 for (auto bd : data_.bounds)ip.add_source_boundary(*bd);
@@ -589,7 +602,12 @@ namespace EasyLib {
                 }
                 if (field_interps_.at(fd.id))continue;
 
+#if __cplusplus >= 201703L
                 auto& ip = interps_.emplace_back(Interpolator{});
+#else
+                interps_.push_back(Interpolator{});
+                auto& ip = interps_.back();
+#endif
                 ip.set_app_id(src, des);
 
                 for (auto bd : remote_apps_.at(fd.remote_app_rank).bounds)
@@ -821,7 +839,7 @@ namespace EasyLib {
             // FELINESEG zone
             if (bd->topo() == ZT_CURVE) {
                 for (int_l i = 0; i < bd->nface(); ++i) {
-                    auto nodes = bd->face_nodes()[i];
+                    auto&& nodes = bd->face_nodes()[i];
                     ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << '\n'; //? convert to one-based index, ignore middle node for FT_BAR3
                 }
             }
@@ -829,13 +847,13 @@ namespace EasyLib {
             else if (!bd->contains_polygon()) {
                 if (all_tri) {
                     for (int_l i = 0; i < bd->nface(); ++i) {
-                        auto nodes = bd->face_nodes()[i];
+                        auto&& nodes = bd->face_nodes()[i];
                         ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; //? convert to one-based index, ignore middle node for FT_TRI6
                     }
                 }
                 else {
                     for (int_l i = 0; i < bd->nface(); ++i) {
-                        auto nodes = bd->face_nodes()[i];
+                        auto&& nodes = bd->face_nodes()[i];
                         switch (bd->face_types().at(i)) {
                         case TRI3: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;
                         case TRI6: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;

@@ -33,7 +33,12 @@ namespace EasyLib {
     void ModelInterface::register_field(const FieldInfo& fd)
     {
         for (auto& f : fields_)if (f.info == &fd)return;
+#if __cplusplus >= 201703L
         auto& f = fields_.emplace_back(Field{});
+#else
+        fields_.push_back(Field{});
+        auto& f = fields_.back();
+#endif
         f.info = &fd;
         f.data.resize(fd.location == NodeCentered ? nnode() : nelem(), fd.ncomp, 0);
     }

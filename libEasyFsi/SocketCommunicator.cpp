@@ -36,7 +36,9 @@ freely, subject to the following restrictions:
 #include <thread>
 #include <mutex>
 #include <memory>  // unique_ptr
+#ifdef __cpp_lib_endian
 #include <bit>     // C++20, endian
+#endif
 
 #include "Assert.hpp"
 #include "Logger.hpp"
@@ -205,7 +207,16 @@ namespace EasyLib {
         return nrecv;
     }
 
+#ifdef __cpp_lib_endian
     static constexpr const unsigned short is_big_endian = std::endian::native == std::endian::big ? 1 : 0;
+#else
+    static bool isBigEndian() {
+        uint16_t word = 1; // 0x0001
+        uint8_t* first_byte = (uint8_t*)&word; // points to the first byte of word
+        return !(*first_byte); // true if the first byte is zero
+    }
+    static const unsigned short is_big_endian = isBigEndian() ? 1 : 0;
+#endif
 
     struct DataHead
     {
@@ -672,7 +683,7 @@ namespace EasyLib {
         }
         if (big_endian != big)len = byteswap(len); //? byte swap
         c0.remote_host_ip.resize(len);
-        if (len != ReceiveData(sock, c0.remote_host_ip.data(), len)) {
+        if (len != ReceiveData(sock, &c0.remote_host_ip[0], len)) {
             int ierr = GetLastSocketError();
             CloseSocket(sock);
             error("failed receive server IP. ERROR CODE = %d", ierr);
@@ -688,7 +699,7 @@ namespace EasyLib {
         }
         if (big_endian != big)len = byteswap(len); //? byte swap
         c0.remote_host_name.resize(len);
-        if (len != ReceiveData(sock, c0.remote_host_name.data(), len)) {
+        if (len != ReceiveData(sock, &c0.remote_host_name[0], len)) {
             int ierr = GetLastSocketError();
             CloseSocket(sock);
             error("failed receive server name. ERROR CODE = %d", ierr);
@@ -730,7 +741,7 @@ namespace EasyLib {
         }
         if (big_endian != big)len = byteswap(len); //? byte swap
         std::string str(len, '\0');
-        if (len != ReceiveData(sock, str.data(), len)) {
+        if (len != ReceiveData(sock, &str[0], len)) {
             int ierr = GetLastSocketError();
             CloseSocket(sock);
             error("failed receive participator info. ERROR CODE = %d", ierr);

@@ -195,7 +195,7 @@ namespace EasyLib {
         recv(&len, 1, src_rank, tag);
         if (len > 0) {
             str.resize(len);
-            recv(str.data(), len, src_rank, tag + 1);
+            recv(&str[0], len, src_rank, tag + 1);
         }
     }
 

@@ -28,7 +28,9 @@ freely, subject to the following restrictions:
 //!-------------------------------------------------------------
 
 #include <cmath>
+#ifdef __cpp_lib_math_constants
 #include <numbers>  // std::numeric_limits<double>::max();
+#endif
 #include <iomanip>
 #include <fstream>  // see Boundary::read_gmsh
 #include <set>      // see Boundary::create_edges_
@@ -72,7 +74,7 @@ namespace EasyLib {
     {
         double fn[npf_max] = { 0 };
         for (int i = 0; i < nf; ++i) {
-            auto nodes = face_nodes[i];
+            auto&& nodes = face_nodes[i];
             if      (ftopo[i] == BAR2) {
                 auto& x0 = pnts[nodes[0]];
                 auto& x1 = pnts[nodes[1]];
@@ -170,7 +172,7 @@ namespace EasyLib {
     {
         //double fn[8];
         for (int i = 0; i < nf; ++i) {
-            auto nodes = face_nodes[i];
+            auto&& nodes = face_nodes[i];
             if (ftopo[i] == BAR2 || ftopo[i] == BAR3) {
                 auto& x0 = pnts[nodes[0]];
                 auto& x1 = pnts[nodes[1]];
@@ -279,7 +281,12 @@ namespace EasyLib {
 
         static constexpr auto eps = std::numeric_limits<real>::epsilon();
         static constexpr auto rmax = std::numeric_limits<real>::max();
-        const auto cos_err = std::abs(std::cos(std::numbers::pi_v<real> *(90 - biased_angle_deg) / 180));
+#ifdef __cpp_lib_math_constants
+        static constexpr auto pi = std::numbers::pi_v<real>;
+#else
+        static constexpr auto pi = real{ 3.14159265358979323846 };
+#endif
+        const auto cos_err = std::abs(std::cos(pi *(90 - biased_angle_deg) / 180));
 
         //--- 0. 初始化矩阵为单位矩阵
         for (int i = 0; i < 4; ++i)
@@ -867,7 +874,7 @@ namespace EasyLib {
     }
     void Boundary::set_face_area(int_l face, double sx, double sy, double sz)
     {
-        auto ds = std::hypot(sx, sy, sz);
+        auto ds = std::sqrt(sx * sx + sy * sy + sz * sz);// std::hypot(sx, sy, sz);
         face_area_.at(face) = ds;
         face_normal_.at(face).assign(sx / ds, sy / ds, sz / ds);
     }
@@ -900,7 +907,7 @@ namespace EasyLib {
         std::set<Edge> edges;
         for (int_l i = 0; i < nface(); ++i) {
             auto ft = face_types_.at(i);
-            auto fnodes = face_nodes_[i];
+            auto&& fnodes = face_nodes_[i];
             switch (ft) {
             case TRI3:
                 add_edge(edges, Edge{ fnodes[0], fnodes[1], i, invalid_id });
@@ -1241,7 +1248,7 @@ namespace EasyLib {
         
         // loop each adjacent face of node and do projection to find nearest one
         for (const auto face : node_faces_[id]) {
-            auto nodes = face_nodes_[face];
+            auto&& nodes = face_nodes_[face];
 
             if (face_types_[face] == POLYGON) {
                 error("Polygon face is unsupported by projection algorithm!");
@@ -1316,7 +1323,12 @@ namespace EasyLib {
     void Boundary::register_field(const FieldInfo& fd)
     {
         for (auto& f : fields_)if (f.info == &fd)return;
-        auto & f = fields_.emplace_back(Field{});
+#if __cplusplus >= 201703L
+        auto& f = fields_.emplace_back(Field{});
+#else
+        fields_.push_back(Field{});
+        auto& f = fields_.back();
+#endif
         f.info = &fd;
         f.data.resize(fd.location == NodeCentered ? nnode() : nface(), fd.ncomp, 0);
     }
@@ -1327,7 +1339,7 @@ namespace EasyLib {
         if (sname.empty())sname = name() + ".bound";
 
         auto it = sname.find_last_of('.');
-        auto ext = it != std::string::npos ? sname.substr(it) : "";
+        auto&& ext = it != std::string::npos ? sname.substr(it) : "";
         std::transform(ext.begin(), ext.end(), ext.begin(), [](char c) {return (char)std::tolower(c); });
 
         if      (ext == ".msh")
@@ -1347,7 +1359,7 @@ namespace EasyLib {
         if (sname.empty())sname = name() + ".bound";
 
         auto it = sname.find_last_of('.');
-        auto ext = it != std::string::npos ? sname.substr(it) : "";
+        auto&& ext = it != std::string::npos ? sname.substr(it) : "";
         std::transform(ext.begin(), ext.end(), ext.begin(), [](char c) {return (char)std::tolower(c); });
 
         if      (ext == ".msh")
@@ -1701,7 +1713,7 @@ namespace EasyLib {
 
             // elements
             for (int_l face = 0; face < nface(); ++face) {
-                auto enodes = face_nodes_[face];
+                auto&& enodes = face_nodes_[face];
                 os << (enodes[0] + 1) << ' ' << (enodes[1] + 1) << '\n';
             }
         }
@@ -1729,7 +1741,7 @@ namespace EasyLib {
                 }
                 // elements
                 for (int_l face = 0; face < nface(); ++face) {
-                    auto enodes = face_nodes_[face];
+                    auto&& enodes = face_nodes_[face];
                     os
                         << (enodes[0] + 1) << ' '
                         << (enodes[1] + 1) << ' '
@@ -1758,7 +1770,7 @@ namespace EasyLib {
                 }
                 // elements
                 for (int_l face = 0; face < nface(); ++face) {
-                    auto enodes = face_nodes_[face];
+                    auto&& enodes = face_nodes_[face];
                     os
                         << (enodes[0] + 1) << ' '
                         << (enodes[1] + 1) << ' '
@@ -1789,7 +1801,7 @@ namespace EasyLib {
                 }
                 // elements
                 for (int_l face = 0; face < nface(); ++face) {
-                    auto enodes = face_nodes_[face];
+                    auto&& enodes = face_nodes_[face];
                     os
                         << (enodes[0] + 1) << ' '
                         << (enodes[1] + 1) << ' '
@@ -1918,7 +1930,7 @@ namespace EasyLib {
 
         // faces
         for (int_l i = 0; i < bd.nface(); ++i) {
-            auto nodes = bd.face_nodes()[i];
+            auto&& nodes = bd.face_nodes()[i];
             switch (bd.face_types().at(i)) {
             case BAR2 : os << "L2"; break;
             case BAR3 : os << "L3"; break;

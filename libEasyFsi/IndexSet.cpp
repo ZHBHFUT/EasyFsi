@@ -128,7 +128,7 @@ namespace EasyLib {
         // build g2l
         int_l ndup = 0;
         for (int_l l = 0; l < count; ++l) {
-            if (!g2l_.contains(global_ids[l]))
+            if (!this->contains(global_ids[l]))
                 g2l_.emplace(global_ids[l], l);
             else
                 ++ndup;
@@ -173,7 +173,8 @@ namespace EasyLib {
     void IndexSet::build_g2l_()
     {
         g2l_.clear();
-        for (int_l l = 0; auto g : l2g_) {
+        int_l l = 0;
+        for (auto g : l2g_) {
             g2l_.try_emplace(g, l);
             ++l;
         }

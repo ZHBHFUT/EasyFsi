@@ -850,7 +850,8 @@ namespace EasyLib {
             }
         }
         // sort
-        for (int_l nn = 0; auto& p : node_g2l_t) {
+        int_l nn = 0;
+        for (auto& p : node_g2l_t) {
             p.second = nn; ++nn;
         }
 

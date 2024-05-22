@@ -14,24 +14,26 @@ namespace EasyLib {
 #include <array>
 
 #include "Assert.hpp"
+#include "Inline.hpp"
 #include "RandomAccessIterator.hpp"
 
 namespace EasyLib {
 
-    inline constexpr size_t dynamic_extent =  SIZE_MAX;
+    inline_const std::size_t dynamic_extent =  SIZE_MAX;
 
-    template<typename T, size_t Extent = dynamic_extent> class Span;
+    template<typename T, std::size_t Extent = dynamic_extent> class Span;
 
-    template<typename T, size_t Extent>
+    template<typename T, std::size_t Extent>
     class SpanBase
     {
     public:
+        using size_type = std::size_t;
         constexpr SpanBase(T* base, [[maybe_unused]] size_type count)noexcept
             :_Mydata(base)
         {
             ASSERT(count == Extent);
         }
-
+        constexpr size_type size()const noexcept { return Extent; }
     protected:
         T* _Mydata{ nullptr };
     };
@@ -39,23 +41,26 @@ namespace EasyLib {
     class SpanBase<T, dynamic_extent>
     {
     public:
-        constexpr SpanBase(T* base, size_t count)noexcept :_Mydata(base), _Mysize(count) {}
+        using size_type = std::size_t;
+        constexpr SpanBase()noexcept = default;
+        constexpr SpanBase(T* base, size_type count)noexcept :_Mydata(base), _Mysize(count) {}
+        constexpr size_type size()const noexcept { return _Mysize; }
     protected:
-        T*     _Mydata{ nullptr };
-        size_t _Mysize{ 0 };
+        T*        _Mydata{ nullptr };
+        size_type _Mysize{ 0 };
     };
 
     //! @brief Fixed-length span
     //! @tparam T       element type
     //! @tparam Extent  element number
-    template<typename T, size_t Extent>
+    template<typename T, std::size_t Extent>
     class Span : public SpanBase<T, Extent>
     {
     public:
         using base_type        = SpanBase<T, Extent>;
         using element_type     = T;
         using value_type       = std::remove_cv_t<T>;
-        using size_type        = size_type;
+        using size_type        = base_type::size_type;
         using difference_type  = std::ptrdiff_t;
         using pointer          = T*;
         using const_pointer    = const T*;
@@ -64,9 +69,11 @@ namespace EasyLib {
         using iterator         = RandomAccessIterator<T>;
         using reverse_iterator = std::reverse_iterator<iterator>;
 
-        inline static constexpr size_type extent = Extent;
+        using base_type::size;
 
-        constexpr Span() noexcept = default;
+        static_const size_type extent = Extent;
+
+        constexpr Span()noexcept = default;
         constexpr Span(const Span&)noexcept = default;
 
         constexpr Span(T* base, size_type count)
@@ -94,7 +101,7 @@ namespace EasyLib {
         {
             static_assert(std::is_const_v<T> && std::is_same_v<value_type, std::remove_cv_t<T2>>, "invalid type!");
         }
-        template<typename T2, size_t N>
+        template<typename T2, std::size_t N>
         constexpr Span(const Span<T2, N>& s)noexcept
             :base_type(s.data(), N)
         {
@@ -106,14 +113,7 @@ namespace EasyLib {
         {}
 
         constexpr pointer   data()const noexcept { return base_type::_Mydata; }
-        constexpr size_type size()const noexcept
-        {
-            if constexpr (Extent == dynamic_extent)
-                return base_type::_Mysize;
-            else
-                return extent;
-        }
-
+        
         constexpr Span& operator = (const Span&)noexcept = default;
 
         constexpr size_type size_bytes()const noexcept { return sizeof(element_type) * size(); }
@@ -167,33 +167,42 @@ namespace EasyLib {
         }
     };
 
-    template<typename T, size_t N>
+    template<typename T, std::size_t N>
     auto as_bytes(Span<T> s)
     {
+#ifdef __cpp_lib_byte
+        using byte = std::byte;
+#else
+        using byte = unsigned char;
+#endif
         if constexpr (N == dynamic_extent)
-            return Span<const std::byte>(
-                reinterpret_cast<const std::byte*>(s.data()),
+            return Span<const byte>(
+                reinterpret_cast<const byte*>(s.data()),
                 s.size_bytes()
             );
         else
-            return Span<const std::byte, sizeof(T)* N>(
-                reinterpret_cast<const std::byte*>(s.data()),
+            return Span<const byte, sizeof(T)* N>(
+                reinterpret_cast<const byte*>(s.data()),
                 sizeof(T) * N
             );
     }
-    template<typename T, size_t N>
+    template<typename T, std::size_t N>
     auto as_writable_bytes(Span<T> s)
     {
         static_assert(!std::is_const_v<T>, "type is not writable!");
-
+#ifdef __cpp_lib_byte
+        using byte = std::byte;
+#else
+        using byte = unsigned char;
+#endif
         if constexpr (N == dynamic_extent)
-            return Span<std::byte>(
-                reinterpret_cast<std::byte*>(s.data()),
+            return Span<byte>(
+                reinterpret_cast<byte*>(s.data()),
                 s.size_bytes()
             );
         else
-            return Span<std::byte, sizeof(T)* N>(
-                reinterpret_cast<std::byte*>(s.data()),
+            return Span<byte, sizeof(T)* N>(
+                reinterpret_cast<byte*>(s.data()),
                 sizeof(T) * N
             );
     }
@@ -212,14 +221,14 @@ namespace EasyLib {
             return Span<value_type>(ctn.data(), ctn.size());
     }
 
-    template<typename T, size_t N>
+    template<typename T, std::size_t N>
     Span<T, N> make_span(T(&pointer)[N])
     {
         return Span<T, N>(pointer);
     }
 
     template<typename T>
-    Span<T, dynamic_extent> make_span(T* pointer, size_t count)
+    Span<T, dynamic_extent> make_span(T* pointer, std::size_t count)
     {
         return Span<T, dynamic_extent>{pointer, count};
     }

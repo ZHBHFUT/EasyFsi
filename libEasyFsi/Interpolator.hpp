@@ -49,8 +49,8 @@ namespace EasyLib {
     class Interpolator
     {
     public:
-        inline static constexpr const int max_donor = 20;
-        inline static constexpr const int min_donor = 8;
+        static_const int max_donor = 20;
+        static_const int min_donor = 8;
 
         struct InterpInfo
         {

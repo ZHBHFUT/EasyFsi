@@ -41,3 +41,11 @@ freely, subject to the following restrictions:
 #else
 #error Unsupported compiler
 #endif
+
+#if __cplusplus >= 201703L
+#define static_const inline static constexpr
+#define inline_const inline constexpr
+#else
+#define static_const static constexpr
+#define inline_const constexpr
+#endif
