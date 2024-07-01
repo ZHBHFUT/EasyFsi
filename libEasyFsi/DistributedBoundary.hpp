@@ -37,9 +37,8 @@ namespace EasyLib {
     class DistributedBoundary
     {
     public:
-        using dvec = Boundary::dvec;
-        using ivec = Boundary::ivec;
-        using vec3 = Boundary::vec3;
+        using dvec = DynamicVector;
+        using ivec = DynamicArray<int_l, 1>;
 
         DistributedBoundary() = default;
         DistributedBoundary(const DistributedBoundary&) = default;

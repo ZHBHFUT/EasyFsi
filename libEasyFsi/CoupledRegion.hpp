@@ -28,14 +28,24 @@ freely, subject to the following restrictions:
 //! @data       2023-06-08
 //!-------------------------------------------------------------
 
+#include "ModelInterface.hpp"
+
 namespace EasyLib {
 
-    // TODO: Coupled region class
-    class CoupledRegion
+    //! @brief Coupled region class
+    class CoupledRegion : public ModelInterface
     {
     public:
+        virtual ~CoupledRegion() = default;
+
+        void load(const char* /*file*/)override {/* TBD */ }
+        void save(const char* /*file*/)const override {/* TBD */ }
+
+        int_l nnode()const final { /* TBD */ return 0; }
+        int_l nelem()const final { /* TBD */ return 0; }
 
     private:
+        // TBD
 
     };
 }

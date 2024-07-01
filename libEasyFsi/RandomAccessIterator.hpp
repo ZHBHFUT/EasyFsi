@@ -20,30 +20,30 @@ namespace EasyLib {
         RandomAccessIterator(const RandomAccessIterator&) = default;
         RandomAccessIterator& operator=(const RandomAccessIterator&) = default;
 
-        constexpr RandomAccessIterator(T* data, size_t offset = 0)noexcept :ptr_(data ? data + offset : nullptr) {}
+        const RandomAccessIterator(T* data, size_t offset = 0)noexcept :ptr_(data ? data + offset : nullptr) {}
 
-        constexpr reference operator *()const noexcept { return *ptr_; }
-        constexpr pointer   operator->()const noexcept { return  ptr_; }
+        const reference operator *()const noexcept { return *ptr_; }
+        const pointer   operator->()const noexcept { return  ptr_; }
 
-        constexpr reference operator [](size_t i)const noexcept { return ptr_[i]; }
+        const reference operator [](size_t i)const noexcept { return ptr_[i]; }
 
-        constexpr bool operator ==(const RandomAccessIterator& it)const noexcept { return ptr_ == it.ptr_; }
-        constexpr bool operator !=(const RandomAccessIterator& it)const noexcept { return ptr_ != it.ptr_; }
-        constexpr bool operator < (const RandomAccessIterator& it)const noexcept { return ptr_ <  it.ptr_; }
-        constexpr bool operator <=(const RandomAccessIterator& it)const noexcept { return ptr_ <= it.ptr_; }
-        constexpr bool operator > (const RandomAccessIterator& it)const noexcept { return ptr_ >  it.ptr_; }
-        constexpr bool operator >=(const RandomAccessIterator& it)const noexcept { return ptr_ >= it.ptr_; }
+        const bool operator ==(const RandomAccessIterator& it)const noexcept { return ptr_ == it.ptr_; }
+        const bool operator !=(const RandomAccessIterator& it)const noexcept { return ptr_ != it.ptr_; }
+        const bool operator < (const RandomAccessIterator& it)const noexcept { return ptr_ <  it.ptr_; }
+        const bool operator <=(const RandomAccessIterator& it)const noexcept { return ptr_ <= it.ptr_; }
+        const bool operator > (const RandomAccessIterator& it)const noexcept { return ptr_ >  it.ptr_; }
+        const bool operator >=(const RandomAccessIterator& it)const noexcept { return ptr_ >= it.ptr_; }
 
-        constexpr RandomAccessIterator& operator++()noexcept { ++ptr_; return *this; }
-        constexpr RandomAccessIterator& operator--()noexcept { --ptr_; return *this; }
-        constexpr RandomAccessIterator  operator++(int)noexcept { return RandomAccessIterator{ ptr_ + 1 }; }
-        constexpr RandomAccessIterator  operator--(int)noexcept { return RandomAccessIterator{ ptr_ - 1 }; }
-        constexpr RandomAccessIterator& operator+=(difference_type _Off)noexcept { ptr_ += _Off; return *this; }
-        constexpr RandomAccessIterator& operator-=(difference_type _Off)noexcept { ptr_ -= _Off; return *this; }
-        constexpr RandomAccessIterator operator + (difference_type _Off)const noexcept { return RandomAccessIterator{ ptr_ + _Off }; }
-        constexpr RandomAccessIterator operator - (difference_type _Off)const noexcept { return RandomAccessIterator{ ptr_ - _Off }; }
+        const RandomAccessIterator& operator++()noexcept { ++ptr_; return *this; }
+        const RandomAccessIterator& operator--()noexcept { --ptr_; return *this; }
+        const RandomAccessIterator  operator++(int)noexcept { return RandomAccessIterator{ ptr_ + 1 }; }
+        const RandomAccessIterator  operator--(int)noexcept { return RandomAccessIterator{ ptr_ - 1 }; }
+        const RandomAccessIterator& operator+=(difference_type _Off)noexcept { ptr_ += _Off; return *this; }
+        const RandomAccessIterator& operator-=(difference_type _Off)noexcept { ptr_ -= _Off; return *this; }
+        const RandomAccessIterator operator + (difference_type _Off)const noexcept { return RandomAccessIterator{ ptr_ + _Off }; }
+        const RandomAccessIterator operator - (difference_type _Off)const noexcept { return RandomAccessIterator{ ptr_ - _Off }; }
 
-        constexpr difference_type operator -(const RandomAccessIterator& it)const noexcept { return static_cast<difference_type>(ptr_ - it.ptr_); }
+        const difference_type operator -(const RandomAccessIterator& it)const noexcept { return static_cast<difference_type>(ptr_ - it.ptr_); }
 
     private:
         T* ptr_{ nullptr };

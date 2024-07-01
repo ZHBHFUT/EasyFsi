@@ -36,6 +36,8 @@ freely, subject to the following restrictions:
 #include "../libEasyFsi/MPICommunicator.hpp"
 #include "../libEasyFsi/SocketCommunicator.hpp"
 
+//PY_VERSION
+
 namespace py = pybind11;
 
 PYBIND11_MAKE_OPAQUE(EasyLib::DynamicArray<EasyLib::int_l, 1>);
@@ -1003,11 +1005,14 @@ PYBIND11_MODULE(EasyFsi, m) {
         .def("add_source_boundary", &Interpolator::add_source_boundary)
         .def("add_target_boundary", &Interpolator::add_target_boundary)
         .def("compute_interp_coeff", &Interpolator::compute_interp_coeff)
+        .def("compute_interp_coeff", [](Interpolator& it, InterpolationMethod method) { it.compute_interp_coeff(method); })
+        .def("compute_interp_coeff", [](Interpolator& it) { it.compute_interp_coeff(); })
         .def("save_coefficients", &Interpolator::save_coefficients)
         .def("load_coefficients", &Interpolator::load_coefficients)
         .def("interp_all_dofs_s2t", &Interpolator::interp_all_dofs_s2t)
         .def("interp_all_load_t2s", &Interpolator::interp_all_load_t2s)
         .def("interp_dofs_s2t", [](Interpolator& it, py::str name) {it.interp_dofs_s2t(std::string(name).c_str()); })
         .def("interp_load_t2s", [](Interpolator& it, py::str name) {it.interp_load_t2s(std::string(name).c_str()); })
+        .def("interp_modal_results", [](Interpolator& it, py::str ifile, py::str ofile) {it.interp_modal_results(std::string(ifile).c_str(), std::string(ofile).c_str()); })
         ;
 }

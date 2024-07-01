@@ -550,8 +550,8 @@ struct TinyVector<T, 1>
     // subscript operator
     //----------------------------------------
 
-    reference       operator[]([[maybe_unused]]size_type i)      noexcept { ASSERT(i == 0); return x; }
-    const_reference operator[]([[maybe_unused]]size_type i)const noexcept { ASSERT(i == 0); return x; }
+    reference       operator[](size_type i)      noexcept { ASSERT(i == 0); return x; }
+    const_reference operator[](size_type i)const noexcept { ASSERT(i == 0); return x; }
 
     reference       at(size_type i)
     {
@@ -810,7 +810,7 @@ struct TinyVector<T, 2>
 
     value_type norm()const noexcept
     {
-        return std::hypot(x, y);
+        return std::sqrt(x * x + y * y);// std::hypot(x, y);
     }
 
     value_type norm_sq()const noexcept
@@ -855,7 +855,7 @@ struct TinyVector<T, 2>
     {
         auto dx = x - b.x;
         auto dy = y - b.y;
-        return std::hypot(dx, dy);
+        return std::sqrt(dx * dx + dy * dy);// std::hypot(dx, dy);
     }
 
     //----------------------------------------
@@ -1034,7 +1034,7 @@ struct TinyVector<T, 2>
     {
         auto dx = b.x - a.x;
         auto dy = b.y - a.y;
-        return std::hypot(dx, dy);
+        return std::sqrt(dx * dx + dy * dy);// std::hypot(dx, dy);
     }
 
     friend value_type distance_sq(const TinyVector& a, const TinyVector& b)noexcept
@@ -1046,7 +1046,7 @@ struct TinyVector<T, 2>
 
     friend value_type norm(const TinyVector& a)noexcept
     {
-        return std::hypot(a.x, a.y);
+        return std::sqrt(a.x * a.x + a.y * a.y);//std::hypot(a.x, a.y);
     }
 
     friend value_type norm_sq(const TinyVector& a)noexcept
@@ -1056,7 +1056,7 @@ struct TinyVector<T, 2>
 
     friend value_type normalize(TinyVector& a)noexcept
     {
-        value_type l = std::hypot(a.x, a.y);
+        value_type l = norm(a);
         a.x /= l != 0 ? l : 1;
         a.y /= l != 0 ? l : 1;
         return l;
@@ -1149,7 +1149,7 @@ struct TinyVector<T, 3>
 
     value_type norm()const noexcept
     {
-        return std::hypot(x, y, z);
+        return std::sqrt(x * x + y * y + z * z);// std::hypot(x, y, z);
     }
 
     value_type norm_sq()const noexcept
@@ -1202,7 +1202,7 @@ struct TinyVector<T, 3>
         auto dx = x - b.x;
         auto dy = y - b.y;
         auto dz = z - b.z;
-        return std::hypot(dx, dy, dz);
+        return std::sqrt(dx * dx + dy * dy + dz * dz);// std::hypot(dx, dy, dz);
     }
 
     //----------------------------------------
@@ -1393,7 +1393,7 @@ struct TinyVector<T, 3>
         auto dx = b.x - a.x;
         auto dy = b.y - a.y;
         auto dz = b.z - a.z;
-        return std::hypot(dx, dy, dz);
+        return std::sqrt(dx * dx + dy * dy + dz * dz);// std::hypot(dx, dy, dz);
     }
 
     friend value_type distance_sq(const TinyVector& a, const TinyVector& b)noexcept
@@ -1406,7 +1406,7 @@ struct TinyVector<T, 3>
 
     friend value_type norm(const TinyVector& a)noexcept
     {
-        return std::hypot(a.x, a.y, a.z);
+        return std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);// std::hypot(a.x, a.y, a.z);
     }
 
     friend value_type norm_sq(const TinyVector& a)noexcept
@@ -1416,7 +1416,7 @@ struct TinyVector<T, 3>
 
     friend value_type normalize(TinyVector& a)noexcept
     {
-        value_type l = std::hypot(a.x, a.y, a.z);
+        value_type l = norm(a);
         a.x /= l != 0 ? l : 1;
         a.y /= l != 0 ? l : 1;
         a.z /= l != 0 ? l : 1;

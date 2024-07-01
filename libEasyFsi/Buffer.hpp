@@ -19,33 +19,12 @@ freely, subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 -------------------------------------------------------------------------*/
 
-//!-------------------------------------------------------------
-//! @file       Inline.hpp
-//!             The definition _force_inline_ macro.
-//! @author     ZHANG Bing, zhangbing@hfut.edu.cn
-//! @version    1.0
-//! @copyright  2023, all rights reserved.
-//! @data       2023-06-08
-//!-------------------------------------------------------------
-
-#if defined(__clang__) || defined(__GNUC__)
-#define _force_inline_ __attribute__((always_inline)) inline
-#define _force_inline_ [[gnu::always_inline]] inline
-#elif defined(_MSC_VER)
-#ifdef _DEBUG
-#define _force_inline_ inline
-#else
-#pragma warning(error: 4714)
-#define _force_inline_ __forceinline
-#endif
-#else
-#error Unsupported compiler
-#endif
-
-#if __cplusplus >= 201703L
-#define static_const inline static constexpr
-#define inline_const inline constexpr
-#else
-#define static_const static constexpr
-#define inline_const constexpr
-#endif
+namespace EasyLib {
+    
+    class Buffer
+    {
+    public:
+        
+        //friend Buffer& operator << (Buffer& bf, 
+    };
+}

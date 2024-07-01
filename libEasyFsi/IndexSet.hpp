@@ -79,7 +79,11 @@ namespace EasyLib {
 
         inline bool contains(int_g global_id)const noexcept
         {
+#if __cplusplus>=202002L
             return g2l_.contains(global_id);
+#else
+            return g2l_.find(global_id) != g2l_.end();
+#endif
         }
 
         inline std::pair<bool, int_l> find(int_g global_id)const
@@ -90,11 +94,15 @@ namespace EasyLib {
                 : std::make_pair(true, invalid_id);
         }
 
+#if __cplusplus>=202002L
         inline constexpr bool empty()const noexcept { return l2g_.empty(); }
-
         inline constexpr int_l size()const noexcept { return static_cast<int_l>(l2g_.size()); }
-
         inline constexpr const int_g* data()const { return l2g_.data(); }
+#else
+        inline bool empty()const noexcept { return l2g_.empty(); }
+        inline int_l size()const noexcept { return static_cast<int_l>(l2g_.size()); }
+        inline const int_g* data()const { return l2g_.data(); }
+#endif
 
         inline int_g operator[](int_l i)const { return l2g_[i]; }
 

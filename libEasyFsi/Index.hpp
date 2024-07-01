@@ -28,10 +28,12 @@ freely, subject to the following restrictions:
 //! @data       2023-06-08
 //!-------------------------------------------------------------
 
+#include "Inline.hpp"
+
 namespace EasyLib {
 
     using int_l = int;
     using int_g = long long;
 
-    inline constexpr const int_l invalid_id = -1;
+    inline_const int_l invalid_id = -1;
 }

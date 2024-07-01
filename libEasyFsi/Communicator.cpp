@@ -26,8 +26,10 @@ freely, subject to the following restrictions:
 //! @copyright  2023, all rights reserved.
 //! @data       2023-06-08
 //!-------------------------------------------------------------
+#include "Communicator.hpp"
 
-#include <sstream>
+#include <iomanip> // see Communicator::send, Communicator::recv
+#include <sstream> // see Communicator::send, Communicator::recv
 
 #include "IndexSet.hpp"
 #include "MeshConnectivity.hpp"
@@ -35,7 +37,6 @@ freely, subject to the following restrictions:
 #include "DynamicMatrix.hpp"
 #include "Boundary.hpp"
 #include "Field.hpp"
-#include "Communicator.hpp"
 
 namespace EasyLib {
 
@@ -122,19 +123,20 @@ namespace EasyLib {
         ASSERT(bound.mesh_changed_);
 
         send(bound.name(), dest_rank, tag);
+        send(&bound.user_id_, 1, dest_rank, ++tag);
         send(bound.nodes(), dest_rank, ++tag);
         send(bound.face_nodes(), dest_rank, ++tag);
 
         const auto nn = bound.nodes_.size();
         const auto nf = bound.face_nodes_.nrow();
-        const auto nd = Boundary::vec3().size();
+        const auto nd = Vec3{}.size();
 
         // send node data
-        if (bound.node_num() > 0)
+        if (bound.nnode() > 0)
             send(bound.node_coords().data()->data(), nd * nn, dest_rank, ++tag);
 
         // send face data
-        if (bound.face_num() > 0) {
+        if (bound.nface() > 0) {
             send(bound.face_centroids().data()->data(), nd * nf, dest_rank, ++tag);
             send(bound.face_areas().data(), nf, dest_rank, ++tag);
             send(bound.face_normals().data()->data(), nd * nf, dest_rank, ++tag);
@@ -147,12 +149,13 @@ namespace EasyLib {
         bound.clear();
 
         recv(bound.name_, src_rank, tag);
+        recv(&bound.user_id_, 1, src_rank, ++tag);
         recv(bound.nodes_, src_rank, ++tag);
         recv(bound.face_nodes_, src_rank, ++tag);
         
         const auto nn = bound.nodes_.size();
         const auto nf = bound.face_nodes_.nrow();
-        const auto nd = Boundary::vec3().size();
+        const auto nd = Vec3{}.size();
 
         // allocate
         bound.node_coords_.resize(3 * nn);
@@ -193,7 +196,7 @@ namespace EasyLib {
         recv(&len, 1, src_rank, tag);
         if (len > 0) {
             str.resize(len);
-            recv(str.data(), len, src_rank, tag + 1);
+            recv(&str[0], len, src_rank, tag + 1);
         }
     }
 
@@ -205,7 +208,7 @@ namespace EasyLib {
             << info.ncomp << ' '
             << info.location << ' '
             << info.iotype << ' '
-            << info.time << ' '
+            << std::setprecision(16) << std::scientific << info.time << ' '
             << (int)info.is_orphan << ' '
             << (int)info.is_out_of_date
             ;
@@ -230,7 +233,7 @@ namespace EasyLib {
             >> out_of_dat;
         info.location       = (FieldLocation)loc;
         info.iotype         = (FieldIO)type;
-        info.is_orphan      = orphan;
-        info.is_out_of_date = out_of_dat;
+        info.is_orphan      = (orphan!=0);
+        info.is_out_of_date = (out_of_dat!=0);
     }
 }

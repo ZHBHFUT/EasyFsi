@@ -26,13 +26,13 @@ freely, subject to the following restrictions:
 //! @copyright  2023, all rights reserved.
 //! @data       2023-06-08
 //!-------------------------------------------------------------
+#include "MeshConnectivity.hpp"
 
 #include <stdexcept>
 #include <algorithm>
 
 #include "Assert.hpp"
 #include "Span.hpp"
-#include "MeshConnectivity.hpp"
 
 namespace EasyLib {
 

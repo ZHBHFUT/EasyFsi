@@ -87,6 +87,8 @@ namespace EasyLib {
 
         void send(const void* data, int count, DataType type, int dest_rank, int tag)final;
         void recv(void* data, int count, DataType type, int src_rank, int tag)final;
+        void async_send(const void* data, int count, DataType type, int dest_rank, int tag)final;
+        void wait()final;
 
         void disconnect() final;
 

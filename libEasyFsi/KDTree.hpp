@@ -575,7 +575,7 @@ namespace EasyLib {
                 return;
             }
             // search split
-            else [[likely]] {
+            else {
                 // check dist calc term condition
                 // if (ANNmaxPtsVisited != 0 && ANNptsVisited > ANNmaxPtsVisited) return;
 

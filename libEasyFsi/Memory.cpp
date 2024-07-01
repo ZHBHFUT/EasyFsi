@@ -27,8 +27,8 @@ freely, subject to the following restrictions:
 //! @data       2023-06-08
 //!-------------------------------------------------------------
 
-#include <memory>
 #include "Memory.hpp"
+#include <memory>
 
 namespace EasyLib {
 

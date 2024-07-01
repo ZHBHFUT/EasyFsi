@@ -49,8 +49,8 @@ namespace EasyLib {
     class Interpolator
     {
     public:
-        inline static constexpr const int max_donor = 20;
-        inline static constexpr const int min_donor = 8;
+        static_const int max_donor = 20;
+        static_const int min_donor = 8;
 
         struct InterpInfo
         {
@@ -87,7 +87,7 @@ namespace EasyLib {
         //! @param sources Field of source boundaries. size = source bounds number.
         //! @param targets Field of target boundaries. size = target bounds number.
         //! @note each of \sources field must be node-centered.
-        void interp_dofs_s2t(Span<Field* const> sources, Span<Field*> targets)const;
+        void interp_dofs_s2t(Span<const Field* const> sources, Span<Field*> targets)const;
 
         //! @brief Compute incoming LOADs from target bounds to source bounds. 
         //! @param targets Field of target boundaries. size = target bounds number.
@@ -95,7 +95,7 @@ namespace EasyLib {
         //! @param fill_src_zeros_first  Whether or not to fill the source fields with zeros before computing.
         //! @note
         //!  + each of \sources field must be node-centered.
-        void interp_load_t2s(Span<Field* const> targets, Span<Field*> sources/*, bool fill_src_zeros_first = true*/)const;
+        void interp_load_t2s(Span<const Field* const> targets, Span<Field*> sources/*, bool fill_src_zeros_first = true*/)const;
 
         //! @brief Compute nodal DOFs of target boundaries by source boundaries.
         //! @param [in]  ndof           DOF number
@@ -133,6 +133,8 @@ namespace EasyLib {
 
         void save_coefficients(const char* file)const;
         void load_coefficients(const char* file);
+
+        void interp_modal_results(const char* file, const char* output_file)const;
 
     private:
         int source_app_{ -1 };

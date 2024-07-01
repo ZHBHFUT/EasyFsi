@@ -163,7 +163,7 @@
       <AdditionalDependencies>libEasyFsi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>@xcopy /Y $(OutDir)$(TargetName).pyd $(SolutionDir)testcases\$(TargetName).pyd</Command>
+      <Command>@copy /Y $(OutDir)$(TargetName).pyd $(SolutionDir)testcases\$(TargetName).pyd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -205,7 +205,7 @@
       <AdditionalLibraryDirectories>$(OutDir);$(PythonHome)libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y $(OutDir)$(TargetName).pyd $(SolutionDir)testcases\$(TargetName).pyd</Command>
+      <Command>@copy /Y $(OutDir)$(TargetName).pyd $(SolutionDir)testcases\$(TargetName).pyd</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

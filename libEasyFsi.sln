@@ -10,6 +10,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pybind", "pybind\pybind.vcx
 		{CDB05046-1763-4B45-9CCC-02CF0BC9513D} = {CDB05046-1763-4B45-9CCC-02CF0BC9513D}
 	EndProjectSection
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "test_it", "test_it\test_it.pyproj", "{5DB861B6-5E28-47C8-A94C-300B640BD4A3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -74,6 +76,18 @@ Global
 		{816D6EFB-AB62-41E1-A5B2-1940673EAD18}.ReleaseDll|x64.Build.0 = Release|x64
 		{816D6EFB-AB62-41E1-A5B2-1940673EAD18}.ReleaseDll|x86.ActiveCfg = Release|Win32
 		{816D6EFB-AB62-41E1-A5B2-1940673EAD18}.ReleaseDll|x86.Build.0 = Release|Win32
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.DebugDll|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.DebugDll|x64.ActiveCfg = Debug|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.DebugDll|x86.ActiveCfg = Debug|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.Release|x64.ActiveCfg = Release|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.Release|x86.ActiveCfg = Release|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.ReleaseDll|Any CPU.ActiveCfg = Release|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.ReleaseDll|x64.ActiveCfg = Release|Any CPU
+		{5DB861B6-5E28-47C8-A94C-300B640BD4A3}.ReleaseDll|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

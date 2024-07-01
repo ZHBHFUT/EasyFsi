@@ -28,12 +28,16 @@ freely, subject to the following restrictions:
 //! @data       2023-06-08
 //!-------------------------------------------------------------
 
+#include <vector>
 #include "Communicator.hpp"
 
 namespace EasyLib {
 
-    typedef int(__stdcall *func_MPI_Send)(const void* buffer, int count, int datatype, int dest  , int tag, int comm);
-    typedef int(__stdcall *func_MPI_Recv)(      void* buffer, int count, int datatype, int source, int tag, int comm);
+    typedef int(__stdcall *func_MPI_Send   )(const void* buffer, int count, int datatype, int dest  , int tag, int comm);
+    typedef int(__stdcall *func_MPI_Recv   )(      void* buffer, int count, int datatype, int source, int tag, int comm);
+    typedef int(__stdcall* func_MPI_Isend  )(const void* buffer, int count, int datatype, int dest  , int tag, int comm, void* request);
+    //typedef int(__stdcall* func_MPI_Irecv  )(      void* buffer, int count, int datatype, int source, int tag, int comm, void* request);
+    typedef int(__stdcall* func_MPI_Waitall)(int count, void* requests, void* statuses);
 
     class MPICommunicator : public Communicator
     {
@@ -54,14 +58,12 @@ namespace EasyLib {
         void set_constant(const char* name, int   value)final;
 
         //! @brief set internal pointer, name = MPI_STATUS_IGNORE
-        void set_constant(const char* /*name*/, void* /*pointer*/)final {}
+        void set_constant(const char* name, void* pointer)final;
 
         //! @brief set internal function pointer, name = one of
         //!   MPI_Send
         //!   MPI_Recv
         void set_function(const char* name, void* func_pointer)final;
-
-        //void init(int /*argc*/, const char** /*argv*/)final {}
 
         void disconnect()final {}
 
@@ -73,6 +75,8 @@ namespace EasyLib {
 
         void send(const void* data, int count, DataType type, int dest_rank, int tag)final;
         void recv(      void* data, int count, DataType type, int src_rank,  int tag)final;
+        void async_send(const void* data, int count, DataType type, int dest_rank, int tag)final;
+        void wait()final;
 
     private:
         int dt2mpt_(DataType type)const noexcept;
@@ -81,6 +85,10 @@ namespace EasyLib {
         int comm_{ 0 }, rank_{ 0 }, size_{ 1 };
         func_MPI_Send MPI_Send_{ nullptr };
         func_MPI_Recv MPI_Recv_{ nullptr };
+        func_MPI_Isend MPI_Isend_{ nullptr };
+        //func_MPI_Irecv MPI_Irecv_{ nullptr };
+        func_MPI_Waitall MPI_Waitall_{ nullptr };
+
         //int  MPI_SUCCESS_      { -1 };
         int  MPI_NULL_T_       { -1 };
         int  MPI_INT16_T_      { -1 };
@@ -89,5 +97,7 @@ namespace EasyLib {
         int  MPI_FLOAT_        { -1 };
         int  MPI_DOUBLE_       { -1 };
         int  MPI_CHAR_         { -1 };
+        void* MPI_STATUSES_IGNORE_{ nullptr };
+        std::vector<int> requests_;
     };
 }

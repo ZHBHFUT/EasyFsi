@@ -26,12 +26,12 @@ freely, subject to the following restrictions:
 //! @copyright  2023, all rights reserved.
 //! @data       2023-06-08
 //!-------------------------------------------------------------
+#include "LinAlgs.h"
 
 #include <math.h>
 #include <stdlib.h>
 
 #include "Assert.hpp"
-#include "LinAlgs.h"
 
 void mat_inverse(int rank, double* m, int* buffer, int* singular)
 {

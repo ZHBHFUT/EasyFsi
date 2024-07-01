@@ -26,11 +26,11 @@ freely, subject to the following restrictions:
 //! @copyright  2023, all rights reserved.
 //! @data       2023-06-08
 //!-------------------------------------------------------------
+#include "Application.hpp"
 
-#include <fstream>
+#include <fstream> // see Application::save_tecplot
 
 #include "Logger.hpp"
-#include "Application.hpp"
 
 namespace EasyLib {
 
@@ -94,7 +94,12 @@ namespace EasyLib {
                 warn("unable add boundary during solving!");
             return *(Boundary*)nullptr;
         }
+#if __cplusplus >= 201703L
         return local_bounds_.emplace_back(Boundary{});
+#else
+        local_bounds_.push_back(Boundary{});
+        return local_bounds_.back();
+#endif
     }
 
     void Application::set_field_function(get_boundary_field_function getter, set_boundary_field_function setter)
@@ -134,7 +139,12 @@ namespace EasyLib {
             }
         }
 
+#if __cplusplus >= 201703L
         auto& f = data_.field_defs.emplace_back(FieldInfo{});
+#else
+        data_.field_defs.push_back(FieldInfo{});
+        auto& f = data_.field_defs.back();
+#endif
         f.name = field_name;
         f.ncomp = ncomp;
         f.location = location;
@@ -233,7 +243,8 @@ namespace EasyLib {
                 if (remote == data_.rank)continue;
 
                 // send time
-                inter_comm_->send(&time, 1, remote, 0);
+                //inter_comm_->send(&time, 1, remote, 0);
+                inter_comm_->async_send(&time, 1, DataTypeTraits<decltype(time)>::dtype, remote, 0);
 
                 // send fields
                 auto& remote_app = remote_apps_.at(remote);
@@ -246,15 +257,19 @@ namespace EasyLib {
                     for (auto bd : data_.bounds) {
                         auto& f = bd->fields_.at(remote_fd.remote_field);
                         ASSERT(f.info == &this_fd);
-                        inter_comm_->send(f.data.data(), static_cast<int>(f.data.numel()), remote, f.info->id);
+                        //? this will be blocking for MPI communicator!!!
+                        //inter_comm_->send(f.data.data(), static_cast<int>(f.data.numel()), remote, f.info->id);
+                        inter_comm_->async_send(f.data.data(), static_cast<int>(f.data.numel()), DataTypeTraits<decltype(f.data)::value_type>::dtype, remote, f.info->id);
                     }
                 }
             }
         }
     }
 
-    void Application::recv_incoming_fields_([[maybe_unused]]double time)
+    void Application::recv_incoming_fields_(double time)
     {
+        time = time;
+
         // Operations on root solver of this application
         if (!intra_comm_ || intra_comm_->rank() == intra_root_) {
 
@@ -264,10 +279,10 @@ namespace EasyLib {
 
                 auto& remote_app = remote_apps_.at(i);
 
-                // recv time
-                inter_comm_->recv(&remote_app.time, 1, i, 0);
+                // receive time
+                inter_comm_->recv(&remote_app.time, 1, DataTypeTraits<decltype(time)>::dtype, i, 0);
 
-                // recv fields
+                // receive fields
                 for (auto& this_fd : data_.field_defs) {
                     if (this_fd.remote_app_rank != i)continue;
 
@@ -275,11 +290,17 @@ namespace EasyLib {
 
                     for (auto bd : remote_app.bounds) {
                         auto& f = bd->fields_.at(this_fd.remote_field);
-                        inter_comm_->recv(f.data.data(), static_cast<int>(f.data.numel()), i, f.info->id);
+                        inter_comm_->recv(f.data.data(), static_cast<int>(f.data.numel()), DataTypeTraits<decltype(f.data)::value_type>::dtype, i, f.info->id);
                     }
                 }
             }
+        }
+    }
 
+    void Application::interp_incoming_()
+    {
+        // Operations on root solver of this application
+        if (!intra_comm_ || intra_comm_->rank() == intra_root_) {
             // TODO: time interpolate
 
             // interpolate incoming fields
@@ -310,15 +331,15 @@ namespace EasyLib {
                 // interpolate DOFs from remote
                 if (ip->source_app_id() == remote_app.rank && this_fd.iotype == IncomingDofs) {
                     ip->interp_dofs_s2t(
-                        make_span(remote_fields_.data(), remote_fields_.size()),
-                        make_span(this_fields_.data(), this_fields_.size())
+                        Span<const Field* const>{remote_fields_.data(), remote_fields_.size()},
+                        Span<Field*>{this_fields_.data(), this_fields_.size()}
                     );
                 }
                 // interpolate LOADs for this
                 else if (this_fd.iotype == IncomingLoads) {
                     ip->interp_load_t2s(
-                        make_span(remote_fields_.data(), remote_fields_.size()),
-                        make_span(this_fields_.data(), this_fields_.size())
+                        Span<const Field* const>{remote_fields_.data(), remote_fields_.size()},
+                        Span<Field*>{this_fields_.data(), this_fields_.size()}
                     );
                 }
                 else {
@@ -337,6 +358,7 @@ namespace EasyLib {
         read_outgoing_(user_data);
         send_outgoing_fields_(time);
         recv_incoming_fields_(time);
+        if(inter_comm_)inter_comm_->wait();//? wait for sending and receiving!!!
         write_incoming_(user_data);
     }
     
@@ -432,20 +454,19 @@ namespace EasyLib {
 
         // reset all fields as orphan and out of date
         for (auto& app : remote_apps_) {
-            for (int i = 0; auto & fd : app.field_defs) {
+            for (auto & fd : app.field_defs) {
                 fd.is_orphan       = true;
                 fd.is_out_of_date  = true;
                 fd.remote_app_rank = -1;
-                fd.id              = i;
-                ++i;
+                fd.id              = static_cast<int>(&fd - app.field_defs.data());
             }
         }
         // find source and target fields for this application
-        for (int i = 0; auto & f : data_.field_defs) {
+        for (auto & f : data_.field_defs) {
             f.is_orphan       = true;
             f.is_out_of_date  = true;
             f.remote_app_rank = -1;
-            f.id              = i;
+            f.id              = static_cast<int>(&f - data_.field_defs.data());
             for (auto& app : remote_apps_) {
                 for (auto & rf : app.field_defs) {
                     if (f.name != rf.name)continue;
@@ -470,7 +491,6 @@ namespace EasyLib {
             if (f.is_orphan && (f.iotype == OutgoingDofs || f.iotype == OutgoingLoads)) {
                 info("\n***WARNING*** target for outgoing filed \"%s\" is not found!\n", f.name.c_str());
             }
-            ++i;
         }
 
         // sync error for all applications
@@ -538,7 +558,7 @@ namespace EasyLib {
                 auto& fd = data_.field_defs.at(i);
                 fd.remote_app_rank = d.remote_app_rank;
                 fd.remote_field = d.remote_field;
-                fd.is_orphan = d.orphan;
+                fd.is_orphan = (d.orphan!=0);
             }
         }
     }
@@ -567,7 +587,12 @@ namespace EasyLib {
                 }
                 if (field_interps_.at(fd.id))continue;
 
+#if __cplusplus >= 201703L
                 auto& ip = interps_.emplace_back(Interpolator{});
+#else
+                interps_.push_back(Interpolator{});
+                auto& ip = interps_.back();
+#endif
                 ip.set_app_id(src, des);
 
                 for (auto bd : data_.bounds)ip.add_source_boundary(*bd);
@@ -589,7 +614,12 @@ namespace EasyLib {
                 }
                 if (field_interps_.at(fd.id))continue;
 
+#if __cplusplus >= 201703L
                 auto& ip = interps_.emplace_back(Interpolator{});
+#else
+                interps_.push_back(Interpolator{});
+                auto& ip = interps_.back();
+#endif
                 ip.set_app_id(src, des);
 
                 for (auto bd : remote_apps_.at(fd.remote_app_rank).bounds)
@@ -766,21 +796,21 @@ namespace EasyLib {
                 << "T = \"" << bd->name() << "\"\n";
 
             // 
-            bool all_tri  = bd->face_type_num(TRI3) + bd->face_type_num(TRI6) == bd->face_num();
-            //bool all_quad = bd->face_count(FT_QUAD4) + bd->face_count(FT_QUAD8) == bd->face_num();
+            bool all_tri  = bd->face_type_num(TRI3) + bd->face_type_num(TRI6) == bd->nface();
+            //bool all_quad = bd->face_count(FT_QUAD4) + bd->face_count(FT_QUAD8) == bd->nface();
 
             // Polygon not exists: write finite element grid (ignore middle node)
             if (!bd->contains_polygon()) {
                 switch (bd->topo()) {
-                case ZT_POINTS:  ofs << "ZONETYPE = ORDERED\n"         << "I = "     << bd->node_num() << '\n'; break;
-                case ZT_CURVE:   ofs << "ZONETYPE = FELINESEG\n"       << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n'; break;
+                case ZT_POINTS:  ofs << "ZONETYPE = ORDERED\n"         << "I = "     << bd->nnode() << '\n'; break;
+                case ZT_CURVE:   ofs << "ZONETYPE = FELINESEG\n"       << "NODES = " << bd->nnode() << " ELEMENTS = " << bd->nface() << '\n'; break;
                 case ZT_SURFACE:
                     if (all_tri )
-                        ofs << "ZONETYPE = FETRIANGLE\n" << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n';
+                        ofs << "ZONETYPE = FETRIANGLE\n" << "NODES = " << bd->nnode() << " ELEMENTS = " << bd->nface() << '\n';
                     else
-                        ofs << "ZONETYPE = FEQUADRILATERAL\n" << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n';
+                        ofs << "ZONETYPE = FEQUADRILATERAL\n" << "NODES = " << bd->nnode() << " ELEMENTS = " << bd->nface() << '\n';
                     break;
-                //case ZT_VOLUME:  ofs << "ZONETYPE = FEBRICK\n"         << "NODES = " << bd->node_num() << " ELEMENTS = " << bd->face_num() << '\n'; break;
+                //case ZT_VOLUME:  ofs << "ZONETYPE = FEBRICK\n"         << "NODES = " << bd->nnode() << " ELEMENTS = " << bd->nface() << '\n'; break;
                 }
             }
             // Polygon exists: write face-based grid
@@ -788,9 +818,9 @@ namespace EasyLib {
                 bd->create_edges(); // create edges
 
                 ofs << "ZONETYPE = FELINESEG\n"
-                    << "NODES = " << bd->node_num()
+                    << "NODES = " << bd->nnode()
                     << " FACES = " << bd->edges_for_surface().size()
-                    << " ELEMENTS = " << bd->face_num() << '\n';
+                    << " ELEMENTS = " << bd->nface() << '\n';
             }
 
             // DATATYPE
@@ -800,9 +830,9 @@ namespace EasyLib {
             if (!var_loc.empty())ofs << "VARLOCATION = " << var_loc << '\n';
 
             // DATA
-            write_field(ofs, bd->node_coords().data()->data() + 0, bd->node_num(), 3);
-            write_field(ofs, bd->node_coords().data()->data() + 1, bd->node_num(), 3);
-            write_field(ofs, bd->node_coords().data()->data() + 2, bd->node_num(), 3);
+            write_field(ofs, bd->node_coords().data()->data() + 0, bd->nnode(), 3);
+            write_field(ofs, bd->node_coords().data()->data() + 1, bd->nnode(), 3);
+            write_field(ofs, bd->node_coords().data()->data() + 2, bd->nnode(), 3);
 
             // fields
             for (auto& fd : data_.field_defs) {
@@ -820,22 +850,22 @@ namespace EasyLib {
             // face-nodes connections
             // FELINESEG zone
             if (bd->topo() == ZT_CURVE) {
-                for (int_l i = 0; i < bd->face_num(); ++i) {
-                    auto nodes = bd->face_nodes()[i];
+                for (int_l i = 0; i < bd->nface(); ++i) {
+                    auto&& nodes = bd->face_nodes()[i];
                     ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << '\n'; //? convert to one-based index, ignore middle node for FT_BAR3
                 }
             }
             // triangle or quadrilateral
             else if (!bd->contains_polygon()) {
                 if (all_tri) {
-                    for (int_l i = 0; i < bd->face_num(); ++i) {
-                        auto nodes = bd->face_nodes()[i];
+                    for (int_l i = 0; i < bd->nface(); ++i) {
+                        auto&& nodes = bd->face_nodes()[i];
                         ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; //? convert to one-based index, ignore middle node for FT_TRI6
                     }
                 }
                 else {
-                    for (int_l i = 0; i < bd->face_num(); ++i) {
-                        auto nodes = bd->face_nodes()[i];
+                    for (int_l i = 0; i < bd->nface(); ++i) {
+                        auto&& nodes = bd->face_nodes()[i];
                         switch (bd->face_types().at(i)) {
                         case TRI3: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;
                         case TRI6: ofs << nodes[0] + 1 << ' ' << nodes[1] + 1 << ' ' << nodes[2] + 1 << '\n'; break;

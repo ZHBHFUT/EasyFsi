@@ -38,7 +38,6 @@ namespace EasyLib {
     enum FieldLocation
     {
         NodeCentered = 0,
-        FaceCentered,
         CellCentered
     };
     enum FieldIO

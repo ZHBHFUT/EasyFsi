@@ -42,6 +42,15 @@ freely, subject to the following restrictions:
 
 namespace EasyLib {
 
+#if __cplusplus < 201703L
+    namespace detail {
+        _force_inline_ int_l product() { return 1; }
+        template<typename ... Args>
+        _force_inline_ int_l product(int_l x0, Args ... args) { return x0 * product(args...); }
+
+    }
+#endif
+
     template<typename T, int RANK> class DynamicArray;
 
     template<typename T, int RANK>
@@ -61,7 +70,7 @@ namespace EasyLib {
         using reverse_iterator       = std::reverse_iterator<iterator>;
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     
-        inline static constexpr int Rank = RANK;
+        static_const int Rank = RANK;
     
         DynamicArray() = default;
     
@@ -88,23 +97,26 @@ namespace EasyLib {
         template<typename ... SizeTypes>
         DynamicArray(size_type m, size_type n, SizeTypes ... other_sizes)
             :
-            data_(m * (n *...* other_sizes)),
+#if __cplusplus < 201703L
+            data_(detail::product(m, n, other_sizes...)),
+#else
+            data_(m* (n *...* other_sizes)),
+#endif
             extent_{ m,n,other_sizes... }
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
-    
+
             // update size info
-            stride_[RANK - 1] = 1;
-            for (size_type i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
-            }
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
+        }
     
-        inline constexpr int           rank  ()const noexcept { return RANK; }
-        inline constexpr size_type     extent(int rank_id)const  { return extent_[rank_id]; }
-        inline constexpr size_type     numel ()const noexcept { return data_.size(); }
-        inline constexpr pointer       data  ()      noexcept { return data_.data(); }
-        inline constexpr const_pointer data  ()const noexcept { return data_.data(); }
-        inline constexpr bool          empty ()const noexcept { return data_.empty(); }
+        int           rank  ()const noexcept { return RANK; }
+        size_type     extent(int rank_id)const  { return extent_[rank_id]; }
+        size_type     numel ()const noexcept { return data_.size(); }
+        pointer       data  ()      noexcept { return data_.data(); }
+        const_pointer data  ()const noexcept { return data_.data(); }
+        bool          empty ()const noexcept { return data_.empty(); }
     
         void clear()noexcept
         {
@@ -122,7 +134,13 @@ namespace EasyLib {
         void reserve(size_type m, size_type n, SizeTypes ... other_sizes)
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
-            data_.reserve(m * (n * ... * other_sizes));
+            data_.reserve(
+#if __cplusplus < 201703L
+                detail::product(m, n, other_sizes...)
+#else
+                m * (n * ... * other_sizes)
+#endif
+            );
         }
 
         template<typename ... SizeTypes>
@@ -130,13 +148,18 @@ namespace EasyLib {
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
 
-            data_.resize(m * (n * ... * other_sizes));
+            data_.resize(
+#if __cplusplus < 201703L
+                detail::product(m, n, other_sizes...)
+#else
+                m * (n * ... * other_sizes)
+#endif
+            );
     
             // update size info
             extent_ = { m,n,other_sizes... };
-            stride_[RANK - 1] = 1;
-            for (int i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
         }
     
         void resize(const std::array<size_type, RANK>& size)
@@ -146,22 +169,26 @@ namespace EasyLib {
             
             // update size info
             extent_ = size;
-            stride_[RANK - 1] = 1;
-            for (int i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
         }
     
         template<typename ... Args>
         void reshape(size_type m, size_type n, Args ... other_sizes)
         {
             static_assert(sizeof...(other_sizes) + 2 == RANK, "invalid argument number");
-            auto nelem = m * (n *...* other_sizes);
+            auto nelem = 
+#if __cplusplus < 201703L
+                detail::product(m, n, other_sizes...)
+#else
+                m * (n *...* other_sizes)
+#endif
+                ;
             if (nelem != data_.size())throw std::invalid_argument("DynamicArray::reshape(), size not agree!");
     
             extent_ = { m,n,other_sizes... };
-            stride_[RANK - 1] = 1;
-            for (int i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
         }
     
         void reshape(const std::array<size_type, RANK>& size)
@@ -170,9 +197,8 @@ namespace EasyLib {
             if (nelem != data_.size())throw std::invalid_argument("DynamicArray::reshape(), size not agree!");
     
             extent_ = size;
-            stride_[RANK - 1] = 1;
-            for (int i = 2; i <= RANK; ++i)
-                stride_[RANK - i] = extent_[RANK - i] * stride_[RANK - i + 1];
+            update_stride_();
+            ASSERT(extent_[0] * stride_[0] == data_.size());
         }
     
         void fill(const value_type& value)noexcept
@@ -247,14 +273,24 @@ namespace EasyLib {
         template<typename ... Args>
         _force_inline_ size_type map_1d_imp_(size_type i0, Args ... args)const noexcept
         {
+            static_assert(sizeof...(args) > 0, "");
             constexpr size_type idim = RANK - 1 - sizeof...(args);
             ASSERT(i0 >= 0 && i0 < std::get<idim>(extent_));
-            if constexpr (sizeof...(Args) > 0)
-                return i0 * std::get<idim>(stride_) * map_1d_imp_(args...);
-            else
-                return i0 * stride_.back();
+            return i0 * std::get<idim>(stride_) + map_1d_imp_(args...);
         }
-
+        _force_inline_ size_type map_1d_imp_(size_type i0)const noexcept
+        {
+            static constexpr size_type idim = RANK - 1;
+            ASSERT(i0 >= 0 && i0 < std::get<idim>(extent_));
+            return i0 * stride_.back();
+        }
+        void update_stride_()noexcept
+        {
+            stride_.back() = 1;
+            for (int idim = 1; idim < RANK; ++idim) {
+                stride_[RANK - idim - 1] = extent_[RANK - idim] * stride_[RANK - idim];
+            }
+        }
     private:
         std::vector<T>              data_;
         std::array<size_type, RANK> extent_  { 0 };
@@ -274,7 +310,7 @@ namespace EasyLib {
         using const_pointer   = const value_type*;
         using const_reference = const value_type&;
 
-        inline static constexpr int Rank = 1;
+        static_const int Rank = 1;
         
         using storage::storage;
         using storage::operator=;
@@ -285,9 +321,9 @@ namespace EasyLib {
         using storage::end;
         using storage::resize;
 
-        inline constexpr int           rank  ()const noexcept { return 1; }
-        inline constexpr size_type     extent(int idim = 0)const { (void)idim; return size(); }
-        inline constexpr size_type     numel ()const noexcept { return size(); }
+        constexpr int           rank  ()const noexcept { return 1; }
+        size_type     extent(int idim = 0)const { (void)idim; return size(); }
+        size_type     numel ()const noexcept { return size(); }
 
         void fill(const value_type& value)
         {
@@ -331,7 +367,7 @@ namespace EasyLib {
         using reverse_iterator = std::reverse_iterator<iterator>;
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-        inline static constexpr int Rank = 2;
+        static_const int Rank = 2;
 
         DynamicArray() = default;
         DynamicArray(const DynamicArray&) = default;
@@ -354,12 +390,12 @@ namespace EasyLib {
 
         ~DynamicArray() = default;
 
-        inline constexpr int           rank  ()const noexcept { return 2; }
-        inline constexpr size_type     extent(int idim)const  { ASSERT(idim >= 0 && idim < Rank); return extent_[idim]; }
-        inline constexpr size_type     numel ()const noexcept { return extent_[0] * extent_[1]; }
-        inline constexpr pointer       data  ()      noexcept { return data_.data(); }
-        inline constexpr const_pointer data  ()const noexcept { return data_.data(); }
-        inline constexpr bool          empty ()const noexcept { return extent_[0] == 0 || extent_[1] == 0; }
+        int           rank()const noexcept { return 2; }
+        size_type     extent(int idim)const { ASSERT(idim >= 0 && idim < Rank); return extent_[idim]; }
+        size_type     numel()const noexcept { return extent_[0] * extent_[1]; }
+        pointer       data()      noexcept { return data_.data(); }
+        const_pointer data()const noexcept { return data_.data(); }
+        bool          empty()const noexcept { return extent_[0] == 0 || extent_[1] == 0; }
 
         void clear()noexcept
         {

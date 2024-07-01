@@ -264,7 +264,7 @@ extern "C" const int_g* is_glist(const IndexSet* is)
 using KDT = EasyLib::KDTree<double, 3, int_l>;
 extern "C" KdTree * kdt_new(const double* coords, int npts, int persistent)
 {
-    return reinterpret_cast<KdTree*>(new KDT(coords, npts, persistent));
+    return reinterpret_cast<KdTree*>(new KDT(coords, npts, (persistent!=0)) ) ;
 }
 extern "C" void    kdt_delete(KdTree** p_kdt)
 {
@@ -279,7 +279,7 @@ extern "C" void    kdt_clear(KdTree* kdt)
 }
 extern "C" void    kdt_create(KdTree* kdt, const double* coords, int npts, int persistent)
 {
-    if (kdt)reinterpret_cast<KDT*>(kdt)->create(coords, npts, persistent);
+    if (kdt)reinterpret_cast<KDT*>(kdt)->create(coords, npts, (persistent!=0));
 }
 extern "C" int     kdt_size(const KdTree* kdt)
 {
@@ -400,11 +400,11 @@ extern "C" void  bd_set_node_coords(Boundary * bd, int_l node, double x, double 
 }
 extern "C" int_l bd_face_num(const Boundary * bd)
 {
-    return bd ? reinterpret_cast<const BD*>(bd)->face_num() : 0;
+    return bd ? reinterpret_cast<const BD*>(bd)->nface() : 0;
 }
 extern "C" int_l bd_node_num(const Boundary * bd)
 {
-    return bd ? reinterpret_cast<const BD*>(bd)->node_num() : 0;
+    return bd ? reinterpret_cast<const BD*>(bd)->nnode() : 0;
 }
 extern "C" void  bd_compute_metrics(Boundary * bd, double basied_angle_deg/* = 5.0*/)
 {
@@ -459,6 +459,10 @@ extern "C" const KdTree * bd_kdtree(const Boundary * bd)
 extern "C" void  bd_read_gmsh(Boundary * bd, const char* file)
 {
     if (bd)reinterpret_cast<BD*>(bd)->load_gmsh(file);
+}
+extern "C" void  bd_load(Boundary* bd, const char* file)
+{
+    if (bd)reinterpret_cast<BD*>(bd)->load(file);
 }
 
 //--- Communicator
@@ -701,6 +705,10 @@ extern "C" void it_interp_face_loads_t2s(Interpolator * it, int nload, double** 
 {
     if (it)reinterpret_cast<IT*>(it)->interp_face_load_t2s(nload, src_node_load, des_face_load, fill_src_zeros_first);
 }
+extern "C" void it_interp_modal_results(Interpolator* it, const char* file, const char* output_file)
+{
+    if (it)reinterpret_cast<IT*>(it)->interp_modal_results(file, output_file);
+}
 
 //--- Application
 
@@ -761,4 +769,8 @@ extern "C" void app_exchange_solu(Application* app, double time, void* user_data
 extern "C" void app_stop_coupling(Application * app)
 {
     if (app)reinterpret_cast<APP*>(app)->stop_coupling();
+}
+extern "C" void app_save_tec(Application * app, const char* file, int grid_only)
+{
+    if (app)reinterpret_cast<APP*>(app)->save_tecplot(file, grid_only ? true : false);
 }

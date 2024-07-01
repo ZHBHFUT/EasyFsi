@@ -27,6 +27,13 @@ enum, bind(c)
     enumerator :: POLYGON = 6
 end enum
 
+enum, bind(c)
+    enumerator :: LocalXPS   = 0
+    enumerator :: Projection = 1
+    enumerator :: Mapping    = 2
+    enumerator :: Automatic  = 3
+end enum
+
 interface
 
 function mpi_send_t(buffer,count,datatype,dest,tag,comm) bind(c)
@@ -39,7 +46,7 @@ function mpi_send_t(buffer,count,datatype,dest,tag,comm) bind(c)
     integer(c_int), intent(in), value :: comm
     integer(c_int) :: mpi_send_t
 end function mpi_send_t
-function mpi_recv_t(buffer,count,datatype,source,tag,comm,status) bind(c)
+function mpi_recv_t(buffer,count,datatype,source,tag,comm) bind(c)
     import :: c_int,c_ptr
     type(c_ptr), intent(in), value :: buffer
     integer(c_int), intent(in), value :: count
@@ -47,7 +54,6 @@ function mpi_recv_t(buffer,count,datatype,source,tag,comm,status) bind(c)
     integer(c_int), intent(in), value :: source
     integer(c_int), intent(in), value :: tag
     integer(c_int), intent(in), value :: comm
-    type(c_ptr), intent(in), value :: status
     integer(c_int) :: mpi_recv_t
 end function mpi_recv_t
 subroutine get_boundary_field_t(app,bd,fieldname,ncomp,location,data,user_data) bind(c)
@@ -60,8 +66,9 @@ subroutine get_boundary_field_t(app,bd,fieldname,ncomp,location,data,user_data) 
     real(kind=c_double),   dimension(*), intent(out) :: data
     type(c_ptr),                    intent(in), value :: user_data
 end subroutine get_boundary_field_t
-subroutine set_boundary_field_t(bd,fieldname,ncomp,location,fielddata,user_data) bind(c)
+subroutine set_boundary_field_t(app,bd,fieldname,ncomp,location,fielddata,user_data) bind(c)
     import :: c_ptr,c_char,c_double,c_int
+    type(c_ptr),                   intent(in), value :: app
     type(c_ptr),                   intent(in), value :: bd
     character(c_char),      dimension(*), intent(in) :: fieldname
     integer(c_int),                intent(in), value :: ncomp
@@ -84,7 +91,7 @@ end function app_new
 
 subroutine app_delete(app) bind(c,name="app_delete")
     import :: c_ptr
-    type(c_ptr), intent(inout) :: app
+    type(c_ptr), intent(in), value :: app
 end subroutine app_delete
 
 subroutine app_clear(app) bind(c,name="app_clear")
@@ -97,6 +104,18 @@ function app_add_boundary(app) bind(c,name="app_add_boundary")
     type(c_ptr), intent(in), value :: app
     type(c_ptr)                     :: app_add_boundary
 end function app_add_boundary
+
+function app_boundary_num(app) bind(c, name="app_boundary_num")
+    import :: c_ptr,c_int
+    type(c_ptr), intent(in), value :: app
+    integer(c_int)                  :: app_boundary_num
+end function app_boundary_num
+
+function app_get_boundary(app) bind(c, name="app_get_boundary")
+    import :: c_ptr
+    type(c_ptr), intent(in), value :: app
+    type(c_ptr)                     :: app_get_boundary
+end function app_get_boundary
 
 subroutine app_register_field(app,fieldname,ncomp,location,iotype,units) bind(c,name="app_register_field")
     import :: c_ptr,c_char,c_int
@@ -172,7 +191,7 @@ end subroutine cm_set_function
 
 subroutine cm_delete(cm) bind(c,name="cm_delete")
     import :: c_ptr
-    type(c_ptr), intent(inout) :: cm
+    type(c_ptr), intent(in), value :: cm
 end subroutine cm_delete
 
 function cm_rank(cm) bind(c,name="cm_rank")
@@ -198,7 +217,7 @@ end function bd_new
 
 subroutine bd_delete(bd) bind(c,name="bd_delete")
     import :: c_ptr
-    type(c_ptr), intent(inout) :: bd
+    type(c_ptr), intent(in), value :: bd
 end subroutine bd_delete
 
 subroutine bd_clear(bd) bind(c,name="bd_clear")
@@ -309,16 +328,16 @@ function bd_node_coords(bd,node) bind(c,name="bd_node_coords")
 end function bd_node_coords
 
 function bd_node_l2g(bd,node_l) bind(c,name="bd_node_l2g")
-    import :: c_ptr
+    import :: c_ptr,c_int,c_long_long
     type(c_ptr), intent(in), value :: bd
-    integer(c_int), intent(in), value: node_l
+    integer(c_int), intent(in), value :: node_l
     integer(c_long_long) :: bd_node_l2g
 end function bd_node_l2g
 
 function bd_node_g2l(bd,node_g) bind(c,name="bd_node_g2l")
-    import :: c_ptr
+    import :: c_ptr,c_long_long,c_int
     type(c_ptr), intent(in), value :: bd
-    integer(c_long_long), intent(in), value: node_g
+    integer(c_long_long), intent(in), value :: node_g
     integer(c_int) :: bd_node_g2l
 end function bd_node_g2l
 

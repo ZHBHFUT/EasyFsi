@@ -36,6 +36,7 @@ freely, subject to the following restrictions:
 #include "Interpolator.hpp"
 
 namespace EasyLib {
+    class Application;
 
     typedef void(__stdcall *get_boundary_field_function)(const Application* app, const Boundary* bd, const char* name, int ncomp, FieldLocation loc, double*       data, void* user_data);
     typedef void(__stdcall *set_boundary_field_function)(const Application* app, const Boundary* bd, const char* name, int ncomp, FieldLocation loc, const double* data, void* user_data);
@@ -98,6 +99,8 @@ namespace EasyLib {
         //! @brief Receive and update incoming fields from other applications.
         //! @param time Current physical time.
         void recv_incoming_fields_(double time);
+
+        void interp_incoming_();
 
     private:
         struct ApplicationData

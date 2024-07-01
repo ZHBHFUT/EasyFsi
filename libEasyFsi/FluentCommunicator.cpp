@@ -26,11 +26,9 @@ freely, subject to the following restrictions:
 //! @copyright  2023, all rights reserved.
 //! @data       2023-06-08
 //!-------------------------------------------------------------
-
-#include <cstring>
-
-#include "Logger.hpp"
 #include "FluentCommunicator.hpp"
+#include <cstring>
+#include "Logger.hpp"
 
 namespace EasyLib {
 
@@ -67,4 +65,12 @@ namespace EasyLib {
         }
     }
 
+    void FluentCommunicator::async_send(const void* /*data*/, int /*count*/, DataType /*type*/, int /*dest_rank*/, int /*tag*/)
+    {
+        error("this feature is not implemented! FILE = %s, FUNC = %s, LINE = %s.", __FILE__, __FUNCTION__, __LINE__);
+    }
+    void FluentCommunicator::wait()
+    {
+        error("this feature is not implemented! FILE = %s, FUNC = %s, LINE = %s.", __FILE__, __FUNCTION__, __LINE__);
+    }
 }

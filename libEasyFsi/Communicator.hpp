@@ -31,6 +31,9 @@ freely, subject to the following restrictions:
 #include <cstdint>
 #include <string>
 
+#include "Inline.hpp"
+#include "Assert.hpp"
+
 namespace EasyLib {
 
     class IndexSet;
@@ -57,101 +60,97 @@ namespace EasyLib {
     };
 
     template<typename T>
-    struct DataTypeTraits
+    struct DataTypeTraits;
+    //template<typename T>
+    //struct DataTypeTraits
+    //{
+    //    static_const bool is_basic = false;
+    //    static_const int  nbytes   = sizeof(T);
+    //};
+    template<> struct DataTypeTraits<char>
     {
-        inline static constexpr bool is_basic = false;
-        inline static constexpr int  nbytes   = sizeof(T);
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(char);
+        static_const DataType dtype    = DataType::cchar;
     };
     template<> struct DataTypeTraits<int8_t>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(int8_t);
-        inline static constexpr DataType dtype = DataType::cint8;
+        static_const bool     is_basic  = true;
+        static_const int      nbytes    = sizeof(int8_t);
+        static_const DataType dtype     = DataType::cint8;
     };
     template<> struct DataTypeTraits<int16_t>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(int16_t);
-        inline static constexpr DataType dtype = DataType::cint16;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(int16_t);
+        static_const DataType dtype    = DataType::cint16;
     };
     template<> struct DataTypeTraits<int32_t>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(int32_t);
-        inline static constexpr DataType dtype = DataType::cint32;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(int32_t);
+        static_const DataType dtype    = DataType::cint32;
     };
     template<> struct DataTypeTraits<int64_t>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(int64_t);
-        inline static constexpr DataType dtype = DataType::cint64;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(int64_t);
+        static_const DataType dtype    = DataType::cint64;
     };
     template<> struct DataTypeTraits<uint8_t>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(uint8_t);
-        inline static constexpr DataType dtype = DataType::cuint8;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(uint8_t);
+        static_const DataType dtype    = DataType::cuint8;
     };
     template<> struct DataTypeTraits<uint16_t>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(uint16_t);
-        inline static constexpr DataType dtype = DataType::cuint16;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(uint16_t);
+        static_const DataType dtype    = DataType::cuint16;
     };
     template<> struct DataTypeTraits<uint32_t>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(uint32_t);
-        inline static constexpr DataType dtype = DataType::cuint32;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(uint32_t);
+        static_const DataType dtype    = DataType::cuint32;
     };
     template<> struct DataTypeTraits<uint64_t>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(uint64_t);
-        inline static constexpr DataType dtype = DataType::cuint64;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(uint64_t);
+        static_const DataType dtype    = DataType::cuint64;
     };
     template<> struct DataTypeTraits<float>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(float);
-        inline static constexpr DataType dtype = DataType::cfloat;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(float);
+        static_const DataType dtype    = DataType::cfloat;
     };
     template<> struct DataTypeTraits<double>
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(double);
-        inline static constexpr DataType dtype = DataType::cdouble;
+        static_const bool     is_basic = true;
+        static_const int      nbytes   = sizeof(double);
+        static_const DataType dtype    = DataType::cdouble;
     };
-    template<> struct DataTypeTraits<char>
+    
+    inline constexpr int nbyte_of_type(DataType type)
     {
-        inline static constexpr bool is_basic = true;
-        inline static constexpr int  nbytes = sizeof(char);
-        inline static constexpr DataType dtype = DataType::cchar;
-    };
-    //template<> struct DataTypeTraits<unsigned char>
-    //{
-    //    inline static constexpr bool is_basic = true;
-    //    inline static constexpr int  nbytes = sizeof(unsigned char);
-    //    inline static constexpr DataType dtype = DataType::cuchar;
-    //};
-
-    inline int nbyte_of_type(DataType type)
-    {
-        static const int data_[] = {
-            sizeof(int8_t),
-            sizeof(int16_t),
-            sizeof(int32_t),
-            sizeof(int64_t),
-            sizeof(uint8_t),
-            sizeof(uint16_t),
-            sizeof(uint32_t),
-            sizeof(uint64_t),
-            sizeof(float),
-            sizeof(double),
-            sizeof(char),
-            sizeof(unsigned char)
-        };
-        return data_[(int)type];
+        switch (type) {
+        case DataType::cint8:   return sizeof(int8_t);
+        case DataType::cint16:  return sizeof(int16_t);
+        case DataType::cint32:  return sizeof(int32_t);
+        case DataType::cint64:  return sizeof(int64_t);
+        case DataType::cuint8:  return sizeof(uint8_t);
+        case DataType::cuint16: return sizeof(uint16_t);
+        case DataType::cuint32: return sizeof(uint32_t);
+        case DataType::cuint64: return sizeof(uint64_t);
+        case DataType::cfloat:  return sizeof(float);
+        case DataType::cdouble: return sizeof(double);
+        case DataType::cchar:   return sizeof(char);
+        case DataType::cuchar:  return sizeof(unsigned char);
+        default: ASSERT(false); return 0;
+        }
     }
 
     class Communicator
@@ -170,6 +169,9 @@ namespace EasyLib {
 
         virtual void send(const void* data, int count, DataType type, int dest_rank, int tag) = 0;
         virtual void recv(      void* data, int count, DataType type, int src_rank,  int tag) = 0;
+
+        virtual void async_send(const void* data, int count, DataType type, int dest_rank, int tag) = 0;
+        virtual void wait() = 0;
 
         virtual void disconnect() = 0;
 

@@ -86,6 +86,9 @@ namespace EasyLib {
             frecv_(src_rank, data, count, get_mpt_type(type), tag, __FILE__, __LINE__);
         }
 
+        void async_send(const void* data, int count, DataType type, int dest_rank, int tag)final;
+        void wait()final;
+
         inline int get_mpt_type(DataType type)const noexcept
         {
             static_assert(sizeof(int8_t ) == sizeof(char), "data length not agree");

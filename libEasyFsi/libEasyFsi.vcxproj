@@ -96,7 +96,7 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp14</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4819;4251;4267</DisableSpecificWarnings>
@@ -114,7 +114,7 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp14</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
@@ -135,7 +135,7 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp14</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4819;4251;4267</DisableSpecificWarnings>
@@ -157,7 +157,7 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp14</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
       <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4819;4251;4267</DisableSpecificWarnings>
@@ -176,7 +176,6 @@
     <ClCompile Include="Communicator.cpp" />
     <ClCompile Include="DistributedBoundary.cpp" />
     <ClCompile Include="EasyFsi.cpp" />
-    <ClCompile Include="enable_console_color.cpp" />
     <ClCompile Include="FluentCommunicator.cpp" />
     <ClCompile Include="IndexSet.cpp" />
     <ClCompile Include="Interpolator.cpp" />
@@ -184,6 +183,7 @@
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="Memory.cpp" />
     <ClCompile Include="MeshConnectivity.cpp" />
+    <ClCompile Include="ModalResults.cpp" />
     <ClCompile Include="MPICommunicator.cpp" />
     <ClCompile Include="SocketCommunicator.cpp" />
   </ItemGroup>
@@ -210,6 +210,7 @@
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Memory.hpp" />
     <ClInclude Include="MeshConnectivity.hpp" />
+    <ClInclude Include="ModalResults.hpp" />
     <ClInclude Include="ModelInterface.hpp" />
     <ClInclude Include="MPICommunicator.hpp" />
     <ClInclude Include="ProjectToElement.hpp" />

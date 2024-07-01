@@ -2,3 +2,4 @@
 *.user
 /obj
 /bin
+/test_it/env

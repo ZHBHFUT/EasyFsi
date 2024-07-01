@@ -26,14 +26,16 @@ freely, subject to the following restrictions:
 //! @copyright  2023, all rights reserved.
 //! @data       2023-06-08
 //!-------------------------------------------------------------
+#include "Interpolator.hpp"
 
 #include <fstream>
 #include <sstream>
+#include <map>
 
 #include "Field.hpp"
 #include "Boundary.hpp"
 #include "Logger.hpp"
-#include "Interpolator.hpp"
+#include "ModalResults.hpp"
 
 namespace EasyLib {
 
@@ -130,10 +132,47 @@ namespace EasyLib {
             max_donor_for_xps = min_donor;
         }
 
+        // check bounding box
+        TinyVector<double, 3> cmin_s, cmax_s;
+        cmin_s = cmax_s = source_bounds_.front()->node_coords().front();
+        for (auto&& bd : source_bounds_) {
+            for (auto&& x : bd->node_coords()) {
+                cmin_s.x = std::min(cmin_s.x, x.x);
+                cmin_s.y = std::min(cmin_s.y, x.y);
+                cmin_s.z = std::min(cmin_s.z, x.z);
+                cmax_s.x = std::max(cmax_s.x, x.x);
+                cmax_s.y = std::max(cmax_s.y, x.y);
+                cmax_s.z = std::max(cmax_s.z, x.z);
+            }
+        }
+        TinyVector<double, 3> cmin_t, cmax_t;
+        cmin_t = cmax_t = target_bounds_.front()->node_coords().front();
+        for (auto&& bd : target_bounds_) {
+            for (auto&& x : bd->node_coords()) {
+                cmin_t.x = std::min(cmin_t.x, x.x);
+                cmin_t.y = std::min(cmin_t.y, x.y);
+                cmin_t.z = std::min(cmin_t.z, x.z);
+                cmax_t.x = std::max(cmax_t.x, x.x);
+                cmax_t.y = std::max(cmax_t.y, x.y);
+                cmax_t.z = std::max(cmax_t.z, x.z);
+            }
+        }
+        auto size_s = norm(cmax_s - cmin_s);
+        auto size_t = norm(cmax_t - cmin_t);
+        auto vari = (size_s > size_t ? size_s / size_t : size_t / size_s) - 1;
+        auto dist = distance(cmax_s + cmin_s / 2, cmax_t + cmin_t / 2);
+        info(
+            "    BBox Variation = %G\n"
+            "    Dist. of Cent. = %G\n",
+            vari, dist);
+        if (vari >= 0.5)error("size variation of bounding box exceeds 0.5");
+        if (vari >= 0.1)warn("size variation of bounding box exceeds 0.1, please check grid!!!");
+        if (dist >= 0.2 * size_t)error("distance ratio of bounding box exceeds 0.2");
+
         // Interpolation method:
         // 
         // If use Automatic:
-        //   If face is not defined on source boundary:
+        //   If no face is defined on source boundary:
         //       If node number <= 1000, on source boundary:
         //           Use GlobalXPS method.
         //       Else:
@@ -146,8 +185,8 @@ namespace EasyLib {
 
         int_l nn = 0, nf = 0;
         for (auto bs : target_bounds_) {
-            nn += bs->node_num();
-            nf += bs->face_num();
+            nn += bs->nnode();
+            nf += bs->nface();
         }
 
         node_info_.clear();
@@ -177,9 +216,8 @@ namespace EasyLib {
                         continue;
                     }
 
-                    auto n = kdtree.search(p.data(), 1, &idx, &d2);
-        
                     // save nearest node
+                    auto n = kdtree.search(p.data(), 1, &idx, &d2);
                     if ((n == 1 && c.src_bd_id == invalid_id) || d2 < c.dist_sq) {
                         c.src_bd_id      = ib;
                         c.ndonor         = 1;
@@ -187,6 +225,7 @@ namespace EasyLib {
                         c.dist_sq        = d2;
                         if (d2 <= eps)c.donor_weights[0] = 1;
                     }
+
                     // next node
                     ++it_n;
                 }
@@ -200,9 +239,8 @@ namespace EasyLib {
                         continue;
                     }
         
-                    auto n = kdtree.search(p.data(), 1, &idx, &d2);
-        
                     // save nearest node
+                    auto n = kdtree.search(p.data(), 1, &idx, &d2);
                     if ((n == 1 && it_f->src_bd_id == invalid_id) || d2 < c.dist_sq) {
                         c.src_bd_id      = ib;
                         c.ndonor         = 1;
@@ -210,6 +248,7 @@ namespace EasyLib {
                         c.dist_sq        = d2;
                         if (d2 <= eps)c.donor_weights[0] = 1;
                     }
+
                     // next face
                     ++it_f;
                 }
@@ -224,7 +263,7 @@ namespace EasyLib {
             auto it_f = face_info_.begin();
             
             // use projection method
-            if (bd_s->all_high_order() || (bd_s->face_num() > 0 && (method == Projection || method == Automatic))) {
+            if (bd_s->all_high_order() || (bd_s->nface() > 0 && (method == Projection || method == Automatic))) {
                 int_l ids[8] = { 0 };
                 double w[8] = { 0 }, d2_sq = 0;
                 int   ndonor = 0;
@@ -239,6 +278,7 @@ namespace EasyLib {
                         // skipping for coincident point.
                         if (c.dist_sq <= eps || c.src_bd_id != ib) { ++it_n; continue; }
 
+                        // coefficients
                         bd_s->compute_project_interp_coeff(
                             p,
                             ids,
@@ -250,7 +290,7 @@ namespace EasyLib {
                         c.src_bd_id = ib;
                         c.ndonor = ndonor;
                         for (int j = 0; j < ndonor; ++j) {
-                            c.donor_nodes[j] = ids[j];
+                            c.donor_nodes  [j] = ids[j];
                             c.donor_weights[j] = w[j];
                         }
                         c.dist_sq = d2_sq;
@@ -258,13 +298,14 @@ namespace EasyLib {
                         ++it_n;
                     }// next node
 
-                    // loop each face-centriod
+                    // loop each face-centroid
                     for (auto& p : bd_t->face_centroids()) {
                         auto& c = *it_f;
 
                         // skipping for coincident point or source bound is not this source.
                         if (c.dist_sq <= eps || c.src_bd_id != ib) { ++it_f; continue; }
 
+                        // coefficients
                         bd_s->compute_project_interp_coeff(
                             p,
                             ids,
@@ -276,7 +317,7 @@ namespace EasyLib {
                         c.src_bd_id = ib;
                         c.ndonor = ndonor;
                         for (int j = 0; j < ndonor; ++j) {
-                            c.donor_nodes[j] = ids[j];
+                            c.donor_nodes  [j] = ids[j];
                             c.donor_weights[j] = w[j];
                         }
                         c.dist_sq = d2_sq;
@@ -298,11 +339,12 @@ namespace EasyLib {
                         // skipping for coincident point or source bound is not this source.
                         if (c.dist_sq <= eps || c.src_bd_id != ib) { ++it_n; continue; }
 
+                        // coefficients
                         bd_s->compute_local_xps_interp_coeff(
                             p,
                             max_donor_for_xps,
-                            make_span(c.donor_nodes, max_donor_for_xps),
-                            make_span(c.donor_weights, max_donor_for_xps),
+                            c.donor_nodes,
+                            c.donor_weights,
                             c.ndonor
                         );
 
@@ -316,11 +358,12 @@ namespace EasyLib {
                         // skipping for coincident point or source bound is not this source.
                         if (c.dist_sq <= eps || c.src_bd_id != ib) { ++it_f; continue; }
 
+                        // coefficients
                         bd_s->compute_local_xps_interp_coeff(
                             p,
                             max_donor_for_xps,
-                            make_span(c.donor_nodes, max_donor_for_xps),
-                            make_span(c.donor_weights, max_donor_for_xps),
+                            c.donor_nodes,
+                            c.donor_weights,
                             c.ndonor
                         );
 
@@ -333,7 +376,7 @@ namespace EasyLib {
         computed_ = true;
     }
 
-    void Interpolator::interp_dofs_s2t(Span<Field* const> sources, Span<Field*> targets)const
+    void Interpolator::interp_dofs_s2t(Span<const Field* const> sources, Span<Field*> targets)const
     {
         if (source_bounds_.empty() || target_bounds_.empty())return;
         if (!computed_)error("coefficients are not computed!");
@@ -377,8 +420,8 @@ namespace EasyLib {
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
             auto&& bt = target_bounds_.at(ib);
-            auto nnode = bt->node_num();
-            auto nface = bt->face_num();
+            auto nnode = bt->nnode();
+            auto nface = bt->nface();
             auto& tdofs = *targets[ib];
 
             if (!tdofs.data.empty()) {
@@ -395,7 +438,7 @@ namespace EasyLib {
         }
     }
 
-    void Interpolator::interp_load_t2s(Span<Field* const> targets, Span<Field*> sources/*, bool fill_src_zeros_first = true*/)const
+    void Interpolator::interp_load_t2s(Span<const Field* const> targets, Span<Field*> sources/*, bool fill_src_zeros_first = true*/)const
     {
         if (source_bounds_.empty() || target_bounds_.empty())return;
         if (!computed_)error("coefficients are not computed!");
@@ -447,8 +490,8 @@ namespace EasyLib {
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
             auto&& bt = target_bounds_.at(ib);
-            auto nnode = bt->node_num();
-            auto nface = bt->face_num();
+            auto nnode = bt->nnode();
+            auto nface = bt->nface();
             auto& tload = *targets[ib];
 
             if (!tload.data.empty()) {
@@ -472,7 +515,7 @@ namespace EasyLib {
 
         auto nit = node_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto nnode = target_bounds_.at(ib)->node_num();
+            auto nnode = target_bounds_.at(ib)->nnode();
             
             // interpolate nodal dofs
             if (des_node_dofs[ib])
@@ -488,7 +531,7 @@ namespace EasyLib {
 
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto nface = target_bounds_.at(ib)->face_num();
+            auto nface = target_bounds_.at(ib)->nface();
             
             // interpolate face dofs
             if (des_face_dofs[ib])
@@ -504,13 +547,13 @@ namespace EasyLib {
 
         if (fill_src_zeros_first) {
             for (size_t ib = 0; ib < source_bounds_.size(); ++ib) {
-                std::memset(src_node_load[ib], 0, sizeof(double) * nload * source_bounds_.at(ib)->node_num());
+                std::memset(src_node_load[ib], 0, sizeof(double) * nload * source_bounds_.at(ib)->nnode());
             }
         }
 
         auto nit = node_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto nnode = target_bounds_.at(ib)->node_num();
+            auto nnode = target_bounds_.at(ib)->nnode();
 
             if (des_node_load[ib])
                 do_interp_loads_t2s(nload, nnode, nit, des_node_load[ib], src_node_load);
@@ -525,13 +568,13 @@ namespace EasyLib {
 
         if (fill_src_zeros_first) {
             for (size_t ib = 0; ib < source_bounds_.size(); ++ib) {
-                std::memset(src_node_load[ib], 0, sizeof(double) * nload * source_bounds_.at(ib)->node_num());
+                std::memset(src_node_load[ib], 0, sizeof(double) * nload * source_bounds_.at(ib)->nnode());
             }
         }
 
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
-            auto nface = target_bounds_.at(ib)->face_num();
+            auto nface = target_bounds_.at(ib)->nface();
 
             if (des_face_load[ib])
                 do_interp_loads_t2s(nload, nface, fit, des_face_load[ib], src_node_load);
@@ -553,8 +596,8 @@ namespace EasyLib {
         auto it_n = node_info_.begin();
         auto it_f = face_info_.begin();
         for (auto&& bt : target_bounds_) {
-            auto nnode = bt->node_num();
-            auto nface = bt->face_num();
+            auto nnode = bt->nnode();
+            auto nface = bt->nface();
 
             for (auto&& dofs_t : bt->fields()) {
                 if (dofs_t.info->iotype != IncomingDofs)continue;
@@ -594,8 +637,8 @@ namespace EasyLib {
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
             auto& bt = target_bounds_.at(ib);
-            auto nnode = bt->node_num();
-            auto nface = bt->face_num();
+            auto nnode = bt->nnode();
+            auto nface = bt->nface();
 
             for (auto&& tload : bt->fields()) {
                 if (tload.info->iotype != OutgoingLoads)continue;
@@ -634,8 +677,8 @@ namespace EasyLib {
         auto it_n = node_info_.begin();
         auto it_f = face_info_.begin();
         for (auto&& bt : target_bounds_) {
-            auto nnode = bt->node_num();
-            auto nface = bt->face_num();
+            auto nnode = bt->nnode();
+            auto nface = bt->nface();
 
             auto&& dofs_t = bt->field(dof_name);
             if (dofs_t.info->iotype != IncomingDofs)
@@ -675,8 +718,8 @@ namespace EasyLib {
         auto fit = face_info_.begin();
         for (int ib = 0; ib < target_bounds_.size(); ++ib) {
             auto& bt = target_bounds_.at(ib);
-            auto nnode = bt->node_num();
-            auto nface = bt->face_num();
+            auto nnode = bt->nnode();
+            auto nface = bt->nface();
 
             auto&& tload = bt->field(load_name);
             if (tload.info->iotype != OutgoingLoads)
@@ -719,13 +762,13 @@ namespace EasyLib {
         ofs.write((const char*)buf, sizeof(buf));
 
         for (auto bd : source_bounds_) {
-            buf[0] = static_cast<int>(bd->node_num());
-            buf[1] = static_cast<int>(bd->face_num());
+            buf[0] = static_cast<int>(bd->nnode());
+            buf[1] = static_cast<int>(bd->nface());
             ofs.write((const char*)buf, sizeof(buf));
         }
         for (auto bd : target_bounds_) {
-            buf[0] = static_cast<int>(bd->node_num());
-            buf[1] = static_cast<int>(bd->face_num());
+            buf[0] = static_cast<int>(bd->nnode());
+            buf[1] = static_cast<int>(bd->nface());
             ofs.write((const char*)buf, sizeof(buf));
         }
 
@@ -754,8 +797,8 @@ namespace EasyLib {
         }
         for (auto bd : source_bounds_) {
             ifs.read((char*)buf, sizeof(buf));
-            if (buf[0] != bd->node_num() ||
-                buf[1] != bd->face_num()) {
+            if (buf[0] != bd->nnode() ||
+                buf[1] != bd->nface()) {
                 error("node or face number not agree");
                 return;
             }
@@ -763,8 +806,8 @@ namespace EasyLib {
         int nn = 0, nf = 0;
         for (auto bd : target_bounds_) {
             ifs.read((char*)buf, sizeof(buf));
-            if (buf[0] != bd->node_num() ||
-                buf[1] != bd->face_num()) {
+            if (buf[0] != bd->nnode() ||
+                buf[1] != bd->nface()) {
                 error("node or face number not agree");
                 return;
             }
@@ -784,5 +827,107 @@ namespace EasyLib {
         computed_ = true;
 
         info("!!!OK!!!\n");
+    }
+
+    void Interpolator::interp_modal_results(const char* file, const char* output_file)const
+    {
+        if (source_bounds_.empty() || target_bounds_.empty())return;
+        if (!computed_)error("coefficients are not computed!");
+
+        // load res
+        ModalResults mres; mres.load(file);
+
+        info("\ninterpolate modal shape of target boundary nodes\n");
+
+        // create global node index map between source boundary with input modal result.
+        std::map<int_g, int_l> node_g2l_s;
+        for (int i = 0; i < (int)mres.ids.size(); ++i) {
+            node_g2l_s.try_emplace(mres.ids[i], i);
+        }
+
+        // create global node index map between target boundary with output modal result.
+        std::map<int_g, int_l> node_g2l_t;
+        for (auto&& bd : target_bounds_) {
+            for (int_l i = 0; i < bd->nnode(); ++i) {
+                auto id_g = bd->nodes()[i];
+                node_g2l_t.try_emplace(id_g, static_cast<int_l>(node_g2l_t.size()));
+            }
+        }
+        // sort
+        int_l nn = 0;
+        for (auto& p : node_g2l_t) {
+            p.second = nn; ++nn;
+        }
+
+        // interpolate phi of target node
+        ModalResults mout;
+        mout.ngrid = static_cast<int_l>(node_g2l_t.size());
+        mout.nmode = mres.nmode;
+        mout.freq = mres.freq;
+        mout.mass = mres.mass;
+
+        // update ids
+        mout.ids.resize(node_g2l_t.size());
+        for (auto& p : node_g2l_t) {
+            mout.ids[p.second] = static_cast<int>(p.first);
+        }
+
+        // update coords
+        mout.coords.resize(mout.ids.size());
+        for (auto&& bd : target_bounds_) {
+            for (int_l i = 0; i < bd->nnode(); ++i) {
+                auto id_g = bd->nodes()[i];
+                mout.coords[node_g2l_t.at(id_g)] = bd->node_coords().at(i);
+            }
+        }
+
+        // update phi
+        mout.phi.resize(mout.nmode, mout.ngrid, 6);
+        mout.phi.fill(0);
+
+        auto nit = node_info_.begin();
+        for (auto&& bt : target_bounds_) {
+            auto nnode = bt->nnode();
+            
+            // loop each target node
+            for (int_l i = 0; i < nnode; ++i, ++nit) {
+                auto& coeff = *nit;
+                auto id_g_t = bt->nodes()[i];
+                auto id_l_t = node_g2l_t.at(id_g_t);
+
+                if (source_bounds_.size() == 1) {
+                    // loop each target donor
+                    for (int j = 0; j < coeff.ndonor; ++j) {
+                        auto donor = coeff.donor_nodes[j];
+                        auto weight = coeff.donor_weights[j];
+                        auto id_g_s = source_bounds_.front()->nodes()[donor];
+                        auto id_l_s = node_g2l_s.at(id_g_s); // id in input modal data
+                        for (int k = 0; k < mres.nmode; ++k) {
+                            for (int l = 0; l < 6; ++l) {
+                                mout.phi(k, id_l_t, l) += weight * mres.phi(k, id_l_s, l);
+                            }
+                        }
+                    }
+                }
+                else {
+                    // loop each target donor
+                    for (int j = 0; j < coeff.ndonor; ++j) {
+                        auto donor = coeff.donor_nodes[j];
+                        auto weight = coeff.donor_weights[j];
+                        auto id_g_s = source_bounds_.at(coeff.src_bd_id)->nodes()[donor];
+                        auto id_l_s = node_g2l_s.at(id_g_s); // id in input modal data
+                        for (int k = 0; k < mres.nmode; ++k) {
+                            for (int l = 0; l < 6; ++l) {
+                                mout.phi(k, id_l_t, l) += weight * mres.phi(k, id_l_s, l);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        info("!!!OK!!!\n");
+
+        mout.save(output_file);
     }
 }
