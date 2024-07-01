@@ -176,6 +176,9 @@ namespace EasyLib {
 }
 #endif
 
+#ifdef __cpp_lib_byte
+#include <cstddef>
+#endif
 namespace EasyLib {
     template<typename T, std::size_t N>
     auto as_bytes(Span<T> s)
@@ -185,7 +188,7 @@ namespace EasyLib {
 #else
         using byte = unsigned char;
 #endif
-        if const (N == dynamic_extent)
+        if constexpr (N == dynamic_extent)
             return Span<const byte>(
                 reinterpret_cast<const byte*>(s.data()),
                 s.size_bytes()
@@ -205,7 +208,7 @@ namespace EasyLib {
 #else
         using byte = unsigned char;
 #endif
-        if const (N == dynamic_extent)
+        if constexpr (N == dynamic_extent)
             return Span<byte>(
                 reinterpret_cast<byte*>(s.data()),
                 s.size_bytes()

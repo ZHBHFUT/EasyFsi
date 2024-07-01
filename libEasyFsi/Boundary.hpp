@@ -61,7 +61,7 @@ namespace EasyLib {
     extern const int npf[POLYGON + 1];
 
     //! @brief Maximum node number per face.
-    inline constexpr int npf_max = 8;
+    static_const int npf_max = 8;
 
     //! @brief The order of face, 1=Linear, 2=Quadratic
     extern const int face_order[POLYGON + 1];
