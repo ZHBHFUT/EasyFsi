@@ -291,6 +291,7 @@ namespace EasyLib {
                 stride_[RANK - idim - 1] = extent_[RANK - idim] * stride_[RANK - idim];
             }
         }
+
     private:
         std::vector<T>              data_;
         std::array<size_type, RANK> extent_  { 0 };
