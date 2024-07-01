@@ -39,12 +39,12 @@ namespace EasyLib {
     {
     public:
         using size_type = std::size_t;
-        SpanBase(T* base, size_type count)noexcept
+        constexpr SpanBase(T* base, [[maybe_unused]] size_type count)noexcept
             :_Mydata(base)
         {
             ASSERT(count == Extent);
         }
-        const size_type size()const noexcept { return Extent; }
+        constexpr size_type size()const noexcept { return Extent; }
     protected:
         T* _Mydata{ nullptr };
     };
@@ -53,9 +53,9 @@ namespace EasyLib {
     {
     public:
         using size_type = std::size_t;
-        SpanBase()noexcept = default;
-        SpanBase(T* base, size_type count)noexcept :_Mydata(base), _Mysize(count) {}
-        size_type size()const noexcept { return _Mysize; }
+        constexpr SpanBase()noexcept = default;
+        constexpr SpanBase(T* base, size_type count)noexcept :_Mydata(base), _Mysize(count) {}
+        constexpr size_type size()const noexcept { return _Mysize; }
     protected:
         T*        _Mydata{ nullptr };
         size_type _Mysize{ 0 };
@@ -84,32 +84,32 @@ namespace EasyLib {
 
         static_const size_type extent = Extent;
 
-        Span()noexcept = default;
-        Span(const Span&)noexcept = default;
+        constexpr Span()noexcept = default;
+        constexpr Span(const Span&)noexcept = default;
 
-        Span(T* base, size_type count)noexcept
+        constexpr Span(T* base, size_type count)noexcept
             :base_type(base, count)
         {}
         template<size_type N>
-        Span(T(&arr)[N])noexcept
+        constexpr Span(T(&arr)[N])noexcept
             : base_type(arr, N)
         {
             static_assert(Extent == dynamic_extent || Extent == N, "length not agree!");
         }
         template<size_type N>
-        Span(std::array<T, N>& arr)noexcept
+        constexpr Span(std::array<T, N>& arr)noexcept
             : base_type(arr.data(), N)
         {
             static_assert(Extent == dynamic_extent || Extent == N, "length not agree!");
         }
         template<typename T2, size_type N>
-        Span(const std::array<T2, N>& arr)noexcept
+        constexpr Span(const std::array<T2, N>& arr)noexcept
             : base_type(arr.data(), N)
         {
             static_assert(std::is_const_v<T> && std::is_same_v<value_type, std::remove_cv_t<T2>>, "invalid type!");
         }
         template<typename T2, std::size_t N>
-        Span(const Span<T2, N>& s)noexcept
+        constexpr Span(Span<T2, N> s)noexcept
             :base_type(s.data(), N)
         {
             static_assert(Extent == dynamic_extent || Extent == N, "length not agree!");
@@ -119,11 +119,10 @@ namespace EasyLib {
             :Span(ctn.data(), ctn.size())
         {}
 
-        const pointer   data()const noexcept { return base_type::_Mydata; }
+        constexpr size_type size_bytes()const noexcept { return sizeof(element_type) * size(); }
+        constexpr pointer   data()const noexcept { return base_type::_Mydata; }
         
-        Span& operator = (const Span&)noexcept = default;
-
-        size_type size_bytes()const noexcept { return sizeof(element_type) * size(); }
+        constexpr Span& operator = (const Span&)noexcept = default;
 
         const iterator begin ()const noexcept { return iterator{ base_type::_Mydata }; }
         const iterator end   ()const noexcept { return iterator{ base_type::_Mydata + size() }; }

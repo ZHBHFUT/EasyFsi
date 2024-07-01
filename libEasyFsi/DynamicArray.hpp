@@ -47,7 +47,6 @@ namespace EasyLib {
         _force_inline_ int_l product() { return 1; }
         template<typename ... Args>
         _force_inline_ int_l product(int_l x0, Args ... args) { return x0 * product(args...); }
-
     }
 #endif
 
